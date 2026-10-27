@@ -33,7 +33,15 @@
         // — the duct's top/bottom aren't symmetric about 240 everywhere,
         // so a size alone (no yOff) let later stages' blades poke past
         // the bottom boundary line.
-        { x: 205, wide: 23, size: 185, yOff: -6, component: 'lpCompressor', modes: ['triple', 'twin'] },
+        { x: 205, wide: 23, size: 185, yOff: -6, component: 'lpCompressor', modes: ['triple'] },
+        // Twin-spool's own 5-stage LPC run (distinct from triple's single
+        // compact stage above and single-spool's 7-stage run below) — per
+        // request ("for twin spool engine, I want 5 stages for LPC").
+        { x: 190, wide: 23, size: 187, yOff: -5, component: 'lpCompressor', modes: ['twin'] },
+        { x: 258, wide: 23, size: 177, yOff: -8, component: 'lpCompressor', modes: ['twin'] },
+        { x: 325, wide: 23, size: 164, yOff: -9, component: 'lpCompressor', modes: ['twin'] },
+        { x: 393, wide: 23, size: 147, yOff: -10, component: 'lpCompressor', modes: ['twin'] },
+        { x: 460, wide: 23, size: 135, yOff: -10, component: 'lpCompressor', modes: ['twin'] },
         { x: 190, wide: 23, size: 187, yOff: -5, component: 'lpCompressor', modes: ['single'] },
         { x: 235, wide: 23, size: 181, yOff: -7, component: 'lpCompressor', modes: ['single'] },
         { x: 280, wide: 23, size: 173, yOff: -8, component: 'lpCompressor', modes: ['single'] },
@@ -41,8 +49,13 @@
         { x: 370, wide: 23, size: 153, yOff: -10, component: 'lpCompressor', modes: ['single'] },
         { x: 415, wide: 23, size: 141, yOff: -10, component: 'lpCompressor', modes: ['single'] },
         { x: 460, wide: 23, size: 135, yOff: -10, component: 'lpCompressor', modes: ['single'] },
-        { x: 1001, wide: 28, size: 141, yOff: -16, component: 'lpTurbine' },
-        { x: 1037, wide: 28, size: 125, yOff: -14, component: 'lpTurbine' },
+        { x: 1001, wide: 28, size: 141, yOff: -16, component: 'lpTurbine', modes: ['triple', 'single'] },
+        { x: 1037, wide: 28, size: 125, yOff: -14, component: 'lpTurbine', modes: ['triple', 'single'] },
+        // Twin-spool's own 3-stage LPT run, spread into the extra room
+        // left by the IP turbine's absence ("3 stages of LPT").
+        { x: 950, wide: 28, size: 144, yOff: -15, component: 'lpTurbine', modes: ['twin'] },
+        { x: 994, wide: 28, size: 144, yOff: -16, component: 'lpTurbine', modes: ['twin'] },
+        { x: 1037, wide: 28, size: 125, yOff: -14, component: 'lpTurbine', modes: ['twin'] },
       ],
     },
     {
@@ -66,8 +79,14 @@
         { x: 494, wide: 22, size: 137, yOff: -10, component: 'hpCompressor' },
         { x: 526, wide: 22, size: 139, yOff: -10, component: 'hpCompressor' },
         { x: 558, wide: 22, size: 141, yOff: -10, component: 'hpCompressor' },
-        { x: 833, wide: 25, size: 144, yOff: -13, component: 'hpTurbine' },
-        { x: 867, wide: 25, size: 144, yOff: -14, component: 'hpTurbine' },
+        { x: 833, wide: 25, size: 144, yOff: -13, component: 'hpTurbine', modes: ['triple'] },
+        { x: 867, wide: 25, size: 144, yOff: -14, component: 'hpTurbine', modes: ['triple'] },
+        // Twin-spool's own 3-stage HPT run ("3 stages for HPT"), spread a
+        // bit further aft than triple's 2 since there's no IP turbine
+        // immediately after it to leave room for.
+        { x: 833, wide: 25, size: 144, yOff: -13, component: 'hpTurbine', modes: ['twin'] },
+        { x: 870, wide: 25, size: 144, yOff: -14, component: 'hpTurbine', modes: ['twin'] },
+        { x: 907, wide: 25, size: 144, yOff: -14, component: 'hpTurbine', modes: ['twin'] },
       ],
     },
   ];
