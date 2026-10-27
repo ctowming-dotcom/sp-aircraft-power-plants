@@ -22,7 +22,7 @@
       name: 'Low-Pressure (LP) spool', parts: 'LP fan / LP compressor and LP turbine',
       note: 'LP spool drives the LP fan/compressor and LP turbine',
       stages: [
-        { x: 112, wide: 67, size: 142, component: 'lpFan' },
+        { x: 112, wide: 28, size: 142, component: 'lpFan' },
         // Shared by triple/twin (one compact LP-compressor stage, matching
         // the IP/HP compressor stages' own fit against the core duct
         // lines). Single-spool mode swaps this out for its own 7-stage
