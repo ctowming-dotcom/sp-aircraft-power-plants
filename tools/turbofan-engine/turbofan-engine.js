@@ -24,8 +24,8 @@
       stages: [
         { x: 112, wide: 67, size: 142, component: 'lpFan' },
         { x: 205, wide: 23, size: 78, component: 'lpCompressor' },
-        { x: 1001, wide: 28, size: 86, component: 'lpTurbine' },
-        { x: 1037, wide: 28, size: 83, component: 'lpTurbine' },
+        { x: 1001, wide: 28, size: 148, component: 'lpTurbine' },
+        { x: 1037, wide: 28, size: 131, component: 'lpTurbine' },
       ],
     },
     {
@@ -37,8 +37,8 @@
         { x: 321, wide: 23, size: 78, component: 'ipCompressor' },
         { x: 354, wide: 23, size: 76, component: 'ipCompressor' },
         { x: 387, wide: 23, size: 74, component: 'ipCompressor' },
-        { x: 912, wide: 29, size: 81, component: 'ipTurbine' },
-        { x: 947, wide: 29, size: 81, component: 'ipTurbine' },
+        { x: 912, wide: 29, size: 150, component: 'ipTurbine' },
+        { x: 947, wide: 29, size: 150, component: 'ipTurbine' },
       ],
     },
     {
@@ -46,11 +46,11 @@
       name: 'High-Pressure (HP) spool', parts: 'HP compressor and HP turbine',
       note: 'HP spool drives the HP compressor and HP turbine',
       stages: [
-        { x: 494, wide: 22, size: 62, component: 'hpCompressor' },
-        { x: 526, wide: 22, size: 62, component: 'hpCompressor' },
-        { x: 558, wide: 22, size: 62, component: 'hpCompressor' },
-        { x: 833, wide: 25, size: 68, component: 'hpTurbine' },
-        { x: 867, wide: 25, size: 69, component: 'hpTurbine' },
+        { x: 494, wide: 22, size: 143, component: 'hpCompressor' },
+        { x: 526, wide: 22, size: 145, component: 'hpCompressor' },
+        { x: 558, wide: 22, size: 147, component: 'hpCompressor' },
+        { x: 833, wide: 25, size: 150, component: 'hpTurbine' },
+        { x: 867, wide: 25, size: 150, component: 'hpTurbine' },
       ],
     },
   ];
