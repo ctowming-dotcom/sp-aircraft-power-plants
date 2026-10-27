@@ -23,9 +23,26 @@
       note: 'LP spool drives the LP fan/compressor and LP turbine',
       stages: [
         { x: 112, wide: 67, size: 142, component: 'lpFan' },
-        { x: 205, wide: 23, size: 78, component: 'lpCompressor' },
-        { x: 1001, wide: 28, size: 148, component: 'lpTurbine' },
-        { x: 1037, wide: 28, size: 131, component: 'lpTurbine' },
+        // Shared by triple/twin (one compact LP-compressor stage, matching
+        // the IP/HP compressor stages' own fit against the core duct
+        // lines). Single-spool mode swaps this out for its own 7-stage
+        // run below instead, since it has no separate IP/HP compressor to
+        // share the load with. `yOff` recenters each stage on the core
+        // duct's own local centerline (sampled from the rendered
+        // `tf-core` path) rather than the fixed y=240 the rect math uses
+        // — the duct's top/bottom aren't symmetric about 240 everywhere,
+        // so a size alone (no yOff) let later stages' blades poke past
+        // the bottom boundary line.
+        { x: 205, wide: 23, size: 185, yOff: -6, component: 'lpCompressor', modes: ['triple', 'twin'] },
+        { x: 190, wide: 23, size: 187, yOff: -5, component: 'lpCompressor', modes: ['single'] },
+        { x: 235, wide: 23, size: 181, yOff: -7, component: 'lpCompressor', modes: ['single'] },
+        { x: 280, wide: 23, size: 173, yOff: -8, component: 'lpCompressor', modes: ['single'] },
+        { x: 325, wide: 23, size: 164, yOff: -9, component: 'lpCompressor', modes: ['single'] },
+        { x: 370, wide: 23, size: 153, yOff: -10, component: 'lpCompressor', modes: ['single'] },
+        { x: 415, wide: 23, size: 141, yOff: -10, component: 'lpCompressor', modes: ['single'] },
+        { x: 460, wide: 23, size: 135, yOff: -10, component: 'lpCompressor', modes: ['single'] },
+        { x: 1001, wide: 28, size: 141, yOff: -16, component: 'lpTurbine' },
+        { x: 1037, wide: 28, size: 125, yOff: -14, component: 'lpTurbine' },
       ],
     },
     {
@@ -33,12 +50,12 @@
       name: 'Intermediate-Pressure (IP) spool', parts: 'IP compressor and IP turbine',
       note: 'IP spool drives the IP compressor and IP turbine',
       stages: [
-        { x: 288, wide: 23, size: 82, component: 'ipCompressor' },
-        { x: 321, wide: 23, size: 78, component: 'ipCompressor' },
-        { x: 354, wide: 23, size: 76, component: 'ipCompressor' },
-        { x: 387, wide: 23, size: 74, component: 'ipCompressor' },
-        { x: 912, wide: 29, size: 150, component: 'ipTurbine' },
-        { x: 947, wide: 29, size: 150, component: 'ipTurbine' },
+        { x: 288, wide: 23, size: 172, yOff: -8, component: 'ipCompressor' },
+        { x: 321, wide: 23, size: 165, yOff: -9, component: 'ipCompressor' },
+        { x: 354, wide: 23, size: 157, yOff: -10, component: 'ipCompressor' },
+        { x: 387, wide: 23, size: 149, yOff: -10, component: 'ipCompressor' },
+        { x: 912, wide: 29, size: 144, yOff: -15, component: 'ipTurbine' },
+        { x: 947, wide: 29, size: 144, yOff: -15, component: 'ipTurbine' },
       ],
     },
     {
@@ -46,11 +63,11 @@
       name: 'High-Pressure (HP) spool', parts: 'HP compressor and HP turbine',
       note: 'HP spool drives the HP compressor and HP turbine',
       stages: [
-        { x: 494, wide: 22, size: 143, component: 'hpCompressor' },
-        { x: 526, wide: 22, size: 145, component: 'hpCompressor' },
-        { x: 558, wide: 22, size: 147, component: 'hpCompressor' },
-        { x: 833, wide: 25, size: 150, component: 'hpTurbine' },
-        { x: 867, wide: 25, size: 150, component: 'hpTurbine' },
+        { x: 494, wide: 22, size: 137, yOff: -10, component: 'hpCompressor' },
+        { x: 526, wide: 22, size: 139, yOff: -10, component: 'hpCompressor' },
+        { x: 558, wide: 22, size: 141, yOff: -10, component: 'hpCompressor' },
+        { x: 833, wide: 25, size: 144, yOff: -13, component: 'hpTurbine' },
+        { x: 867, wide: 25, size: 144, yOff: -14, component: 'hpTurbine' },
       ],
     },
   ];
@@ -493,7 +510,7 @@
       spool.stageEls = [];
       spool.stages.forEach(function (st, idx) {
         var group = elt('g', {}, stageRoot);
-        var x = st.x, y = 240, H = st.size, w = st.wide;
+        var x = st.x, y = 240 + (st.yOff || 0), H = st.size, w = st.wide;
         elt('rect', { x: x - w / 2, y: y - H / 2, width: w, height: H, rx: 5, fill: spool.color, opacity: 0.2 }, group);
         for (var z = 0; z < 6; z++) {
           var yy = y - H / 2 + z * (H / 6) + 2;
@@ -515,15 +532,18 @@
       return getVisibleSpools().indexOf(spool) + 1;
     }
 
+    function stageActiveInMode(st) {
+      return !st.modes || st.modes.indexOf(currentMode) !== -1;
+    }
     function componentCenter(names) {
       var xs = [];
-      SPOOLS.forEach(function (spool) { spool.stages.forEach(function (st) { if (names.indexOf(st.component) !== -1) xs.push(st.x); }); });
+      SPOOLS.forEach(function (spool) { spool.stages.forEach(function (st) { if (names.indexOf(st.component) !== -1 && stageActiveInMode(st)) xs.push(st.x); }); });
       return xs.reduce(function (a, b) { return a + b; }, 0) / xs.length;
     }
     function componentSpan(names, pad) {
       pad = pad == null ? 18 : pad;
       var xs = [];
-      SPOOLS.forEach(function (spool) { spool.stages.forEach(function (st) { if (names.indexOf(st.component) !== -1) xs.push({ left: st.x - st.wide / 2, right: st.x + st.wide / 2 }); }); });
+      SPOOLS.forEach(function (spool) { spool.stages.forEach(function (st) { if (names.indexOf(st.component) !== -1 && stageActiveInMode(st)) xs.push({ left: st.x - st.wide / 2, right: st.x + st.wide / 2 }); }); });
       return { left: Math.min.apply(null, xs.map(function (v) { return v.left; })) - pad, right: Math.max.apply(null, xs.map(function (v) { return v.right; })) + pad };
     }
     function makeTopLabel(center, lines, span) {
@@ -544,7 +564,7 @@
       topLabelsRoot.innerHTML = '';
 
       if (currentMode === 'single') {
-        makeTopLabel(componentCenter(['lpFan']), ['FAN /', 'COMPRESSOR'], componentSpan(['lpFan']));
+        makeTopLabel(componentCenter(['lpFan', 'lpCompressor']), ['FAN /', 'COMPRESSOR'], componentSpan(['lpFan', 'lpCompressor']));
         makeTopLabel(721, ['COMBUSTOR'], { left: 640, right: 802 });
         makeTopLabel(componentCenter(['lpTurbine']), ['TURBINE'], componentSpan(['lpTurbine']));
         return;
@@ -653,7 +673,10 @@
         var visible = conf.visible.indexOf(spool.id) !== -1;
         var shaftEl = wrap.querySelector('.tf-shaft' + spool.id);
         if (shaftEl) shaftEl.style.display = visible ? '' : 'none';
-        spool.stageEls.forEach(function (s) { s.group.style.display = visible ? '' : 'none'; });
+        spool.stageEls.forEach(function (s) {
+          var stageVisible = visible && (!s.st.modes || s.st.modes.indexOf(currentMode) !== -1);
+          s.group.style.display = stageVisible ? '' : 'none';
+        });
       });
 
       renderTopLabels();
@@ -717,7 +740,7 @@
         if (spool.rotorEl) spool.rotorEl.setAttribute('transform', 'rotate(' + spool.angle + ' 110 110)');
         spool.stageEls.forEach(function (s) {
           var ph = (spool.angle / 360 + s.index * 0.14) % 1;
-          s.mark.setAttribute('y', 240 - s.st.size / 2 + (s.st.size - 11) * ph);
+          s.mark.setAttribute('y', 240 + (s.st.yOff || 0) - s.st.size / 2 + (s.st.size - 11) * ph);
           s.mark.setAttribute('opacity', visible ? (0.08 + 0.2 * Math.abs(Math.sin((spool.angle * Math.PI / 180) + s.index))) : 0);
         });
       });
