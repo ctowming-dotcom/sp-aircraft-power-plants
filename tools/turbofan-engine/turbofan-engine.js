@@ -34,14 +34,19 @@
         // so a size alone (no yOff) let later stages' blades poke past
         // the bottom boundary line.
         { x: 205, wide: 23, size: 185, yOff: -6, component: 'lpCompressor', modes: ['triple'] },
-        // Twin-spool's own 5-stage LPC run (distinct from triple's single
-        // compact stage above and single-spool's 7-stage run below) — per
-        // request ("for twin spool engine, I want 5 stages for LPC").
-        { x: 190, wide: 23, size: 187, yOff: -5, component: 'lpCompressor', modes: ['twin'] },
-        { x: 258, wide: 23, size: 177, yOff: -8, component: 'lpCompressor', modes: ['twin'] },
-        { x: 325, wide: 23, size: 164, yOff: -9, component: 'lpCompressor', modes: ['twin'] },
-        { x: 393, wide: 23, size: 147, yOff: -10, component: 'lpCompressor', modes: ['twin'] },
-        { x: 460, wide: 23, size: 135, yOff: -10, component: 'lpCompressor', modes: ['twin'] },
+        // Twin-spool's own 7-stage LPC run (distinct from triple's single
+        // compact stage above and single-spool's 7-stage run below) —
+        // compacted into a tighter span (was 5 stages spread 190-460) so
+        // a clear gap opens up before the HP compressor's first stage at
+        // x:494, per request ("increase the number of stages to 7 and
+        // compact the LPC together, leave a gap between LPC and HPC").
+        { x: 180, wide: 20, size: 188, yOff: -5, component: 'lpCompressor', modes: ['twin'] },
+        { x: 217, wide: 20, size: 184, yOff: -6, component: 'lpCompressor', modes: ['twin'] },
+        { x: 254, wide: 20, size: 178, yOff: -8, component: 'lpCompressor', modes: ['twin'] },
+        { x: 291, wide: 20, size: 171, yOff: -8, component: 'lpCompressor', modes: ['twin'] },
+        { x: 328, wide: 20, size: 163, yOff: -9, component: 'lpCompressor', modes: ['twin'] },
+        { x: 365, wide: 20, size: 154, yOff: -10, component: 'lpCompressor', modes: ['twin'] },
+        { x: 402, wide: 20, size: 145, yOff: -10, component: 'lpCompressor', modes: ['twin'] },
         { x: 190, wide: 23, size: 187, yOff: -5, component: 'lpCompressor', modes: ['single'] },
         { x: 235, wide: 23, size: 181, yOff: -7, component: 'lpCompressor', modes: ['single'] },
         { x: 280, wide: 23, size: 173, yOff: -8, component: 'lpCompressor', modes: ['single'] },
