@@ -594,6 +594,7 @@
         return;
       }
       makeTopLabel(componentCenter(['lpFan']), ['LP FAN'], componentSpan(['lpFan']));
+      makeTopLabel(componentCenter(['lpCompressor']), ['LP', 'COMPRESSOR'], componentSpan(['lpCompressor']));
       if (currentMode === 'twin') {
         makeTopLabel(componentCenter(['hpCompressor']), ['HP', 'COMPRESSOR'], componentSpan(['hpCompressor']));
         makeTopLabel(721, ['COMBUSTOR'], { left: 640, right: 802 });
