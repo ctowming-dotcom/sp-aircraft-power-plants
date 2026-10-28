@@ -256,7 +256,7 @@
       '<span class="tf-note tf-mode-desc"></span>' +
       '</div>' +
 
-      '<svg class="tf-engine-svg" viewBox="0 0 1180 475" role="img" aria-label="Animated schematic of a selectable single, twin, or triple spool turbofan engine">' +
+      '<svg class="tf-engine-svg" viewBox="0 0 1180 500" role="img" aria-label="Animated schematic of a selectable single, twin, or triple spool turbofan engine">' +
       '<defs>' +
       '<linearGradient id="tf-shell" x2="0" y2="1"><stop stop-color="#6c859a"/><stop offset=".3" stop-color="#263d52"/><stop offset="1" stop-color="#5e798b"/></linearGradient>' +
       '<linearGradient id="tf-core" x2="0" y2="1"><stop stop-color="#1e3b4d"/><stop offset=".5" stop-color="#0e1e29"/><stop offset="1" stop-color="#304c5c"/></linearGradient>' +
@@ -266,6 +266,14 @@
       '<pattern id="tf-stripeHP" width="15" height="14" patternUnits="userSpaceOnUse"><path d="M0 0L12 14" stroke="#ffd3ae" stroke-width="4" opacity=".75"/></pattern>' +
       '</defs>' +
 
+      // Everything that makes up the engine body (shell, ducts, shafts,
+      // stages, part markers) is nested in this one group and nudged
+      // down 25px — the top labels group below is deliberately left
+      // outside it so it stays pinned near the viewBox's own top edge,
+      // opening up clearance between the label row and the nacelle's
+      // own leading curve, which was tall enough there to cut into the
+      // "LP COMPRESSOR" label added above the LPC stage.
+      '<g class="tf-engine-body" transform="translate(0, 25)">' +
       '<path d="M58 73Q76 30 139 37L465 64Q550 72 630 60L1000 65L1120 130L1120 322L1000 390L630 405Q560 397 465 407L140 428Q72 422 58 380Z" fill="url(#tf-shell)" stroke="#abc4d6" stroke-width="3"></path>' +
       '<path d="M69 103L140 94L425 128L1000 112L1100 151L1100 304L1000 344L425 352L140 388L69 368" fill="#0a273c" stroke="#4a7c9b" stroke-width="3"></path>' +
       '<path d="M171 133Q290 133 440 155L627 150L996 144L1090 171L1090 287L996 304L627 311L440 305Q290 327 171 338Z" fill="url(#tf-core)" stroke="#b9cada" stroke-width="4"></path>' +
@@ -294,8 +302,9 @@
       '</g>' +
 
       '<g class="tf-stages"></g>' +
-      '<g class="tf-top-labels"></g>' +
       '<g class="tf-part-markers"></g>' +
+      '</g>' +
+      '<g class="tf-top-labels"></g>' +
       '</svg>' +
 
       '<div class="tf-tooltip"><span class="t-title"></span><span class="t-desc"></span></div>' +
@@ -359,6 +368,7 @@
 
     var wrap = container.querySelector('.turbofan-diagram');
     var svg = wrap.querySelector('.tf-engine-svg');
+    var engineBody = wrap.querySelector('.tf-engine-body');
     var stageRoot = wrap.querySelector('.tf-stages');
     var topLabelsRoot = wrap.querySelector('.tf-top-labels');
     var partMarkerRoot = wrap.querySelector('.tf-part-markers');
@@ -410,7 +420,12 @@
     function svgPoint(evt) {
       var pt = svg.createSVGPoint();
       pt.x = evt.clientX; pt.y = evt.clientY;
-      return pt.matrixTransform(svg.getScreenCTM().inverse());
+      // Part markers live inside .tf-engine-body, which carries its own
+      // translate (see mount() above) separate from the top labels — use
+      // that group's own screen CTM so dragged coordinates land back in
+      // the same local space PART_LABELS.x/y are stored in, not the
+      // outer <svg>'s un-translated space.
+      return pt.matrixTransform(engineBody.getScreenCTM().inverse());
     }
 
     function formatPartLabels() {
