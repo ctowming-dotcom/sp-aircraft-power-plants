@@ -181,20 +181,20 @@
   // Shared by all three engine modes, like the shell/mid/core/combustor
   // shapes, since the bypass duct's own shape doesn't change per mode.
   var TOP_FLOW = [
-    { x: 45, y: 91 },
-    { x: 140, y: 57 },
-    { x: 427, y: 81 },
-    { x: 750, y: 85 },
-    { x: 1002, y: 92 },
-    { x: 1176, y: 183 },
+    { x: 43, y: 134 },
+    { x: 153, y: 83 },
+    { x: 444, y: 117 },
+    { x: 748, y: 117 },
+    { x: 997, y: 115 },
+    { x: 1146, y: 184 },
   ];
   var BOTTOM_FLOW = [
-    { x: 44, y: 392 },
-    { x: 128, y: 422 },
-    { x: 425, y: 396 },
-    { x: 660, y: 395 },
-    { x: 1001, y: 389 },
-    { x: 1174, y: 294 },
+    { x: 43, y: 352 },
+    { x: 151, y: 398 },
+    { x: 438, y: 367 },
+    { x: 796, y: 368 },
+    { x: 997, y: 366 },
+    { x: 1156, y: 292 },
   ];
   // Second pair of flow lines, drawn just inside the core duct's own
   // top/bottom boundary (not the bypass duct the lines above sit in) —
@@ -209,7 +209,7 @@
     { x: 541, y: 179 },
     { x: 727, y: 181 },
     { x: 940, y: 185 },
-    { x: 1174, y: 203 },
+    { x: 1146, y: 206 },
   ];
   var CORE_BOTTOM_FLOW = [
     { x: 47, y: 310 },
@@ -217,7 +217,7 @@
     { x: 541, y: 311 },
     { x: 756, y: 309 },
     { x: 943, y: 310 },
-    { x: 1172, y: 270 },
+    { x: 1157, y: 262 },
   ];
   var STORAGE_KEY_TOP_FLOW = 'tm.turbofanEngine.topFlow';
   var STORAGE_KEY_BOTTOM_FLOW = 'tm.turbofanEngine.bottomFlow';
