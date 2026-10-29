@@ -204,20 +204,20 @@
   // the core, now blue) from the primary/core air actually passing
   // through the compressors, combustor, and turbines (red).
   var CORE_TOP_FLOW = [
-    { x: 180, y: 118 },
-    { x: 350, y: 129 },
-    { x: 550, y: 145 },
-    { x: 750, y: 145 },
-    { x: 950, y: 145 },
-    { x: 1070, y: 175 },
+    { x: 49, y: 183 },
+    { x: 350, y: 178 },
+    { x: 541, y: 179 },
+    { x: 727, y: 181 },
+    { x: 940, y: 185 },
+    { x: 1174, y: 203 },
   ];
   var CORE_BOTTOM_FLOW = [
-    { x: 180, y: 362 },
-    { x: 350, y: 351 },
-    { x: 550, y: 335 },
-    { x: 750, y: 335 },
-    { x: 950, y: 335 },
-    { x: 1070, y: 305 },
+    { x: 46, y: 327 },
+    { x: 345, y: 319 },
+    { x: 541, y: 311 },
+    { x: 756, y: 309 },
+    { x: 943, y: 310 },
+    { x: 1172, y: 270 },
   ];
   var STORAGE_KEY_TOP_FLOW = 'tm.turbofanEngine.topFlow';
   var STORAGE_KEY_BOTTOM_FLOW = 'tm.turbofanEngine.bottomFlow';
