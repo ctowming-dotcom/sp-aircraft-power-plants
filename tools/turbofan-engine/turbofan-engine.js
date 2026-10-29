@@ -196,8 +196,33 @@
     { x: 1001, y: 389 },
     { x: 1174, y: 294 },
   ];
+  // Second pair of flow lines, drawn just inside the core duct's own
+  // top/bottom boundary (not the bypass duct the lines above sit in) —
+  // added by request ("create another broken red line with moving
+  // arrows inside engine (top and bottom) and indicate as (Primary/
+  // Core) airflow"), so the diagram distinguishes bypass air (outside
+  // the core, now blue) from the primary/core air actually passing
+  // through the compressors, combustor, and turbines (red).
+  var CORE_TOP_FLOW = [
+    { x: 180, y: 118 },
+    { x: 350, y: 129 },
+    { x: 550, y: 145 },
+    { x: 750, y: 145 },
+    { x: 950, y: 145 },
+    { x: 1070, y: 175 },
+  ];
+  var CORE_BOTTOM_FLOW = [
+    { x: 180, y: 362 },
+    { x: 350, y: 351 },
+    { x: 550, y: 335 },
+    { x: 750, y: 335 },
+    { x: 950, y: 335 },
+    { x: 1070, y: 305 },
+  ];
   var STORAGE_KEY_TOP_FLOW = 'tm.turbofanEngine.topFlow';
   var STORAGE_KEY_BOTTOM_FLOW = 'tm.turbofanEngine.bottomFlow';
+  var STORAGE_KEY_CORE_TOP_FLOW = 'tm.turbofanEngine.coreTopFlow';
+  var STORAGE_KEY_CORE_BOTTOM_FLOW = 'tm.turbofanEngine.coreBottomFlow';
 
   function restoreFlow(arr, key) {
     try {
@@ -217,6 +242,8 @@
   }
   restoreFlow(TOP_FLOW, STORAGE_KEY_TOP_FLOW);
   restoreFlow(BOTTOM_FLOW, STORAGE_KEY_BOTTOM_FLOW);
+  restoreFlow(CORE_TOP_FLOW, STORAGE_KEY_CORE_TOP_FLOW);
+  restoreFlow(CORE_BOTTOM_FLOW, STORAGE_KEY_CORE_BOTTOM_FLOW);
 
   // Per-mode content for the "shaft arrangement" panel — a reference
   // cutaway matched to the mode's own shaft count (not a single
@@ -312,6 +339,7 @@
       '<pattern id="tf-stripeIP" width="19" height="14" patternUnits="userSpaceOnUse"><path d="M0 0L15 14" stroke="#abffce" stroke-width="4" opacity=".75"/></pattern>' +
       '<pattern id="tf-stripeHP" width="15" height="14" patternUnits="userSpaceOnUse"><path d="M0 0L12 14" stroke="#ffd3ae" stroke-width="4" opacity=".75"/></pattern>' +
       '<marker id="tf-flow-arrow" markerWidth="10" markerHeight="10" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#ff3b3b"></path></marker>' +
+      '<marker id="tf-flow-arrow-blue" markerWidth="10" markerHeight="10" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#4da8ff"></path></marker>' +
       '</defs>' +
 
       // Everything that makes up the engine body (shell, ducts, shafts,
@@ -362,8 +390,12 @@
 
       '<g class="tf-stages"></g>' +
       '<g class="tf-part-markers"></g>' +
-      '<path class="tf-flow-line tf-flow-line-top"></path>' +
-      '<path class="tf-flow-line tf-flow-line-bottom"></path>' +
+      '<path class="tf-flow-line tf-flow-line-blue tf-flow-line-top"></path>' +
+      '<path class="tf-flow-line tf-flow-line-blue tf-flow-line-bottom"></path>' +
+      '<text class="tf-flow-caption tf-flow-caption-blue" x="750" y="72" text-anchor="middle">Bypass Air</text>' +
+      '<path class="tf-flow-line tf-flow-line-red tf-flow-line-core-top"></path>' +
+      '<path class="tf-flow-line tf-flow-line-red tf-flow-line-core-bottom"></path>' +
+      '<text class="tf-flow-caption tf-flow-caption-red" x="750" y="135" text-anchor="middle">Primary / Core</text>' +
       '<g class="tf-flow-handles"></g>' +
       '</g>' +
       '<g class="tf-top-labels"></g>' +
@@ -436,6 +468,8 @@
     var partMarkerRoot = wrap.querySelector('.tf-part-markers');
     var flowLineTop = wrap.querySelector('.tf-flow-line-top');
     var flowLineBottom = wrap.querySelector('.tf-flow-line-bottom');
+    var flowLineCoreTop = wrap.querySelector('.tf-flow-line-core-top');
+    var flowLineCoreBottom = wrap.querySelector('.tf-flow-line-core-bottom');
     var flowHandleRoot = wrap.querySelector('.tf-flow-handles');
     var rotorsRoot = wrap.querySelector('.tf-rotors');
     var controlsRoot = wrap.querySelector('.tf-controls');
@@ -505,7 +539,8 @@
         var lines = arr.map(function (p) { return '    { x: ' + Math.round(p.x) + ', y: ' + Math.round(p.y) + ' },'; });
         return '  var ' + name + ' = [\n' + lines.join('\n') + '\n  ];';
       }
-      return fmt(TOP_FLOW, 'TOP_FLOW') + '\n' + fmt(BOTTOM_FLOW, 'BOTTOM_FLOW');
+      return fmt(TOP_FLOW, 'TOP_FLOW') + '\n' + fmt(BOTTOM_FLOW, 'BOTTOM_FLOW') + '\n' +
+        fmt(CORE_TOP_FLOW, 'CORE_TOP_FLOW') + '\n' + fmt(CORE_BOTTOM_FLOW, 'CORE_BOTTOM_FLOW');
     }
     function updateEditPanel() {
       if (!editUnlocked) return;
@@ -513,6 +548,8 @@
       persistPartLabels();
       persistFlow(TOP_FLOW, STORAGE_KEY_TOP_FLOW);
       persistFlow(BOTTOM_FLOW, STORAGE_KEY_BOTTOM_FLOW);
+      persistFlow(CORE_TOP_FLOW, STORAGE_KEY_CORE_TOP_FLOW);
+      persistFlow(CORE_BOTTOM_FLOW, STORAGE_KEY_CORE_BOTTOM_FLOW);
     }
 
     function renderPartMarkers() {
@@ -581,13 +618,16 @@
     }
     renderPartMarkers();
 
-    // --- animated red airflow lines (top + bottom bypass duct) ---
+    // --- animated airflow lines: blue bypass duct (outer) + red
+    // primary/core duct (inner), top and bottom of each ---
     function pointsToPath(points) {
       return points.map(function (p, i) { return (i ? 'L' : 'M') + p.x + ' ' + p.y; }).join('');
     }
     function renderFlowLines() {
       flowLineTop.setAttribute('d', pointsToPath(TOP_FLOW));
       flowLineBottom.setAttribute('d', pointsToPath(BOTTOM_FLOW));
+      flowLineCoreTop.setAttribute('d', pointsToPath(CORE_TOP_FLOW));
+      flowLineCoreBottom.setAttribute('d', pointsToPath(CORE_BOTTOM_FLOW));
     }
     renderFlowLines();
 
@@ -628,6 +668,8 @@
       }
       addSet(TOP_FLOW, 'tf-flow-handle-top');
       addSet(BOTTOM_FLOW, 'tf-flow-handle-bottom');
+      addSet(CORE_TOP_FLOW, 'tf-flow-handle-core-top');
+      addSet(CORE_BOTTOM_FLOW, 'tf-flow-handle-core-bottom');
     }
     renderFlowHandles();
 

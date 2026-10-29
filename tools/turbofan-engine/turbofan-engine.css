@@ -427,13 +427,37 @@
 
 .turbofan-diagram .tf-flow-line {
   fill: none;
-  stroke: #ff3b3b;
   stroke-width: 3;
   stroke-linecap: round;
   stroke-dasharray: 10 8;
-  marker-end: url(#tf-flow-arrow);
   animation: tf-flowmove 0.6s linear infinite;
   opacity: 0.9;
+}
+
+.turbofan-diagram .tf-flow-line-red {
+  stroke: #ff3b3b;
+  marker-end: url(#tf-flow-arrow);
+}
+
+.turbofan-diagram .tf-flow-line-blue {
+  stroke: #4da8ff;
+  marker-end: url(#tf-flow-arrow-blue);
+}
+
+.turbofan-diagram .tf-flow-caption {
+  font-family: var(--font-display, inherit);
+  font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+  user-select: none;
+}
+
+.turbofan-diagram .tf-flow-caption-blue {
+  fill: #9ecfff;
+}
+
+.turbofan-diagram .tf-flow-caption-red {
+  fill: #ffb3ad;
 }
 
 @keyframes tf-flowmove {
@@ -459,11 +483,16 @@
 }
 
 .turbofan-diagram .tf-flow-handle-box {
-  fill: #ff3b3b;
+  fill: #4da8ff;
   stroke: #fff;
   stroke-width: 1.5;
   cursor: grab;
   touch-action: none;
+}
+
+.turbofan-diagram .tf-flow-handle-core-top .tf-flow-handle-box,
+.turbofan-diagram .tf-flow-handle-core-bottom .tf-flow-handle-box {
+  fill: #ff3b3b;
 }
 
 .turbofan-diagram .tf-flow-handle-box.dragging {
