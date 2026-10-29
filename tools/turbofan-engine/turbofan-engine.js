@@ -22,45 +22,44 @@
       name: 'Low-Pressure (LP) spool', parts: 'LP fan / LP compressor and LP turbine',
       note: 'LP spool drives the LP fan/compressor and LP turbine',
       stages: [
-        { x: 112, wide: 28, size: 260, yOff: -1, component: 'lpFan' },
-        // Shared by triple/twin (one compact LP-compressor stage, matching
+        { x: 112, wide: 28, size: 303, component: 'lpFan' },
+        // Shared by triple (one compact LP-compressor stage, matching
         // the IP/HP compressor stages' own fit against the core duct
-        // lines). Single-spool mode swaps this out for its own 7-stage
-        // run below instead, since it has no separate IP/HP compressor to
-        // share the load with. `yOff` recenters each stage on the core
-        // duct's own local centerline (sampled from the rendered
-        // `tf-core` path) rather than the fixed y=240 the rect math uses
-        // — the duct's top/bottom aren't symmetric about 240 everywhere,
-        // so a size alone (no yOff) let later stages' blades poke past
-        // the bottom boundary line.
-        { x: 205, wide: 23, size: 185, yOff: -6, component: 'lpCompressor', modes: ['triple'] },
+        // lines). Twin- and single-spool mode each swap this out for
+        // their own multi-stage run below instead. Every stage's `size`
+        // is fitted against the shell/mid/core boundaries, which are now
+        // each individually symmetric around y:240 (see the shell/mid/
+        // core path comment above), so a plain size centered on y:240
+        // (no yOff needed any more) already sits flush without poking
+        // past either boundary line.
+        { x: 205, wide: 23, size: 257, component: 'lpCompressor', modes: ['triple'] },
         // Twin-spool's own 7-stage LPC run (distinct from triple's single
         // compact stage above and single-spool's 7-stage run below) —
-        // compacted into a tighter span (was 5 stages spread 190-460) so
-        // a clear gap opens up before the HP compressor's first stage at
-        // x:494, per request ("increase the number of stages to 7 and
-        // compact the LPC together, leave a gap between LPC and HPC").
-        { x: 180, wide: 20, size: 188, yOff: -5, component: 'lpCompressor', modes: ['twin'] },
-        { x: 217, wide: 20, size: 184, yOff: -6, component: 'lpCompressor', modes: ['twin'] },
-        { x: 254, wide: 20, size: 178, yOff: -8, component: 'lpCompressor', modes: ['twin'] },
-        { x: 291, wide: 20, size: 171, yOff: -8, component: 'lpCompressor', modes: ['twin'] },
-        { x: 328, wide: 20, size: 163, yOff: -9, component: 'lpCompressor', modes: ['twin'] },
-        { x: 365, wide: 20, size: 154, yOff: -10, component: 'lpCompressor', modes: ['twin'] },
-        { x: 402, wide: 20, size: 145, yOff: -10, component: 'lpCompressor', modes: ['twin'] },
-        { x: 190, wide: 23, size: 187, yOff: -5, component: 'lpCompressor', modes: ['single'] },
-        { x: 235, wide: 23, size: 181, yOff: -7, component: 'lpCompressor', modes: ['single'] },
-        { x: 280, wide: 23, size: 173, yOff: -8, component: 'lpCompressor', modes: ['single'] },
-        { x: 325, wide: 23, size: 164, yOff: -9, component: 'lpCompressor', modes: ['single'] },
-        { x: 370, wide: 23, size: 153, yOff: -10, component: 'lpCompressor', modes: ['single'] },
-        { x: 415, wide: 23, size: 141, yOff: -10, component: 'lpCompressor', modes: ['single'] },
-        { x: 460, wide: 23, size: 135, yOff: -10, component: 'lpCompressor', modes: ['single'] },
-        { x: 1001, wide: 28, size: 141, yOff: -16, component: 'lpTurbine', modes: ['triple', 'single'] },
-        { x: 1037, wide: 28, size: 125, yOff: -14, component: 'lpTurbine', modes: ['triple', 'single'] },
+        // compacted into a tighter span so a clear gap opens up before
+        // the HP compressor's first stage at x:494, per request
+        // ("increase the number of stages to 7 and compact the LPC
+        // together, leave a gap between LPC and HPC").
+        { x: 180, wide: 20, size: 258, component: 'lpCompressor', modes: ['twin'] },
+        { x: 217, wide: 20, size: 256, component: 'lpCompressor', modes: ['twin'] },
+        { x: 254, wide: 20, size: 252, component: 'lpCompressor', modes: ['twin'] },
+        { x: 291, wide: 20, size: 245, component: 'lpCompressor', modes: ['twin'] },
+        { x: 328, wide: 20, size: 237, component: 'lpCompressor', modes: ['twin'] },
+        { x: 365, wide: 20, size: 226, component: 'lpCompressor', modes: ['twin'] },
+        { x: 402, wide: 20, size: 215, component: 'lpCompressor', modes: ['twin'] },
+        { x: 190, wide: 23, size: 258, component: 'lpCompressor', modes: ['single'] },
+        { x: 235, wide: 23, size: 254, component: 'lpCompressor', modes: ['single'] },
+        { x: 280, wide: 23, size: 247, component: 'lpCompressor', modes: ['single'] },
+        { x: 325, wide: 23, size: 238, component: 'lpCompressor', modes: ['single'] },
+        { x: 370, wide: 23, size: 225, component: 'lpCompressor', modes: ['single'] },
+        { x: 415, wide: 23, size: 210, component: 'lpCompressor', modes: ['single'] },
+        { x: 460, wide: 23, size: 202, component: 'lpCompressor', modes: ['single'] },
+        { x: 1001, wide: 28, size: 199, component: 'lpTurbine', modes: ['triple', 'single'] },
+        { x: 1037, wide: 28, size: 171, component: 'lpTurbine', modes: ['triple', 'single'] },
         // Twin-spool's own 3-stage LPT run, spread into the extra room
         // left by the IP turbine's absence ("3 stages of LPT").
-        { x: 950, wide: 28, size: 144, yOff: -15, component: 'lpTurbine', modes: ['twin'] },
-        { x: 994, wide: 28, size: 144, yOff: -16, component: 'lpTurbine', modes: ['twin'] },
-        { x: 1037, wide: 28, size: 125, yOff: -14, component: 'lpTurbine', modes: ['twin'] },
+        { x: 950, wide: 28, size: 203, component: 'lpTurbine', modes: ['twin'] },
+        { x: 994, wide: 28, size: 203, component: 'lpTurbine', modes: ['twin'] },
+        { x: 1037, wide: 28, size: 171, component: 'lpTurbine', modes: ['twin'] },
       ],
     },
     {
@@ -68,12 +67,12 @@
       name: 'Intermediate-Pressure (IP) spool', parts: 'IP compressor and IP turbine',
       note: 'IP spool drives the IP compressor and IP turbine',
       stages: [
-        { x: 288, wide: 23, size: 172, yOff: -8, component: 'ipCompressor' },
-        { x: 321, wide: 23, size: 165, yOff: -9, component: 'ipCompressor' },
-        { x: 354, wide: 23, size: 157, yOff: -10, component: 'ipCompressor' },
-        { x: 387, wide: 23, size: 149, yOff: -10, component: 'ipCompressor' },
-        { x: 912, wide: 29, size: 144, yOff: -15, component: 'ipTurbine' },
-        { x: 947, wide: 29, size: 144, yOff: -15, component: 'ipTurbine' },
+        { x: 288, wide: 23, size: 246, component: 'ipCompressor' },
+        { x: 321, wide: 23, size: 238, component: 'ipCompressor' },
+        { x: 354, wide: 23, size: 230, component: 'ipCompressor' },
+        { x: 387, wide: 23, size: 220, component: 'ipCompressor' },
+        { x: 912, wide: 29, size: 204, component: 'ipTurbine' },
+        { x: 947, wide: 29, size: 203, component: 'ipTurbine' },
       ],
     },
     {
@@ -81,17 +80,17 @@
       name: 'High-Pressure (HP) spool', parts: 'HP compressor and HP turbine',
       note: 'HP spool drives the HP compressor and HP turbine',
       stages: [
-        { x: 494, wide: 22, size: 137, yOff: -10, component: 'hpCompressor' },
-        { x: 526, wide: 22, size: 139, yOff: -10, component: 'hpCompressor' },
-        { x: 558, wide: 22, size: 141, yOff: -10, component: 'hpCompressor' },
-        { x: 833, wide: 25, size: 144, yOff: -13, component: 'hpTurbine', modes: ['triple'] },
-        { x: 867, wide: 25, size: 144, yOff: -14, component: 'hpTurbine', modes: ['triple'] },
+        { x: 494, wide: 22, size: 202, component: 'hpCompressor' },
+        { x: 526, wide: 22, size: 203, component: 'hpCompressor' },
+        { x: 558, wide: 22, size: 204, component: 'hpCompressor' },
+        { x: 833, wide: 25, size: 204, component: 'hpTurbine', modes: ['triple'] },
+        { x: 867, wide: 25, size: 204, component: 'hpTurbine', modes: ['triple'] },
         // Twin-spool's own 3-stage HPT run ("3 stages for HPT"), spread a
         // bit further aft than triple's 2 since there's no IP turbine
         // immediately after it to leave room for.
-        { x: 833, wide: 25, size: 144, yOff: -13, component: 'hpTurbine', modes: ['twin'] },
-        { x: 870, wide: 25, size: 144, yOff: -14, component: 'hpTurbine', modes: ['twin'] },
-        { x: 907, wide: 25, size: 144, yOff: -14, component: 'hpTurbine', modes: ['twin'] },
+        { x: 833, wide: 25, size: 204, component: 'hpTurbine', modes: ['twin'] },
+        { x: 870, wide: 25, size: 204, component: 'hpTurbine', modes: ['twin'] },
+        { x: 907, wide: 25, size: 204, component: 'hpTurbine', modes: ['twin'] },
       ],
     },
   ];
@@ -274,15 +273,19 @@
       // own leading curve, which was tall enough there to cut into the
       // "LP COMPRESSOR" label added above the LPC stage.
       '<g class="tf-engine-body" transform="translate(0, 25)">' +
-      '<path d="M58 73Q76 30 139 37L465 64Q550 72 630 60L1000 65L1120 130L1120 322L1000 390L630 405Q560 397 465 407L140 428Q72 422 58 380Z" fill="url(#tf-shell)" stroke="#abc4d6" stroke-width="3"></path>' +
-      '<path d="M69 103L140 94L425 128L1000 112L1100 151L1100 304L1000 344L425 352L140 388L69 368" fill="#0a273c" stroke="#4a7c9b" stroke-width="3"></path>' +
-      '<path d="M171 133Q290 133 440 155L627 150L996 144L1090 171L1090 287L996 304L627 311L440 305Q290 327 171 338Z" fill="url(#tf-core)" stroke="#b9cada" stroke-width="4"></path>' +
-
-      '<g fill="none" stroke="#6abce9" stroke-width="5" opacity=".78">' +
-      '<path d="M4 127H50M170 95Q430 95 650 90L1025 95"></path>' +
-      '<path d="M170 377Q440 375 650 380L1025 375"></path>' +
-      '<path d="M1045 98l-14 -8m14 8l-14 8M1045 375l-14 -8m14 8l-14 8"></path>' +
-      '</g>' +
+      // Shell/mid/core boundaries are each individually symmetric around
+      // y:240 (the shaft centerline) now, instead of hand-tuned top/
+      // bottom values that didn't quite match — mirroring each path
+      // around the same centerline guarantees every gap between two of
+      // them is automatically even top-to-bottom too, per request
+      // ("Even space between the upper portion and the bottom portion").
+      // The mid and core boundaries were also pulled outward (toward the
+      // shell, and toward mid respectively) to shrink those bands,
+      // per request ("space between the outer casing and inner casing
+      // to be smaller").
+      '<path d="M58 86.5Q76 44 139 44.5L465 68.5Q550 77.5 630 67.5L1000 77.5L1120 144L1120 336L1000 402.5L630 412.5Q560 402.5 465 411.5L140 435.5Q72 436 58 393.5Z" fill="url(#tf-shell)" stroke="#abc4d6" stroke-width="3"></path>' +
+      '<path d="M69 97L140 69L425 98L1000 101L1100 154L1100 326L1000 379L425 382L140 411L69 383" fill="#0a273c" stroke="#4a7c9b" stroke-width="3"></path>' +
+      '<path d="M171 103Q290 103 440 131.5L627 129L996 130.5L1090 168L1090 312L996 349.5L627 351L440 348.5Q290 377 171 377Z" fill="url(#tf-core)" stroke="#b9cada" stroke-width="4"></path>' +
 
       '<path d="M608 188L805 186L859 215L859 273L805 294L608 289Z" fill="#55251d" stroke="#e88948" stroke-width="3"></path>' +
       '<path d="M645 219L802 215L839 239L802 259L645 261" fill="url(#tf-flame)" opacity=".88"></path>' +
