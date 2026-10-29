@@ -941,7 +941,7 @@
       '</defs></svg>' +
       '<div class="tf-bypass-card">' +
       '<h3>Low Bypass</h3>' +
-      bypassSvg({ fanR: 28, coreR: 24 }) +
+      bypassSvg({ fanR: 28, coreR: 17 }) +
       '<div class="tf-bypass-stats"><div>Typical BPR<b>0.3 – 2</b></div><div>Fan size<b>Small</b></div><div>Core share<b>Most of the airflow</b></div></div>' +
       '<p>Most of the intake air goes through the engine core. Common on fighter jets and older/supersonic-capable engines, often paired with an afterburner. Produces strong thrust at high speed, but is noisier and less fuel-efficient at subsonic cruise.</p>' +
       '</div>' +
