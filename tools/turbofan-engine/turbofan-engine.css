@@ -535,3 +535,13 @@
   pointer-events: none;
   user-select: none;
 }
+
+/* Single-spool mode has no fan/bypass duct — hide the bypass-air line,
+   its caption, and its edit-mode handles there (core/primary line and
+   caption stay visible in every mode). */
+.turbofan-diagram.tf-hide-bypass .tf-flow-line-blue,
+.turbofan-diagram.tf-hide-bypass .tf-flow-caption-group-bypass,
+.turbofan-diagram.tf-hide-bypass .tf-flow-handle-top,
+.turbofan-diagram.tf-hide-bypass .tf-flow-handle-bottom {
+  display: none !important;
+}

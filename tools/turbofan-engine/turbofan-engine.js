@@ -22,7 +22,11 @@
       name: 'Low-Pressure (LP) spool', parts: 'LP fan / LP compressor and LP turbine',
       note: 'LP spool drives the LP fan/compressor and LP turbine',
       stages: [
-        { x: 112, wide: 28, size: 303, component: 'lpFan' },
+        // No separate fan stage in single-spool mode — per request
+        // ("remove the fan and the bypass air only from the
+        // Single-Spool Engine page"), a simplified single-spool jet
+        // has no bypass fan at all, unlike triple/twin.
+        { x: 112, wide: 28, size: 303, component: 'lpFan', modes: ['triple', 'twin'] },
         // Shared by triple (one compact LP-compressor stage, matching
         // the IP/HP compressor stages' own fit against the core duct
         // lines). Twin- and single-spool mode each swap this out for
@@ -718,7 +722,7 @@
       flowCaptionRoot.innerHTML = '';
       Object.keys(FLOW_CAPTIONS).forEach(function (id) {
         var c = FLOW_CAPTIONS[id];
-        var g = elt('g', { 'class': 'tf-flow-caption-group' }, flowCaptionRoot);
+        var g = elt('g', { 'class': 'tf-flow-caption-group tf-flow-caption-group-' + id }, flowCaptionRoot);
         var text = elt('text', {
           x: c.x, y: c.y, 'text-anchor': 'middle',
           'class': 'tf-flow-caption ' + c.cls,
@@ -790,7 +794,12 @@
       var visibleSpools = MODES[currentMode].visible;
       Object.keys(PART_LABELS).forEach(function (id) {
         var p = PART_LABELS[id];
-        p.groupEl.style.display = visibleSpools.indexOf(p.spool) !== -1 ? '' : 'none';
+        // Single-spool mode has no separate fan stage or bypass duct, so
+        // its hover marker is hidden there even though the LP spool
+        // itself is still visible (per request: "remove the fan ...
+        // only from the Single-Spool Engine page").
+        var visible = visibleSpools.indexOf(p.spool) !== -1 && !(id === 'fanBlade' && currentMode === 'single');
+        p.groupEl.style.display = visible ? '' : 'none';
       });
     }
 
@@ -882,7 +891,6 @@
       topLabelsRoot.innerHTML = '';
 
       if (currentMode === 'single') {
-        makeTopLabel(componentCenter(['lpFan']), ['FAN'], componentSpan(['lpFan']));
         makeTopLabel(componentCenter(['lpCompressor']), ['COMPRESSOR'], componentSpan(['lpCompressor']));
         makeTopLabel(721, ['COMBUSTOR'], { left: 640, right: 802 });
         makeTopLabel(componentCenter(['lpTurbine']), ['TURBINE'], componentSpan(['lpTurbine']));
@@ -988,6 +996,11 @@
       wrap.querySelector('.tf-mode-desc').textContent = conf.description;
       wrap.querySelector('.tf-mode-note').textContent = conf.note;
       wrap.querySelectorAll('.tf-mode-btn').forEach(function (btn) { btn.classList.toggle('tf-active', btn.dataset.mode === currentMode); });
+      // Single-spool mode has no bypass duct to speak of (no fan to
+      // divert air around the core), so its bypass-air flow lines/
+      // caption/edit handles are hidden there — triple and twin spool
+      // keep them, per request.
+      wrap.classList.toggle('tf-hide-bypass', currentMode === 'single');
 
       SPOOLS.forEach(function (spool) {
         var visible = conf.visible.indexOf(spool.id) !== -1;
