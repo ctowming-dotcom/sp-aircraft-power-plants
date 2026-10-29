@@ -114,7 +114,7 @@
   // label circle").
   var PART_LABELS = {
     fanBlade: {
-      name: 'Fan Blade', spool: 'LP', x: 112, y: 240, r: 75,
+      name: 'Fan Blade', spool: 'LP', x: 114, y: 245, r: 75,
       desc: 'The large forward blades that draw air into the engine. In a high-bypass turbofan, most of that air is accelerated straight past the core through the bypass duct, producing most of the engine’s thrust directly.',
     },
     lpCompressor: {
@@ -212,8 +212,8 @@
     { x: 1174, y: 203 },
   ];
   var CORE_BOTTOM_FLOW = [
-    { x: 46, y: 327 },
-    { x: 345, y: 319 },
+    { x: 47, y: 310 },
+    { x: 341, y: 311 },
     { x: 541, y: 311 },
     { x: 756, y: 309 },
     { x: 943, y: 310 },
@@ -250,7 +250,7 @@
   // position of the wordings... under edit mode").
   var FLOW_CAPTIONS = {
     bypass: { x: 630, y: 64, fontSize: 28, text: 'Bypass Air', cls: 'tf-flow-caption-blue' },
-    core: { x: 685, y: 168, fontSize: 28, text: 'Primary / Core', cls: 'tf-flow-caption-red' },
+    core: { x: 680, y: 168, fontSize: 28, text: 'Primary / Core', cls: 'tf-flow-caption-red' },
   };
   var STORAGE_KEY_FLOW_CAPTIONS = 'tm.turbofanEngine.flowCaptions';
   function restoreFlowCaptions() {
