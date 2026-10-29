@@ -170,6 +170,54 @@
   }
   restorePartLabels();
 
+  // Decorative "moving airflow" indicator lines over the bypass duct,
+  // top and bottom — added by request ("create a moving air flow top
+  // and bottom of the engine in red broken line with arrow"), replacing
+  // the earlier static blue bypass-flow lines that were removed. Each
+  // is 6 waypoints in the same raw SVG (viewBox) coordinate space as
+  // everything else in this diagram, drawn as a red dashed polyline
+  // ("broken line") with a marker-end arrowhead, animated the same
+  // marching-dashes way every other flow line in this codebase uses.
+  // Shared by all three engine modes, like the shell/mid/core/combustor
+  // shapes, since the bypass duct's own shape doesn't change per mode.
+  var TOP_FLOW = [
+    { x: 150, y: 58 },
+    { x: 350, y: 75 },
+    { x: 550, y: 88 },
+    { x: 750, y: 85 },
+    { x: 950, y: 88 },
+    { x: 1050, y: 116 },
+  ];
+  var BOTTOM_FLOW = [
+    { x: 150, y: 422 },
+    { x: 350, y: 405 },
+    { x: 550, y: 392 },
+    { x: 750, y: 395 },
+    { x: 950, y: 392 },
+    { x: 1050, y: 364 },
+  ];
+  var STORAGE_KEY_TOP_FLOW = 'tm.turbofanEngine.topFlow';
+  var STORAGE_KEY_BOTTOM_FLOW = 'tm.turbofanEngine.bottomFlow';
+
+  function restoreFlow(arr, key) {
+    try {
+      var raw = window.localStorage.getItem(key);
+      if (!raw) return;
+      var saved = JSON.parse(raw);
+      if (!Array.isArray(saved)) return;
+      saved.forEach(function (s, i) {
+        if (!arr[i] || !s) return;
+        if (typeof s.x === 'number') arr[i].x = s.x;
+        if (typeof s.y === 'number') arr[i].y = s.y;
+      });
+    } catch (e) { /* corrupt/blocked storage — keep defaults */ }
+  }
+  function persistFlow(arr, key) {
+    try { window.localStorage.setItem(key, JSON.stringify(arr)); } catch (e) { /* storage full/blocked */ }
+  }
+  restoreFlow(TOP_FLOW, STORAGE_KEY_TOP_FLOW);
+  restoreFlow(BOTTOM_FLOW, STORAGE_KEY_BOTTOM_FLOW);
+
   // Per-mode content for the "shaft arrangement" panel — a reference
   // cutaway matched to the mode's own shaft count (not a single
   // triple-spool image reused for every mode), since the nesting it
@@ -263,6 +311,7 @@
       '<pattern id="tf-stripeLP" width="23" height="14" patternUnits="userSpaceOnUse"><path d="M0 0L16 14" stroke="#ffeb8c" stroke-width="5" opacity=".75"/></pattern>' +
       '<pattern id="tf-stripeIP" width="19" height="14" patternUnits="userSpaceOnUse"><path d="M0 0L15 14" stroke="#abffce" stroke-width="4" opacity=".75"/></pattern>' +
       '<pattern id="tf-stripeHP" width="15" height="14" patternUnits="userSpaceOnUse"><path d="M0 0L12 14" stroke="#ffd3ae" stroke-width="4" opacity=".75"/></pattern>' +
+      '<marker id="tf-flow-arrow" markerWidth="10" markerHeight="10" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#ff3b3b"></path></marker>' +
       '</defs>' +
 
       // Everything that makes up the engine body (shell, ducts, shafts,
@@ -313,6 +362,9 @@
 
       '<g class="tf-stages"></g>' +
       '<g class="tf-part-markers"></g>' +
+      '<path class="tf-flow-line tf-flow-line-top"></path>' +
+      '<path class="tf-flow-line tf-flow-line-bottom"></path>' +
+      '<g class="tf-flow-handles"></g>' +
       '</g>' +
       '<g class="tf-top-labels"></g>' +
       '</svg>' +
@@ -369,7 +421,7 @@
       '</div>' +
 
       '<div class="tf-edit-panel" hidden>' +
-      '<p>Drag a part-label circle to move it, or its small edge handle to resize it. When done:</p>' +
+      '<p>Drag a part-label circle to move it, or its small edge handle to resize it. Drag a numbered red box to reshape the airflow line it sits on. When done:</p>' +
       '<button type="button" class="tf-edit-copy">Copy changes</button>' +
       '<textarea readonly></textarea>' +
       '</div>' +
@@ -382,6 +434,9 @@
     var stageRoot = wrap.querySelector('.tf-stages');
     var topLabelsRoot = wrap.querySelector('.tf-top-labels');
     var partMarkerRoot = wrap.querySelector('.tf-part-markers');
+    var flowLineTop = wrap.querySelector('.tf-flow-line-top');
+    var flowLineBottom = wrap.querySelector('.tf-flow-line-bottom');
+    var flowHandleRoot = wrap.querySelector('.tf-flow-handles');
     var rotorsRoot = wrap.querySelector('.tf-rotors');
     var controlsRoot = wrap.querySelector('.tf-controls');
     var namingRoot = wrap.querySelector('.tf-naming-grid');
@@ -445,10 +500,19 @@
       });
       return '  // PART_LABELS positions/sizes:\n' + lines.join('\n');
     }
+    function formatFlow() {
+      function fmt(arr, name) {
+        var lines = arr.map(function (p) { return '    { x: ' + Math.round(p.x) + ', y: ' + Math.round(p.y) + ' },'; });
+        return '  var ' + name + ' = [\n' + lines.join('\n') + '\n  ];';
+      }
+      return fmt(TOP_FLOW, 'TOP_FLOW') + '\n' + fmt(BOTTOM_FLOW, 'BOTTOM_FLOW');
+    }
     function updateEditPanel() {
       if (!editUnlocked) return;
-      editPanelText.value = formatPartLabels();
+      editPanelText.value = formatPartLabels() + '\n\n' + formatFlow();
       persistPartLabels();
+      persistFlow(TOP_FLOW, STORAGE_KEY_TOP_FLOW);
+      persistFlow(BOTTOM_FLOW, STORAGE_KEY_BOTTOM_FLOW);
     }
 
     function renderPartMarkers() {
@@ -516,6 +580,56 @@
       });
     }
     renderPartMarkers();
+
+    // --- animated red airflow lines (top + bottom bypass duct) ---
+    function pointsToPath(points) {
+      return points.map(function (p, i) { return (i ? 'L' : 'M') + p.x + ' ' + p.y; }).join('');
+    }
+    function renderFlowLines() {
+      flowLineTop.setAttribute('d', pointsToPath(TOP_FLOW));
+      flowLineBottom.setAttribute('d', pointsToPath(BOTTOM_FLOW));
+    }
+    renderFlowLines();
+
+    function renderFlowHandles() {
+      flowHandleRoot.innerHTML = '';
+      function addSet(points, cls) {
+        points.forEach(function (p, i) {
+          var g = elt('g', { 'class': 'tf-flow-handle ' + cls }, flowHandleRoot);
+          var box = elt('rect', { x: p.x - 7, y: p.y - 7, width: 14, height: 14, rx: 2, 'class': 'tf-flow-handle-box' }, g);
+          var label = elt('text', { x: p.x, y: p.y, 'class': 'tf-flow-handle-label' }, g);
+          label.textContent = String(i + 1);
+
+          box.addEventListener('pointerdown', function (evt) {
+            if (!editUnlocked) return;
+            evt.preventDefault();
+            box.setPointerCapture(evt.pointerId);
+            box.classList.add('dragging');
+            function onMove(moveEvt) {
+              var pt = svgPoint(moveEvt);
+              p.x = pt.x; p.y = pt.y;
+              box.setAttribute('x', p.x - 7);
+              box.setAttribute('y', p.y - 7);
+              label.setAttribute('x', p.x);
+              label.setAttribute('y', p.y);
+              renderFlowLines();
+              updateEditPanel();
+            }
+            function onUp(upEvt) {
+              box.classList.remove('dragging');
+              box.releasePointerCapture(upEvt.pointerId);
+              box.removeEventListener('pointermove', onMove);
+              box.removeEventListener('pointerup', onUp);
+            }
+            box.addEventListener('pointermove', onMove);
+            box.addEventListener('pointerup', onUp);
+          });
+        });
+      }
+      addSet(TOP_FLOW, 'tf-flow-handle-top');
+      addSet(BOTTOM_FLOW, 'tf-flow-handle-bottom');
+    }
+    renderFlowHandles();
 
     function applyPartMarkerVisibility() {
       var visibleSpools = MODES[currentMode].visible;

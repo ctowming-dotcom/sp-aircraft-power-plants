@@ -424,3 +424,60 @@
     grid-template-columns: 1fr;
   }
 }
+
+.turbofan-diagram .tf-flow-line {
+  fill: none;
+  stroke: #ff3b3b;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 10 8;
+  marker-end: url(#tf-flow-arrow);
+  animation: tf-flowmove 0.6s linear infinite;
+  opacity: 0.9;
+}
+
+@keyframes tf-flowmove {
+  to { stroke-dashoffset: -18; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turbofan-diagram .tf-flow-line {
+    animation: none;
+  }
+}
+
+.turbofan-diagram.tf-edit .tf-flow-line {
+  animation: none;
+}
+
+.turbofan-diagram .tf-flow-handle {
+  display: none;
+}
+
+.turbofan-diagram.tf-edit .tf-flow-handle {
+  display: inline;
+}
+
+.turbofan-diagram .tf-flow-handle-box {
+  fill: #ff3b3b;
+  stroke: #fff;
+  stroke-width: 1.5;
+  cursor: grab;
+  touch-action: none;
+}
+
+.turbofan-diagram .tf-flow-handle-box.dragging {
+  cursor: grabbing;
+  fill: #ff7b7b;
+}
+
+.turbofan-diagram .tf-flow-handle-label {
+  font-family: var(--font-display, inherit);
+  font-size: 10px;
+  font-weight: 700;
+  fill: #fff;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+  user-select: none;
+}
