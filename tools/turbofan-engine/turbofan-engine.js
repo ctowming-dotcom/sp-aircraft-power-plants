@@ -118,11 +118,11 @@
       desc: 'The large forward blades that draw air into the engine. In a high-bypass turbofan, most of that air is accelerated straight past the core through the bypass duct, producing most of the engine’s thrust directly.',
     },
     lpCompressor: {
-      name: 'LP Compressor', spool: 'LP', x: 205, y: 240, r: 38,
+      name: 'LP Compressor', spool: 'LP', x: 216, y: 239, r: 47,
       desc: 'Raises the pressure of the air that continues into the engine core (as opposed to the bypass air the fan diverts around it), driven by the LP turbine through the long LP shaft.',
     },
     ipCompressor: {
-      name: 'IP Compressor', spool: 'IP', x: 338, y: 240, r: 55,
+      name: 'IP Compressor', spool: 'IP', x: 338, y: 240, r: 47,
       desc: 'A middle compression stage between the LP and HP compressors, driven by its own IP turbine via the IP shaft. Only present in triple-spool engines — twin- and single-spool engines go straight from LP to HP compression (or have no separate stages at all).',
     },
     hpCompressor: {
@@ -181,20 +181,20 @@
   // Shared by all three engine modes, like the shell/mid/core/combustor
   // shapes, since the bypass duct's own shape doesn't change per mode.
   var TOP_FLOW = [
-    { x: 150, y: 58 },
-    { x: 350, y: 75 },
-    { x: 550, y: 88 },
+    { x: 45, y: 91 },
+    { x: 140, y: 57 },
+    { x: 427, y: 81 },
     { x: 750, y: 85 },
-    { x: 950, y: 88 },
-    { x: 1050, y: 116 },
+    { x: 1002, y: 92 },
+    { x: 1176, y: 183 },
   ];
   var BOTTOM_FLOW = [
-    { x: 150, y: 422 },
-    { x: 350, y: 405 },
-    { x: 550, y: 392 },
-    { x: 750, y: 395 },
-    { x: 950, y: 392 },
-    { x: 1050, y: 364 },
+    { x: 44, y: 392 },
+    { x: 128, y: 422 },
+    { x: 425, y: 396 },
+    { x: 660, y: 395 },
+    { x: 1001, y: 389 },
+    { x: 1174, y: 294 },
   ];
   var STORAGE_KEY_TOP_FLOW = 'tm.turbofanEngine.topFlow';
   var STORAGE_KEY_BOTTOM_FLOW = 'tm.turbofanEngine.bottomFlow';
@@ -727,7 +727,8 @@
       topLabelsRoot.innerHTML = '';
 
       if (currentMode === 'single') {
-        makeTopLabel(componentCenter(['lpFan', 'lpCompressor']), ['FAN /', 'COMPRESSOR'], componentSpan(['lpFan', 'lpCompressor']));
+        makeTopLabel(componentCenter(['lpFan']), ['FAN'], componentSpan(['lpFan']));
+        makeTopLabel(componentCenter(['lpCompressor']), ['COMPRESSOR'], componentSpan(['lpCompressor']));
         makeTopLabel(721, ['COMBUSTOR'], { left: 640, right: 802 });
         makeTopLabel(componentCenter(['lpTurbine']), ['TURBINE'], componentSpan(['lpTurbine']));
         return;
