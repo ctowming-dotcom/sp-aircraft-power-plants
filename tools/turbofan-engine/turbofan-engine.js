@@ -287,9 +287,16 @@
       '<path d="M69 97L140 69L425 98L1000 101L1100 154L1100 326L1000 379L425 382L140 411L69 383" fill="#0a273c" stroke="#4a7c9b" stroke-width="3"></path>' +
       '<path d="M171 103Q290 103 440 131.5L627 129L996 130.5L1090 168L1090 312L996 349.5L627 351L440 348.5Q290 377 171 377Z" fill="url(#tf-core)" stroke="#b9cada" stroke-width="4"></path>' +
 
-      '<path d="M608 188L805 186L859 215L859 273L805 294L608 289Z" fill="#55251d" stroke="#e88948" stroke-width="3"></path>' +
-      '<path d="M645 219L802 215L839 239L802 259L645 261" fill="url(#tf-flame)" opacity=".88"></path>' +
-      '<text x="721" y="242" fill="#361307" text-anchor="middle" font-size="16" font-weight="800">COMBUSTOR</text>' +
+      // Resized to sit centered in the gap between the HP compressor's
+      // last stage (x:558, right edge ~569) and the HP turbine's first
+      // stage (x:833, left edge ~820.5) without overlapping either, and
+      // its height now reaches close to the core duct's own top/bottom
+      // boundary at this x (~129 to ~351) instead of the old, much
+      // shorter box — both per request. Symmetric around y:240 like
+      // every other boundary now, so it stays centered on the shaft.
+      '<path d="M585 141L758 137L805 192L805 303L758 343L585 334Z" fill="#55251d" stroke="#e88948" stroke-width="3"></path>' +
+      '<path d="M617 200L755 192L787 238L755 276L617 279" fill="url(#tf-flame)" opacity=".88"></path>' +
+      '<text x="695" y="244" fill="#361307" text-anchor="middle" font-size="16" font-weight="800">COMBUSTOR</text>' +
 
       '<g class="tf-shaftLP">' +
       '<rect x="145" y="217" width="885" height="46" rx="7" fill="#be9725" stroke="#fbe089" stroke-width="2"></rect>' +
