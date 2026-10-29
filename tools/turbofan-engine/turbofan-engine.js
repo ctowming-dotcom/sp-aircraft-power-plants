@@ -896,7 +896,7 @@
         makeTopLabel(componentCenter(['lpTurbine']), ['TURBINE'], componentSpan(['lpTurbine']));
         return;
       }
-      makeTopLabel(componentCenter(['lpFan']), ['LP FAN'], componentSpan(['lpFan']));
+      makeTopLabel(componentCenter(['lpFan']), ['FAN'], componentSpan(['lpFan']));
       makeTopLabel(componentCenter(['lpCompressor']), ['LP', 'COMPRESSOR'], componentSpan(['lpCompressor']));
       if (currentMode === 'twin') {
         makeTopLabel(componentCenter(['hpCompressor']), ['HP', 'COMPRESSOR'], componentSpan(['hpCompressor']));
@@ -1010,6 +1010,19 @@
           var stageVisible = visible && (!s.st.modes || s.st.modes.indexOf(currentMode) !== -1);
           s.group.style.display = stageVisible ? '' : 'none';
         });
+      });
+
+      // Single-spool mode has no fan, so its single shaft is shortened
+      // to start at the first compressor stage instead of reaching all
+      // the way out to where the fan used to be — per request
+      // ("shorten the single spool shaft up to the first stage of
+      // compressor blade"). The shaft's own right edge (x:1030) stays
+      // fixed either way; only its start x/width change.
+      var shaftLPEnd = 145 + 885;
+      var shaftLPStart = currentMode === 'single' ? 179 : 145;
+      wrap.querySelectorAll('.tf-shaftLP rect').forEach(function (r) {
+        r.setAttribute('x', shaftLPStart);
+        r.setAttribute('width', shaftLPEnd - shaftLPStart);
       });
 
       renderTopLabels();
