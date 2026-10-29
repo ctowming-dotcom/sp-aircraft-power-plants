@@ -1019,7 +1019,7 @@
       // compressor blade"). The shaft's own right edge (x:1030) stays
       // fixed either way; only its start x/width change.
       var shaftLPEnd = 145 + 885;
-      var shaftLPStart = currentMode === 'single' ? 179 : 145;
+      var shaftLPStart = currentMode === 'single' ? 179 : 90;
       wrap.querySelectorAll('.tf-shaftLP rect').forEach(function (r) {
         r.setAttribute('x', shaftLPStart);
         r.setAttribute('width', shaftLPEnd - shaftLPStart);
