@@ -333,7 +333,7 @@
       visible: ['LP', 'HP'],
     },
     single: {
-      title: 'Single-Spool Jet Engine',
+      title: 'Single Spool Engine',
       subtitle: 'One shaft — compressor and turbine rotate together on a single spool',
       description: 'Showing a simplified single-spool arrangement using one shaft only.',
       note: 'Single-spool mode: one shaft links the front compressor/fan section to the rear turbine section, so every rotating stage turns at the same speed — there is only one N-number to read. Example: early turbojets, small APU gas generators.',
