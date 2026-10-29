@@ -284,9 +284,9 @@
       '<path d="M1045 98l-14 -8m14 8l-14 8M1045 375l-14 -8m14 8l-14 8"></path>' +
       '</g>' +
 
-      '<path d="M608 178L805 176L859 205L859 263L805 284L608 279Z" fill="#55251d" stroke="#e88948" stroke-width="3"></path>' +
-      '<path d="M645 209L802 205L839 229L802 249L645 251" fill="url(#tf-flame)" opacity=".88"></path>' +
-      '<text x="721" y="232" fill="#361307" text-anchor="middle" font-size="16" font-weight="800">COMBUSTOR</text>' +
+      '<path d="M608 188L805 186L859 215L859 273L805 294L608 289Z" fill="#55251d" stroke="#e88948" stroke-width="3"></path>' +
+      '<path d="M645 219L802 215L839 239L802 259L645 261" fill="url(#tf-flame)" opacity=".88"></path>' +
+      '<text x="721" y="242" fill="#361307" text-anchor="middle" font-size="16" font-weight="800">COMBUSTOR</text>' +
 
       '<g class="tf-shaftLP">' +
       '<rect x="145" y="217" width="885" height="46" rx="7" fill="#be9725" stroke="#fbe089" stroke-width="2"></rect>' +
