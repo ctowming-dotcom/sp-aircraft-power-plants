@@ -446,10 +446,18 @@
 
 .turbofan-diagram .tf-flow-caption {
   font-family: var(--font-display, inherit);
-  font-size: 13px;
   font-weight: 700;
   pointer-events: none;
   user-select: none;
+}
+
+.turbofan-diagram.tf-edit .tf-flow-caption {
+  pointer-events: auto;
+  cursor: grab;
+}
+
+.turbofan-diagram .tf-flow-caption.dragging {
+  cursor: grabbing;
 }
 
 .turbofan-diagram .tf-flow-caption-blue {
@@ -458,6 +466,23 @@
 
 .turbofan-diagram .tf-flow-caption-red {
   fill: #ffb3ad;
+}
+
+.turbofan-diagram .tf-flow-caption-resize {
+  fill: #fff;
+  stroke: #9ecfff;
+  stroke-width: 1.5;
+  cursor: ns-resize;
+  touch-action: none;
+  display: none;
+}
+
+.turbofan-diagram.tf-edit .tf-flow-caption-resize {
+  display: inline;
+}
+
+.turbofan-diagram .tf-flow-caption-resize.dragging {
+  fill: #9ecfff;
 }
 
 @keyframes tf-flowmove {

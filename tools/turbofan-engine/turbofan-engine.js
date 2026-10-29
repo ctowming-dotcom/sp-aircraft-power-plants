@@ -245,6 +245,38 @@
   restoreFlow(CORE_TOP_FLOW, STORAGE_KEY_CORE_TOP_FLOW);
   restoreFlow(CORE_BOTTOM_FLOW, STORAGE_KEY_CORE_BOTTOM_FLOW);
 
+  // The "Bypass Air" / "Primary / Core" captions — editable position and
+  // font size, per request ("Allow me to change the font size and the
+  // position of the wordings... under edit mode").
+  var FLOW_CAPTIONS = {
+    bypass: { x: 750, y: 72, fontSize: 13, text: 'Bypass Air', cls: 'tf-flow-caption-blue' },
+    core: { x: 750, y: 135, fontSize: 13, text: 'Primary / Core', cls: 'tf-flow-caption-red' },
+  };
+  var STORAGE_KEY_FLOW_CAPTIONS = 'tm.turbofanEngine.flowCaptions';
+  function restoreFlowCaptions() {
+    try {
+      var raw = window.localStorage.getItem(STORAGE_KEY_FLOW_CAPTIONS);
+      if (!raw) return;
+      var saved = JSON.parse(raw);
+      if (!saved || typeof saved !== 'object') return;
+      Object.keys(FLOW_CAPTIONS).forEach(function (id) {
+        var s = saved[id];
+        if (!s) return;
+        if (typeof s.x === 'number') FLOW_CAPTIONS[id].x = s.x;
+        if (typeof s.y === 'number') FLOW_CAPTIONS[id].y = s.y;
+        if (typeof s.fontSize === 'number') FLOW_CAPTIONS[id].fontSize = s.fontSize;
+      });
+    } catch (e) { /* corrupt/blocked storage — keep defaults */ }
+  }
+  function persistFlowCaptions() {
+    var out = {};
+    Object.keys(FLOW_CAPTIONS).forEach(function (id) {
+      out[id] = { x: FLOW_CAPTIONS[id].x, y: FLOW_CAPTIONS[id].y, fontSize: FLOW_CAPTIONS[id].fontSize };
+    });
+    try { window.localStorage.setItem(STORAGE_KEY_FLOW_CAPTIONS, JSON.stringify(out)); } catch (e) { /* storage full/blocked */ }
+  }
+  restoreFlowCaptions();
+
   // Per-mode content for the "shaft arrangement" panel — a reference
   // cutaway matched to the mode's own shaft count (not a single
   // triple-spool image reused for every mode), since the nesting it
@@ -392,10 +424,9 @@
       '<g class="tf-part-markers"></g>' +
       '<path class="tf-flow-line tf-flow-line-blue tf-flow-line-top"></path>' +
       '<path class="tf-flow-line tf-flow-line-blue tf-flow-line-bottom"></path>' +
-      '<text class="tf-flow-caption tf-flow-caption-blue" x="750" y="72" text-anchor="middle">Bypass Air</text>' +
       '<path class="tf-flow-line tf-flow-line-red tf-flow-line-core-top"></path>' +
       '<path class="tf-flow-line tf-flow-line-red tf-flow-line-core-bottom"></path>' +
-      '<text class="tf-flow-caption tf-flow-caption-red" x="750" y="135" text-anchor="middle">Primary / Core</text>' +
+      '<g class="tf-flow-captions"></g>' +
       '<g class="tf-flow-handles"></g>' +
       '</g>' +
       '<g class="tf-top-labels"></g>' +
@@ -453,7 +484,7 @@
       '</div>' +
 
       '<div class="tf-edit-panel" hidden>' +
-      '<p>Drag a part-label circle to move it, or its small edge handle to resize it. Drag a numbered red box to reshape the airflow line it sits on. When done:</p>' +
+      '<p>Drag a part-label circle to move it, or its small edge handle to resize it. Drag a numbered box to reshape the airflow line it sits on. Drag the "Bypass Air"/"Primary / Core" text to move it, or its small square handle to resize it. When done:</p>' +
       '<button type="button" class="tf-edit-copy">Copy changes</button>' +
       '<textarea readonly></textarea>' +
       '</div>' +
@@ -470,6 +501,7 @@
     var flowLineBottom = wrap.querySelector('.tf-flow-line-bottom');
     var flowLineCoreTop = wrap.querySelector('.tf-flow-line-core-top');
     var flowLineCoreBottom = wrap.querySelector('.tf-flow-line-core-bottom');
+    var flowCaptionRoot = wrap.querySelector('.tf-flow-captions');
     var flowHandleRoot = wrap.querySelector('.tf-flow-handles');
     var rotorsRoot = wrap.querySelector('.tf-rotors');
     var controlsRoot = wrap.querySelector('.tf-controls');
@@ -542,14 +574,22 @@
       return fmt(TOP_FLOW, 'TOP_FLOW') + '\n' + fmt(BOTTOM_FLOW, 'BOTTOM_FLOW') + '\n' +
         fmt(CORE_TOP_FLOW, 'CORE_TOP_FLOW') + '\n' + fmt(CORE_BOTTOM_FLOW, 'CORE_BOTTOM_FLOW');
     }
+    function formatFlowCaptions() {
+      var lines = Object.keys(FLOW_CAPTIONS).map(function (id) {
+        var c = FLOW_CAPTIONS[id];
+        return '    ' + id + ': { x: ' + Math.round(c.x) + ', y: ' + Math.round(c.y) + ', fontSize: ' + c.fontSize + ' },';
+      });
+      return '  // FLOW_CAPTIONS positions/sizes:\n' + lines.join('\n');
+    }
     function updateEditPanel() {
       if (!editUnlocked) return;
-      editPanelText.value = formatPartLabels() + '\n\n' + formatFlow();
+      editPanelText.value = formatPartLabels() + '\n\n' + formatFlow() + '\n\n' + formatFlowCaptions();
       persistPartLabels();
       persistFlow(TOP_FLOW, STORAGE_KEY_TOP_FLOW);
       persistFlow(BOTTOM_FLOW, STORAGE_KEY_BOTTOM_FLOW);
       persistFlow(CORE_TOP_FLOW, STORAGE_KEY_CORE_TOP_FLOW);
       persistFlow(CORE_BOTTOM_FLOW, STORAGE_KEY_CORE_BOTTOM_FLOW);
+      persistFlowCaptions();
     }
 
     function renderPartMarkers() {
@@ -672,6 +712,79 @@
       addSet(CORE_BOTTOM_FLOW, 'tf-flow-handle-core-bottom');
     }
     renderFlowHandles();
+
+    // --- draggable/resizable "Bypass Air" / "Primary / Core" captions ---
+    function renderFlowCaptions() {
+      flowCaptionRoot.innerHTML = '';
+      Object.keys(FLOW_CAPTIONS).forEach(function (id) {
+        var c = FLOW_CAPTIONS[id];
+        var g = elt('g', { 'class': 'tf-flow-caption-group' }, flowCaptionRoot);
+        var text = elt('text', {
+          x: c.x, y: c.y, 'text-anchor': 'middle',
+          'class': 'tf-flow-caption ' + c.cls,
+          'font-size': c.fontSize,
+        }, g);
+        text.textContent = c.text;
+        var handle = elt('rect', {
+          x: c.x + 6, y: c.y - c.fontSize - 6, width: 12, height: 12, rx: 2,
+          'class': 'tf-flow-caption-resize',
+        }, g);
+
+        text.addEventListener('pointerdown', function (evt) {
+          if (!editUnlocked) return;
+          evt.preventDefault();
+          text.setPointerCapture(evt.pointerId);
+          text.classList.add('dragging');
+          var startPt = svgPoint(evt);
+          var startX = c.x, startY = c.y;
+          function onMove(moveEvt) {
+            var pt = svgPoint(moveEvt);
+            c.x = startX + (pt.x - startPt.x);
+            c.y = startY + (pt.y - startPt.y);
+            text.setAttribute('x', c.x);
+            text.setAttribute('y', c.y);
+            handle.setAttribute('x', c.x + 6);
+            handle.setAttribute('y', c.y - c.fontSize - 6);
+            updateEditPanel();
+          }
+          function onUp(upEvt) {
+            text.classList.remove('dragging');
+            text.releasePointerCapture(upEvt.pointerId);
+            text.removeEventListener('pointermove', onMove);
+            text.removeEventListener('pointerup', onUp);
+          }
+          text.addEventListener('pointermove', onMove);
+          text.addEventListener('pointerup', onUp);
+        });
+
+        handle.addEventListener('pointerdown', function (evt) {
+          if (!editUnlocked) return;
+          evt.preventDefault();
+          evt.stopPropagation();
+          handle.setPointerCapture(evt.pointerId);
+          handle.classList.add('dragging');
+          var startPt = svgPoint(evt);
+          var startSize = c.fontSize;
+          function onMove(moveEvt) {
+            var pt = svgPoint(moveEvt);
+            var dy = startPt.y - pt.y;
+            c.fontSize = Math.max(8, Math.min(40, Math.round(startSize + dy)));
+            text.setAttribute('font-size', c.fontSize);
+            handle.setAttribute('y', c.y - c.fontSize - 6);
+            updateEditPanel();
+          }
+          function onUp(upEvt) {
+            handle.classList.remove('dragging');
+            handle.releasePointerCapture(upEvt.pointerId);
+            handle.removeEventListener('pointermove', onMove);
+            handle.removeEventListener('pointerup', onUp);
+          }
+          handle.addEventListener('pointermove', onMove);
+          handle.addEventListener('pointerup', onUp);
+        });
+      });
+    }
+    renderFlowCaptions();
 
     function applyPartMarkerVisibility() {
       var visibleSpools = MODES[currentMode].visible;
