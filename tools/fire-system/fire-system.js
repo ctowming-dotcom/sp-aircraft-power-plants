@@ -196,7 +196,7 @@
     }).join('');
   }
 
-  var EDIT_PASSWORD = 'APP';
+  var EDIT_PASSWORD = 'APP2';
   var STORAGE_KEY_PANEL_MARKERS = 'tm.fireSystem.panelMarkers';
   var STORAGE_KEY_LOOP_MARKERS = 'tm.fireSystem.loopMarkers';
 

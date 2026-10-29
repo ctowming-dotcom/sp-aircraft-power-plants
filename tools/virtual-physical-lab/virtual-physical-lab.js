@@ -128,7 +128,7 @@
     { x: 1413, y: 659 },
   ];
 
-  var EDIT_PASSWORD = 'APP';
+  var EDIT_PASSWORD = 'APP2';
 
   // Persist edits to this browser's localStorage so they survive a page
   // reload instead of resetting back to the defaults above — editing no

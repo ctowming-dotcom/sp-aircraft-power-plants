@@ -105,7 +105,7 @@
     { xPct: 9.8, yPct: 18.1 },
   ];
 
-  var EDIT_PASSWORD = 'APP';
+  var EDIT_PASSWORD = 'APP2';
   var STORAGE_KEY_POWER_FLOW = 'tm.apuSystem.powerFlow';
   var STORAGE_KEY_LOAD_FLOW = 'tm.apuSystem.loadFlow';
   var STORAGE_KEY_REGION_SPLIT = 'tm.apuSystem.regionSplit';

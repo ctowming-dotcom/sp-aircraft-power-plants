@@ -143,7 +143,7 @@
     },
   };
 
-  var TF_EDIT_PASSWORD = 'APP';
+  var TF_EDIT_PASSWORD = 'APP2';
   var STORAGE_KEY_PART_LABELS = 'tm.turbofanEngine.partLabels';
 
   function restorePartLabels() {
