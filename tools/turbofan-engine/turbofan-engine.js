@@ -249,7 +249,7 @@
   // font size, per request ("Allow me to change the font size and the
   // position of the wordings... under edit mode").
   var FLOW_CAPTIONS = {
-    bypass: { x: 630, y: 64, fontSize: 28, text: 'Bypass Air', cls: 'tf-flow-caption-blue' },
+    bypass: { x: 654, y: 109, fontSize: 28, text: 'Bypass Air', cls: 'tf-flow-caption-blue' },
     core: { x: 680, y: 168, fontSize: 28, text: 'Primary / Core', cls: 'tf-flow-caption-red' },
   };
   var STORAGE_KEY_FLOW_CAPTIONS = 'tm.turbofanEngine.flowCaptions';
