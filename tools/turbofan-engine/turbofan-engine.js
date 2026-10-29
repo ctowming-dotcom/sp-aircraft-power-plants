@@ -411,6 +411,7 @@
       '<path d="M617 200L755 192L787 238L755 276L617 279" fill="url(#tf-flame)" opacity=".88"></path>' +
       '<text x="695" y="244" fill="#361307" text-anchor="middle" font-size="16" font-weight="800">COMBUSTOR</text>' +
 
+      '<path class="tf-nose-cone" fill="#be9725" stroke="#fbe089" stroke-width="2"></path>' +
       '<g class="tf-shaftLP">' +
       '<rect x="145" y="217" width="885" height="46" rx="7" fill="#be9725" stroke="#fbe089" stroke-width="2"></rect>' +
       '<rect x="145" y="220" width="885" height="40" fill="url(#tf-stripeLP)" opacity=".45"></rect>' +
@@ -1024,6 +1025,17 @@
         r.setAttribute('x', shaftLPStart);
         r.setAttribute('width', shaftLPEnd - shaftLPStart);
       });
+
+      // Nose cone — a pointed spinner fairing right at the front of the
+      // shaft, tapering forward from the shaft's own height down to a
+      // point, per request ("give me a nose cone at the front of the
+      // shaft for all 3 type of engine"). Follows shaftLPStart, so it
+      // moves with the shaft automatically in every mode.
+      var noseConeLen = 30;
+      wrap.querySelector('.tf-nose-cone').setAttribute('d',
+        'M' + shaftLPStart + ' 217' +
+        'L' + (shaftLPStart - noseConeLen) + ' 240' +
+        'L' + shaftLPStart + ' 263' + 'Z');
 
       renderTopLabels();
       applyPartMarkerVisibility();
