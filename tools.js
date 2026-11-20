@@ -56,5 +56,11 @@
       description: 'Arcade emergency-response game — random system failures fire with a countdown; hit the right panel switches before time runs out.',
       icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 21h20L12 2z"></path><path d="M12 9v5"></path><path d="M12 17h.01"></path></svg>',
     },
+    {
+      id: 'exam-platformer',
+      name: 'Exam Clue Challenge',
+      description: 'A side-scrolling platformer — clear a stage by jumping gaps and dodging spikes to unlock an exam clue.',
+      icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="6" r="2.5"></circle><path d="M12 8.5v5l-3.5 7"></path><path d="M12 13.5l3.5 6.5"></path><path d="M12 11l-4 2"></path><path d="M12 11l4-1.5"></path></svg>',
+    },
   ];
 })();

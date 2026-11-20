@@ -1,0 +1,248 @@
+.ep-wrap {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.ep-wrap h1 {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  margin: 0 0 0.4rem;
+}
+
+.ep-intro {
+  color: var(--text-muted);
+  margin: 0 0 1rem;
+  line-height: 1.6;
+}
+
+.ep-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.8rem;
+}
+
+.ep-toolbar.hidden {
+  display: none;
+}
+
+.ep-btn {
+  font: inherit;
+  border: 0;
+  border-radius: var(--radius-pill);
+  padding: 0.6rem 1.3rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.ep-btn-primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.ep-btn-primary:hover {
+  filter: brightness(1.05);
+}
+
+.ep-btn-ghost {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.ep-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ep-stagepicker {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.ep-stagepicker.hidden {
+  display: none;
+}
+
+.ep-stage-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.2rem;
+}
+
+.ep-stage-card.is-done {
+  border-color: var(--success);
+}
+
+.ep-stage-card h3 {
+  font-family: var(--font-display);
+  margin: 0 0 0.4rem;
+}
+
+.ep-stage-status {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0 0 0.6rem;
+}
+
+.ep-stage-clue {
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.4);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  margin: 0 0 0.8rem;
+}
+
+.ep-gameview {
+  position: relative;
+}
+
+.ep-gameview.hidden {
+  display: none;
+}
+
+.ep-hud {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+}
+
+.ep-hud-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.ep-hud-lives {
+  margin-left: auto;
+  font-size: 1.1rem;
+}
+
+#epCanvas {
+  width: 100%;
+  max-width: 800px;
+  aspect-ratio: 2 / 1;
+  display: block;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: #8fd3ff;
+}
+
+.ep-touch {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.8rem;
+}
+
+.ep-touch-btn {
+  flex: 1;
+  font: inherit;
+  font-weight: 700;
+  font-size: 1.1rem;
+  padding: 0.9rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+
+.ep-overlay {
+  position: absolute;
+  inset: 0;
+  top: 2.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 28, 44, 0.78);
+  border-radius: var(--radius-sm);
+}
+
+.ep-overlay.hidden {
+  display: none;
+}
+
+.ep-overlay-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.6rem;
+  max-width: 420px;
+  text-align: center;
+}
+
+.ep-overlay-card h2 {
+  font-family: var(--font-display);
+  margin: 0 0 0.6rem;
+}
+
+.ep-overlay-card p {
+  color: var(--text-muted);
+  margin: 0 0 1.2rem;
+  line-height: 1.5;
+}
+
+.ep-row {
+  display: flex;
+  gap: 0.6rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.ep-edit-panel {
+  margin-top: 1.4rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.4rem;
+}
+
+.ep-edit-panel.hidden {
+  display: none;
+}
+
+.ep-edit-panel h3 {
+  font-family: var(--font-display);
+  margin: 0 0 0.8rem;
+}
+
+.ep-edit-field {
+  margin-bottom: 0.9rem;
+}
+
+.ep-edit-field label {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 0.3rem;
+}
+
+.ep-edit-field textarea {
+  width: 100%;
+  min-height: 60px;
+  font: inherit;
+  padding: 0.6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  resize: vertical;
+}
+
+.ep-edit-note {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  margin: 0.8rem 0 0;
+}
+
+@media (max-width: 600px) {
+  .ep-hud {
+    flex-wrap: wrap;
+  }
+  .ep-hud-lives {
+    margin-left: 0;
+  }
+}
