@@ -1,0 +1,145 @@
+.bm-wrap {
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+.bm-wrap h1 {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  margin: 0 0 0.4rem;
+}
+
+.bm-intro {
+  color: var(--text-muted);
+  margin: 0 0 1rem;
+  line-height: 1.6;
+}
+
+.bm-hud {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.bm-stat {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  text-align: center;
+}
+
+.bm-stat-label {
+  display: block;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.bm-stat-value {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.bm-stage {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+#bmCanvas {
+  width: 100%;
+  max-width: 480px;
+  height: auto;
+  display: block;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+}
+
+.bm-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(6, 12, 24, 0.82);
+  border-radius: var(--radius-sm);
+}
+
+.bm-overlay.hidden {
+  display: none;
+}
+
+.bm-overlay-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.6rem;
+  max-width: 320px;
+  text-align: center;
+}
+
+.bm-overlay-card h2 {
+  font-family: var(--font-display);
+  margin: 0 0 0.6rem;
+}
+
+.bm-overlay-card p {
+  color: var(--text-muted);
+  margin: 0 0 1.2rem;
+  line-height: 1.5;
+}
+
+.bm-btn {
+  font: inherit;
+  border: 0;
+  border-radius: var(--radius-pill);
+  padding: 0.7rem 1.5rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.bm-btn-primary {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.bm-btn-primary:hover {
+  filter: brightness(1.05);
+}
+
+.bm-touch {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem;
+  max-width: 260px;
+  margin: 1rem auto 0;
+}
+
+.bm-touch-btn {
+  font: inherit;
+  font-weight: 700;
+  font-size: 1.1rem;
+  padding: 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+
+.bm-touch-bomb {
+  font-size: 1.3rem;
+}
+
+@media (max-width: 600px) {
+  .bm-hud {
+    flex-wrap: wrap;
+  }
+}

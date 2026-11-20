@@ -68,5 +68,11 @@
       description: 'A Pac-Man-style arcade game — clear the maze, dodge the ghosts, and turn the tables on them with a power pellet.',
       icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12 21.5 7a10 10 0 1 0 0 10z"></path><circle cx="15" cy="9" r="0.8" fill="currentColor" stroke="none"></circle></svg>',
     },
+    {
+      id: 'bomberman-arcade',
+      name: 'Super Bomberman',
+      description: 'A Bomberman-style arcade game — blast blocks, grab power-ups, and clear every creature before the clock runs out.',
+      icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="13" r="7"></circle><path d="M16 8l2.5-2.5"></path><path d="M17 4.5h2.5V7"></path><path d="M11 13v0"></path></svg>',
+    },
   ];
 })();
