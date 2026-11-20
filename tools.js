@@ -50,5 +50,11 @@
       description: 'Interactive diagram of the engine fire protection system — detection and suppression.',
       icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5a2.5 2.5 0 0 0 5 0c0-1.38-.5-2-1-3-1.07-2.14-.22-4.05 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7.5 7.5 0 1 1-15 0c0-1.15.43-2.29 1-3z"></path></svg>',
     },
+    {
+      id: 'engine-emergency',
+      name: 'Engine Emergency',
+      description: 'Arcade emergency-response game — random system failures fire with a countdown; hit the right panel switches before time runs out.',
+      icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 21h20L12 2z"></path><path d="M12 9v5"></path><path d="M12 17h.01"></path></svg>',
+    },
   ];
 })();
