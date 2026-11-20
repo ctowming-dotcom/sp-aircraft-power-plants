@@ -62,5 +62,11 @@
       description: 'A side-scrolling platformer — clear a stage by jumping gaps and dodging spikes to unlock an exam clue.',
       icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="6" r="2.5"></circle><path d="M12 8.5v5l-3.5 7"></path><path d="M12 13.5l3.5 6.5"></path><path d="M12 11l-4 2"></path><path d="M12 11l4-1.5"></path></svg>',
     },
+    {
+      id: 'pacman-arcade',
+      name: 'Maze Muncher',
+      description: 'A Pac-Man-style arcade game — clear the maze, dodge the ghosts, and turn the tables on them with a power pellet.',
+      icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12 21.5 7a10 10 0 1 0 0 10z"></path><circle cx="15" cy="9" r="0.8" fill="currentColor" stroke="none"></circle></svg>',
+    },
   ];
 })();
