@@ -46,7 +46,7 @@
     return set;
   })();
 
-  // 5 hunters, one released every 30s (by request — "3 to 5 hunters
+  // 5 ghosts, one released every 30s (by request — "3 to 5 hunters
   // release on every 30 secs") so the pressure keeps ramping up the
   // longer a maze runs, rather than all of them being loose from the start.
   var GHOST_RELEASE_INTERVAL_MS = 30000;
@@ -89,7 +89,7 @@
     root.innerHTML =
       '<div class="pac-wrap">' +
       '<h1>👻 Maze Muncher</h1>' +
-      '<p class="pac-intro">Clear every dot while dodging the ghosts — one more hunter joins every 30 seconds, up to 5, so the longer a maze runs the hotter it gets. Grab a big pellet to turn the tables — chase them down for bonus points while they\'re blue. Arrow keys / WASD to move.</p>' +
+      '<p class="pac-intro">Clear every dot while dodging the ghosts — one more ghost joins every 30 seconds, up to 5, so the longer a maze runs the hotter it gets. Grab a big pellet to turn the tables — chase them down for bonus points while they\'re blue. Arrow keys / WASD to move.</p>' +
       '<div class="pac-hud">' +
       '<div class="pac-stat"><span class="pac-stat-label">Score</span><span class="pac-stat-value" id="pacScore">0</span></div>' +
       '<div class="pac-stat"><span class="pac-stat-label">High score</span><span class="pac-stat-value" id="pacHigh">0</span></div>' +
