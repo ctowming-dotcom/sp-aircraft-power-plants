@@ -9,27 +9,29 @@
 
   // Validated offline with a BFS connectivity check — every floor tile
   // (including the ghost house, via its door) is reachable from the
-  // player spawn, and the tunnel row (10) wraps left<->right.
+  // player spawn, and the tunnel row (10) wraps left<->right. Denser
+  // than the first version (more pillars, narrower corridors) by request
+  // ("more complex maze"), re-validated the same way after the change.
   var MAZE = [
     '###################',
     '#o...............o#',
-    '#.................#',
-    '#..##.........##..#',
-    '#..##.........##..#',
-    '#.................#',
-    '#.####.......####.#',
-    '#.................#',
+    '#.##..#.....#..##.#',
+    '#.....#.....#.....#',
+    '#.#..##.....##..#.#',
+    '#.#.............#.#',
+    '####.#.......#.####',
+    '#....#.......#....#',
     '#......## ##......#',
-    '#......#   #......#',
-    '.......#   #.......',
+    '#.#..#.#   #.#..#.#',
+    '..#....#   #....#..',
     '#......#   #......#',
     '#......#####......#',
-    '#.................#',
-    '#.####.......####.#',
-    '#.................#',
-    '#..##.........##..#',
-    '#..##.... ....##..#',
-    '#.................#',
+    '####.#.......#.####',
+    '#....#.......#....#',
+    '#.#..##.....##..#.#',
+    '#.#.............#.#',
+    '#.##..#.. ..#..##.#',
+    '#.....#.....#.....#',
     '#o...............o#',
     '###################',
   ];
@@ -44,11 +46,16 @@
     return set;
   })();
 
+  // 5 hunters, one released every 30s (by request — "3 to 5 hunters
+  // release on every 30 secs") so the pressure keeps ramping up the
+  // longer a maze runs, rather than all of them being loose from the start.
+  var GHOST_RELEASE_INTERVAL_MS = 30000;
   var GHOST_DEFS = [
-    { color: '#ff4d4d', spawn: { r: 10, c: 8 }, scatter: { r: 1, c: 1 }, releaseMs: 0 },
-    { color: '#ffb8de', spawn: { r: 9, c: 9 }, scatter: { r: 1, c: 17 }, releaseMs: 2000 },
-    { color: '#4dd2ff', spawn: { r: 10, c: 10 }, scatter: { r: 19, c: 1 }, releaseMs: 5000 },
-    { color: '#ffb347', spawn: { r: 10, c: 9 }, scatter: { r: 19, c: 17 }, releaseMs: 8000 },
+    { color: '#ff4d4d', spawn: { r: 10, c: 8 }, scatter: { r: 1, c: 1 }, releaseMs: 0 * GHOST_RELEASE_INTERVAL_MS },
+    { color: '#ffb8de', spawn: { r: 9, c: 9 }, scatter: { r: 1, c: 17 }, releaseMs: 1 * GHOST_RELEASE_INTERVAL_MS },
+    { color: '#4dd2ff', spawn: { r: 10, c: 10 }, scatter: { r: 19, c: 1 }, releaseMs: 2 * GHOST_RELEASE_INTERVAL_MS },
+    { color: '#ffb347', spawn: { r: 10, c: 9 }, scatter: { r: 19, c: 17 }, releaseMs: 3 * GHOST_RELEASE_INTERVAL_MS },
+    { color: '#8bd45c', spawn: { r: 11, c: 9 }, scatter: { r: 1, c: 9 }, releaseMs: 4 * GHOST_RELEASE_INTERVAL_MS },
   ];
 
   var PLAYER_SPEED = 2.1;
@@ -82,7 +89,7 @@
     root.innerHTML =
       '<div class="pac-wrap">' +
       '<h1>👻 Maze Muncher</h1>' +
-      '<p class="pac-intro">Clear every dot while dodging the ghosts. Grab a big pellet to turn the tables — chase them down for bonus points while they\'re blue. Arrow keys / WASD to move.</p>' +
+      '<p class="pac-intro">Clear every dot while dodging the ghosts — one more hunter joins every 30 seconds, up to 5, so the longer a maze runs the hotter it gets. Grab a big pellet to turn the tables — chase them down for bonus points while they\'re blue. Arrow keys / WASD to move.</p>' +
       '<div class="pac-hud">' +
       '<div class="pac-stat"><span class="pac-stat-label">Score</span><span class="pac-stat-value" id="pacScore">0</span></div>' +
       '<div class="pac-stat"><span class="pac-stat-label">High score</span><span class="pac-stat-value" id="pacHigh">0</span></div>' +
