@@ -92,6 +92,13 @@
       description: 'A Donkey-Kong-style climbing arcade game — dodge rolling barrels and roaming flames up sloped girders to reach the rescue at the top.',
       icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="3"></circle><path d="M4 21l6-9 2 3 2-3 6 9"></path><path d="M9 14l-3 2"></path><path d="M15 14l3 2"></path></svg>',
     },
+    {
+      id: 'tank-battle',
+      category: 'game',
+      name: 'Tank Battle',
+      description: 'A retro top-down tank battle — destroy every enemy tank, dodge return fire, and keep your base safe.',
+      icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10" width="14" height="8" rx="1.5"></rect><path d="M12 10V5"></path><circle cx="12" cy="5" r="1.5"></circle><path d="M3 14h2"></path><path d="M19 14h2"></path><circle cx="8.5" cy="18" r="1.3"></circle><circle cx="15.5" cy="18" r="1.3"></circle></svg>',
+    },
 
     // Hidden "Game Mode" pages — one per study chapter, each hosting that
     // chapter's own crossword + Match the Definition. Not catalog cards:

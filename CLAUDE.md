@@ -1381,6 +1381,43 @@ and 3 definition. Use random combination."):
   stage-complete overlay shows both the student's own time and the
   current best ("🏆 Name — m:ss" or "No record yet").
 
+### Tank Battle — new arcade game (`tank-battle`)
+
+By request ("Create a retro tank game", with a Battle-City-style reference
+screenshot): a 7th arcade game, `tools/tank-battle/`, built from scratch
+with every convention from the leaderboard/MCQ-gate/settings-lock rollout
+above already in place from day one rather than retrofitted afterward.
+
+- **Arena**: a 560×560 canvas, 14×14 grid of 40px tiles, 3 hand-authored
+  brick/steel layouts (one per stage) with a programmatic steel border
+  added on top of every layout so tanks can never leave the arena
+  regardless of the hand-authored interior pattern, and the player's
+  spawn lane/the base tile are always kept clear.
+- **Player**: arrow keys/WASD to move, Space (or an on-screen 🔥 button)
+  to fire — one bullet in flight at a time. **Enemies**: 2-4 tanks per
+  stage (count scales with stage number and difficulty), simple AI that
+  keeps moving in its current facing direction until blocked then picks
+  a new one, firing on a randomized interval. A bullet destroys brick
+  tiles (never steel), destroys whichever tank it hits, and a bullet
+  reaching the base/eagle tile costs a life the same way a player hit
+  does — no separate permanent "base destroyed" state, kept simple.
+  Clearing every enemy on a stage advances to the next; clearing the
+  last stage shows "All stages cleared!" with a restart option.
+- **Unlimited lives + persistent MCQ gate**: same as every other arcade
+  game — a life lost opens the MCQ overlay, choices disable and a ✕
+  button appears on a correct answer, and only clicking ✕ resumes play.
+  Its own 10-question `DEFAULT_MCQS` bank is a deliberately broad mixed
+  review (oil, fuel, fire protection, APU, air systems, spool naming)
+  rather than one single topic, since every other game's bank already
+  claimed its own narrow angle (see the "MCQ gate on life loss" section
+  above) and a 7th narrow topic would have meant reaching further for
+  relevance.
+- **Settings + leaderboard**: an Easy/Normal/Hard picker (enemy count/
+  speed/spawn rate) password-gated the same way every other game's is;
+  a `tankBattle` leaderboard entry submitted at every stage clear via
+  `TM.Leaderboard.submitScore`, alongside the usual anonymous "High
+  score" stat, with a password-gated "Reset top score…" control.
+
 ### Phase 2 — Scaffolded topics, content pending
 
 No tools remain as placeholders — every catalog entry now has real
