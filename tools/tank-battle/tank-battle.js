@@ -20,6 +20,13 @@
   var HIGH_SCORE_KEY = 'tm.tankBattle.highScore.v2';
   var GAME_ID = 'tankBattle';
   var RESPAWN_INVULN_MS = 1500;
+  // Leaderboard scoring at stage clear: a time bonus for finishing a
+  // stage quickly (decays to 0 past PAR_SECONDS), minus a flat penalty
+  // per life lost that stage — only the submitted leaderboard score is
+  // adjusted, the on-screen raw "Score"/"High score" stats are untouched.
+  var PAR_SECONDS = 60;
+  var POINTS_PER_SECOND = 5;
+  var MISS_PENALTY = 150;
 
   // Difficulty tunes enemy count/speed/fire rate — never lives, which are
   // unlimited on every tier (a hit just means one MCQ gate, not a limit).
@@ -286,6 +293,7 @@
     updateTopDisplay();
 
     var score, misses, stage, grid, player, enemies, bullets, baseAlive, running, rafId, lastTime;
+    var stageStartTime = 0, missesThisStage = 0;
     var keys = { left: false, right: false, up: false, down: false };
     var lastDir = 'up';
     var fireRequested = false;
@@ -352,6 +360,8 @@
       player = {};
       resetPlayer();
       spawnEnemies(2 + Math.min(2, stage - 1) + diffCfg().extraEnemies);
+      stageStartTime = performance.now();
+      missesThisStage = 0;
     }
 
     function newGame() {
@@ -480,6 +490,7 @@
 
     function loseLife(now) {
       misses += 1;
+      missesThisStage += 1;
       playHurt();
       updateHud();
       running = false;
@@ -588,14 +599,26 @@
       playClear();
       var beat = score > highScore;
       updateHud();
-      TM.Leaderboard.submitScore(GAME_ID, score, { higherIsBetter: true });
+
+      var elapsedSeconds = (performance.now() - stageStartTime) / 1000;
+      var timeBonus = Math.max(0, Math.round((PAR_SECONDS - elapsedSeconds) * POINTS_PER_SECOND));
+      var penalty = missesThisStage * MISS_PENALTY;
+      var finalScore = Math.max(0, score + timeBonus - penalty);
+      var result = TM.Leaderboard.submitScore(GAME_ID, finalScore, { higherIsBetter: true });
       updateTopDisplay();
+
+      var breakdown = 'Score: ' + score +
+        (timeBonus ? (' + ' + timeBonus + ' time bonus') : '') +
+        (penalty ? (' − ' + penalty + ' for ' + missesThisStage + ' revive' + (missesThisStage === 1 ? '' : 's')) : '') +
+        ((timeBonus || penalty) ? (' = ' + finalScore) : '') +
+        (result.submitted ? ' — new top score!' : '');
+
       if (stage >= LAYOUTS.length) {
-        showOverlay('All stages cleared! 🎉', 'Final score ' + score + (beat ? ' — new high score!' : ''), 'Play again', function () {
+        showOverlay('All stages cleared! 🎉', breakdown + (beat ? ' — new high score!' : ''), 'Play again', function () {
           newGame(); startRunning();
         });
       } else {
-        showOverlay('Stage clear! 🎉', 'Stage ' + stage + ' cleared — score ' + score + (beat ? ' — new high score!' : ''), 'Next stage', function () {
+        showOverlay('Stage clear! 🎉', 'Stage ' + stage + ' cleared — ' + breakdown + (beat ? ' — new high score!' : ''), 'Next stage', function () {
           stage += 1; startStage(); updateHud(); startRunning();
         });
       }

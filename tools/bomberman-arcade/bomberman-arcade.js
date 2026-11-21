@@ -13,6 +13,11 @@
   var EXPLOSION_MS = 450;
   var HIGH_SCORE_KEY = 'tm.bombermanArcade.highScore.v2';
   var INVULN_MS = 2000;
+  // Points subtracted from the final submitted leaderboard score per life
+  // lost this stage (this game already rewards a fast clear directly in
+  // its own `score` via the existing leftover-time bonus below, so no
+  // separate time-based bonus is added here — that would double up).
+  var MISS_PENALTY = 100;
 
   // Difficulty: more starting time and fewer enemies per stage on Easy;
   // the opposite on Hard. Lives are unlimited on every tier — a hit means
@@ -240,7 +245,7 @@
     function updateTopDisplay() { topEl.textContent = TM.Leaderboard.bestLabel(LEADERBOARD_ID); }
     updateTopDisplay();
 
-    var soft, powerUnder, items, bombs, explosions, enemies, player, score, misses, timeLeft, stage, running, rafId, lastTime;
+    var soft, powerUnder, items, bombs, explosions, enemies, player, score, misses, missesThisStage, timeLeft, stage, running, rafId, lastTime;
 
     function buildStage() {
       soft = [];
@@ -304,6 +309,7 @@
     }
 
     function startStage() {
+      missesThisStage = 0;
       buildStage();
       spawnEnemies(Math.min(diffCfg().enemyBase + stage, diffCfg().enemyCap));
       resetPlayer();
@@ -459,6 +465,7 @@
     function hurtPlayer(now) {
       if (!mcqOverlay.classList.contains('hidden')) return; // already mid-gate from a chained hit
       misses += 1;
+      missesThisStage += 1;
       playHurt();
       updateHud();
       running = false;
@@ -570,9 +577,12 @@
       updateHud();
       var beat = score > highScore;
       if (beat) { highScore = score; try { localStorage.setItem(HIGH_SCORE_KEY, String(highScore)); } catch (err) {} highEl.textContent = highScore; }
-      var lb = TM.Leaderboard.submitScore(LEADERBOARD_ID, score, { higherIsBetter: true });
+      var penalty = missesThisStage * MISS_PENALTY;
+      var finalScore = Math.max(0, score - penalty);
+      var lb = TM.Leaderboard.submitScore(LEADERBOARD_ID, finalScore, { higherIsBetter: true });
       if (lb.submitted) updateTopDisplay();
-      showOverlay('Stage clear! 🎉', 'Time bonus +' + bonus + ' · Score: ' + score + (beat ? ' — new high score!' : '') + (lb.submitted ? ' — new top score!' : ''), 'Next stage', function () {
+      var penaltyText = missesThisStage ? (' − ' + penalty + ' for ' + missesThisStage + ' revive' + (missesThisStage === 1 ? '' : 's') + ' = ' + finalScore) : '';
+      showOverlay('Stage clear! 🎉', 'Time bonus +' + bonus + ' · Score: ' + score + penaltyText + (beat ? ' — new high score!' : '') + (lb.submitted ? ' — new top score!' : ''), 'Next stage', function () {
         stage += 1;
         startStage();
         updateHud();
@@ -800,6 +810,7 @@
       return { player: player, enemies: enemies, bombs: bombs, soft: soft, items: items, score: score, misses: misses, timeLeft: timeLeft, mcqGateOpen: !mcqOverlay.classList.contains('hidden') };
     };
     window.TM.toolModules['bomberman-arcade'].debugForceHurt = function () { hurtPlayer(performance.now()); };
+    window.TM.toolModules['bomberman-arcade'].debugForceClear = function () { stageClear(); };
     window.TM.toolModules['bomberman-arcade'].debugAnswerMcq = function (correct) {
       var btns = mcqChoicesEl.querySelectorAll('.bm-mcq-choice');
       for (var k = 0; k < btns.length; k++) {

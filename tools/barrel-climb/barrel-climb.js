@@ -236,6 +236,17 @@
     var pendingMcqCorrect = null;
 
     var GAME_ID = 'barrelClimb';
+    // Scoring at stage clear = raw score + a fast-climb time bonus −
+    // a per-revive penalty. PAR_SECONDS/POINTS_PER_SECOND judged from a
+    // clean climb through this stage's 5 ladders taking roughly 20-30s;
+    // MISS_PENALTY sits between a single barrel-hop bonus (50) and the
+    // flat stage-clear bonus (500) so one revive stings but never wipes
+    // out a whole climb's worth of score.
+    var PAR_SECONDS = 25;
+    var POINTS_PER_SECOND = 10;
+    var MISS_PENALTY = 100;
+    var stageStartTime = 0;
+    var missesThisStage = 0;
 
     var highScore = 0;
     try { highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0; } catch (err) { highScore = 0; }
@@ -296,6 +307,8 @@
       spawnFireballs();
       barrelSpawnAt = performance.now() + 1200;
       resetPlayer();
+      stageStartTime = performance.now();
+      missesThisStage = 0;
     }
 
     function newGame() {
@@ -437,6 +450,7 @@
 
     function loseLife(now) {
       misses += 1;
+      missesThisStage += 1;
       playHurt();
       updateHud();
       running = false;
@@ -543,9 +557,17 @@
       playClear();
       var beat = score > highScore;
       updateHud();
-      TM.Leaderboard.submitScore(GAME_ID, score, { higherIsBetter: true });
+      var elapsedSeconds = (performance.now() - stageStartTime) / 1000;
+      var timeBonus = Math.max(0, Math.round((PAR_SECONDS - elapsedSeconds) * POINTS_PER_SECOND));
+      var penalty = missesThisStage * MISS_PENALTY;
+      var finalScore = Math.max(0, score + timeBonus - penalty);
+      var result = TM.Leaderboard.submitScore(GAME_ID, finalScore, { higherIsBetter: true });
       updateTopDisplay();
-      showOverlay('Rescue complete! 🎉', 'Stage ' + stage + ' cleared — score ' + score + (beat ? ' — new high score!' : ''), 'Next stage', function () {
+      var breakdown = 'Score: ' + score +
+        (timeBonus ? (' + ' + timeBonus + ' time bonus') : '') +
+        (penalty ? (' − ' + penalty + ' for ' + missesThisStage + ' revive' + (missesThisStage === 1 ? '' : 's')) : '') +
+        ((timeBonus || penalty) ? (' = ' + finalScore) : '');
+      showOverlay('Rescue complete! 🎉', 'Stage ' + stage + ' cleared — ' + breakdown + (beat ? ' — new high score!' : '') + (result.submitted ? ' — new top score!' : ''), 'Next stage', function () {
         stage += 1; startStage(); updateHud(); startRunning();
       });
     }
@@ -728,6 +750,7 @@
     window.TM.toolModules['barrel-climb'].debugKeys = keys;
     window.TM.toolModules['barrel-climb'].debugJump = function () { jumpRequested = true; };
     window.TM.toolModules['barrel-climb'].debugForceLoseLife = function () { loseLife(performance.now()); };
+    window.TM.toolModules['barrel-climb'].debugForceStageClear = function () { stageClear(); };
     window.TM.toolModules['barrel-climb'].debugAnswerMcq = function (correct) {
       var btns = mcqChoicesEl.querySelectorAll('.bc-mcq-choice');
       for (var k = 0; k < btns.length; k++) {

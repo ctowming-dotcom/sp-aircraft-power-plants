@@ -281,11 +281,19 @@
       aimAngle = -Math.PI / 2;
     }
 
+    // Time-to-clear and revive count for the CURRENT stage, across any
+    // number of retries (a loseLife() retry re-deals the board via
+    // startStage() but must not reset these, so a revive genuinely costs
+    // the stage's final score) — only a true new stage resets them.
+    var stageStartTime = 0, missesThisStage = 0;
+    function resetStageTimer() { stageStartTime = performance.now(); missesThisStage = 0; }
+
     function newGame() {
       score = 0;
       misses = 0;
       stage = 1;
       startStage();
+      resetStageTimer();
       updateHud();
     }
 
@@ -460,6 +468,7 @@
     function loseLife() {
       if (!mcqOverlay.classList.contains('hidden')) return; // already mid-gate
       misses += 1;
+      missesThisStage += 1;
       playHurt();
       updateHud();
       running = false;
@@ -472,16 +481,36 @@
       });
     }
 
+    // A par time for clearing one board (typical normal-difficulty board,
+    // ~5 rows of 9 bubbles) and a points-per-second decay for finishing
+    // faster than that; MISS_PENALTY is proportionate to a typical clear's
+    // raw score (a few hundred points once the flat +300 stage bonus is in).
+    var PAR_SECONDS = 60;
+    var POINTS_PER_SECOND = 3;
+    var MISS_PENALTY = 60;
+
     function stageClear() {
       running = false;
       score += 300;
       playClear();
       var beat = score > highScore;
       updateHud();
-      TM.Leaderboard.submitScore(GAME_ID, score, { higherIsBetter: true });
+
+      var elapsedSeconds = (performance.now() - stageStartTime) / 1000;
+      var timeBonus = Math.max(0, Math.round((PAR_SECONDS - elapsedSeconds) * POINTS_PER_SECOND));
+      var penalty = missesThisStage * MISS_PENALTY;
+      var finalScore = Math.max(0, score + timeBonus - penalty);
+      var result = TM.Leaderboard.submitScore(GAME_ID, finalScore, { higherIsBetter: true });
       updateTopDisplay();
-      showOverlay('Stage clear! 🎉', 'Stage ' + stage + ' cleared — score ' + score + (beat ? ' — new high score!' : ''), 'Next stage', function () {
-        stage += 1; startStage(); updateHud(); startRunning();
+
+      var breakdown = 'Score: ' + score +
+        (timeBonus ? (' + ' + timeBonus + ' time bonus') : '') +
+        (missesThisStage ? (' − ' + penalty + ' for ' + missesThisStage + ' revive' + (missesThisStage === 1 ? '' : 's')) : '') +
+        ((timeBonus || missesThisStage) ? (' = ' + finalScore) : '') +
+        (beat ? ' — new high score!' : '') + (result.submitted ? ' — new top score!' : '');
+
+      showOverlay('Stage clear! 🎉', 'Stage ' + stage + ' cleared — ' + breakdown, 'Next stage', function () {
+        stage += 1; startStage(); resetStageTimer(); updateHud(); startRunning();
       });
     }
 
