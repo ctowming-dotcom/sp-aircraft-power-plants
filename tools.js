@@ -74,5 +74,11 @@
       description: 'A Bomberman-style arcade game — blast blocks, grab power-ups, and clear every creature before the clock runs out.',
       icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="13" r="7"></circle><path d="M16 8l2.5-2.5"></path><path d="M17 4.5h2.5V7"></path><path d="M11 13v0"></path></svg>',
     },
+    {
+      id: 'western-saloon',
+      name: 'Saloon Shootout',
+      description: 'A western-bar shooting gallery — gun down the outlaws popping up around the saloon, but spare the bartender and the regulars.',
+      icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v4"></path><path d="M12 15h.01"></path><path d="M3 12h4"></path><path d="M17 12h4"></path></svg>',
+    },
   ];
 })();
