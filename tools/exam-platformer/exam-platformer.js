@@ -482,7 +482,13 @@
       running = false;
       playClear();
       if (completed.indexOf(stage.id) === -1) { completed.push(stage.id); saveProgress(completed); }
-      showOverlay('Stage complete! 🎉', clues[stage.id], 'Back to stages', backToStages);
+      var idx = STAGES.indexOf(stage);
+      var next = STAGES[idx + 1];
+      if (next) {
+        showOverlay('Stage complete! 🎉', clues[stage.id], 'Next stage', function () { openStage(next.id); });
+      } else {
+        showOverlay('Stage complete! 🎉', clues[stage.id], 'Replay stage', function () { openStage(stage.id); });
+      }
     }
 
     function showOverlay(title, body, primaryLabel, primaryAction) {
