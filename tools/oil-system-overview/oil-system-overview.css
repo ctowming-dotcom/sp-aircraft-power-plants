@@ -392,3 +392,176 @@
   font-size: 13.5px;
   text-align: center;
 }
+
+/* --- "Label the Bearings" timed challenge --- */
+
+.oil-diagram .comp.game-target.is-blanked .comp-label {
+  opacity: 0;
+}
+
+.oil-diagram .comp.game-target.is-blanked .comp-box {
+  stroke-dasharray: 5 4;
+  stroke: var(--amber);
+}
+
+.oil-diagram .comp.game-target.is-solved-flash .comp-box {
+  fill: var(--supply);
+  stroke: var(--supply);
+  transition: fill 0.1s ease, stroke 0.1s ease;
+}
+
+.oil-diagram .comp-list-item.is-masked {
+  opacity: 0.55;
+}
+
+.oil-diagram .comp-list-item.is-masked .comp-list-name {
+  color: var(--text-dim);
+}
+
+.oil-game-panel {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--box-stroke-dim);
+}
+
+/* While a challenge is running, pin the HUD/bank to the bottom of the
+   viewport — the panel normally sits below a tall diagram and a long
+   reference list, so without this the bank of draggable tiles would be
+   scrolled out of view whenever the student scrolls up to see the
+   diagram they're dragging onto. */
+.oil-game-panel.is-floating {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  margin: 0;
+  padding: 10px 24px 14px;
+  border-top: 2px solid var(--amber);
+  background: var(--panel);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.oil-game-panel.is-floating .oil-game-intro {
+  display: none;
+}
+
+.oil-game-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.oil-game-intro {
+  margin: 0 0 14px;
+  color: var(--text-dim);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.oil-game-hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.oil-game-stat {
+  background: var(--panel);
+  border: 1px solid var(--box-stroke-dim);
+  border-radius: 6px;
+  padding: 6px 14px;
+  text-align: center;
+  min-width: 90px;
+}
+
+.oil-game-stat-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.oil-game-stat-value {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.oil-game-btn {
+  font: inherit;
+  font-weight: 700;
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 18px;
+  cursor: pointer;
+  background: linear-gradient(180deg, #2a4d70, #1c3a5a);
+  color: var(--text);
+  box-shadow: 0 0 0 1px rgba(242, 177, 52, 0.35) inset;
+  margin-left: auto;
+}
+
+.oil-game-btn:hover {
+  box-shadow: 0 0 0 1px var(--amber) inset;
+}
+
+.oil-game-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.oil-game-result {
+  min-height: 1.4em;
+  margin: 0 0 10px;
+  font-weight: 700;
+  color: var(--amber);
+}
+
+.oil-game-bank {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 2.6em;
+}
+
+.oil-game-tile {
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: var(--box-fill2);
+  border: 1px solid var(--box-stroke);
+  color: var(--text);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.oil-game-tile.is-dragging-source {
+  opacity: 0.35;
+}
+
+.oil-game-tile.is-wrong-flash {
+  animation: oil-game-shake 0.4s ease;
+  border-color: var(--return);
+}
+
+.oil-game-tile-drag {
+  z-index: 999;
+  pointer-events: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes oil-game-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
