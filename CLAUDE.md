@@ -1454,11 +1454,12 @@ convention already in place from the start.
   submitted at every stage clear, alongside the usual anonymous "High
   score" stat and a password-gated "Reset top score…" control.
 
-### Game scoring: per-revive penalty + leaderboard reset (Shooting); time bonus for the rest in progress
+### Game scoring: time bonus + per-revive penalty (stage-clear games); leaderboard reset; "APP888"; Exam Guide stub removed
 
 By request ("for game that get score by ending the game, change the
 scoring system by adding time based completion and minus point for
-every live revive. Reset scores for all game."):
+every live revive. Reset scores for all game."), followed by "change
+password to APP888" and "remove all element on giving exam tips":
 
 - **Scope**: applies to every arcade game whose score is submitted to
   the shared leaderboard at a stage-clear/win moment — Maze Muncher,
@@ -1479,6 +1480,57 @@ every live revive. Reset scores for all game."):
   MISS_PENALTY)`. The time's-up result message shows the arithmetic
   ("Final score: 140 − 30 for 1 revive = 110") when any penalty applied,
   so the deduction is never a silent surprise.
+- **Maze Muncher** (`pacman-arcade`): `PAR_SECONDS = 45`,
+  `POINTS_PER_SECOND = 5`, `MISS_PENALTY = 150` (tuned to this maze's
+  size and its own scoring scale — a 150-point penalty is roughly one
+  eaten ghost's worth), tracked via `levelStartTime`/`missesThisLevel`
+  reset at the start of every maze (not just a new game, since mazes
+  repeat). Clear message e.g. "Score: 0 + 221 time bonus − 150 for 1
+  revive = 71".
+- **Barrel Climb**: `PAR_SECONDS = 25`, `POINTS_PER_SECOND = 10`,
+  `MISS_PENALTY = 100` (judged from a clean climb through the stage's 5
+  ladders taking ~20-30s; the penalty sits between a single barrel-hop
+  bonus of 50 and the flat 500-point stage-clear bonus, so one revive
+  stings without wiping out a whole climb), tracked via
+  `stageStartTime`/`missesThisStage` reset in `startStage()` (covers
+  both a new game and "Next stage"). Clear message e.g. "Stage 2
+  cleared — Score: 1000 + 243 time bonus − 100 for 1 revive = 1143 —
+  new high score! — new top score!".
+- **Tank Battle**: `PAR_SECONDS = 60`, `POINTS_PER_SECOND = 5` (max
+  +300 bonus for an instant clear, matched to the 560×560 arena and
+  2-4 enemy count), `MISS_PENALTY = 150` (one enemy kill is worth 100,
+  the flat stage-clear bonus is 500, so 150 ≈ 1.5 kills' worth).
+- **Bubble Shooter**: `PAR_SECONDS = 60`, `POINTS_PER_SECOND = 3`,
+  `MISS_PENALTY = 60` (proportionate to the flat +300 stage-clear
+  bonus plus pop scoring). `stageStartTime`/`missesThisStage`
+  deliberately accumulate across any *retries* of the same stage (a
+  revive costs real points toward that stage's eventual score) and
+  only reset on a genuinely new stage, not on every MCQ-gate resume —
+  the one game among these five where a mid-stage revive's penalty
+  isn't simply "+1 to a per-attempt counter that resets with the
+  board", since the board itself doesn't reset to empty on a revive
+  here (only the danger-line overflow clears), unlike the others'
+  full-stage-restart-on-revive shape.
+- **Super Bomberman** — a deliberate deviation from the other four:
+  **no separate time bonus was added**. This game already had its own
+  leftover-time bonus baked directly into the raw `score` itself
+  (`bonus = Math.ceil(timeLeft) * 10`, long pre-dating this change,
+  applied to both the HUD stat and the leaderboard submission) —
+  layering a second, independent elapsed-time bonus on top would double-
+  reward speed, so only the missing piece (a `MISS_PENALTY = 100`
+  revive penalty, matched to this game's own scoring scale: enemies
+  worth 100, blocks 20, power-ups 10, so one life costs exactly one
+  kill's worth) was added, applied solely to the leaderboard submission.
+  Message e.g. "Time bonus +1500 · Score: 1500 − 100 for 1 revive =
+  1400 — new top score!".
+- Every one of these five keeps the on-screen raw "Score"/"High score"
+  HUD stats completely unmodified — only the value submitted to
+  `TM.Leaderboard.submitScore()` differs from what's shown mid-game,
+  and every affected clear/result message spells out the arithmetic so
+  that difference is never a silent surprise. Each file's chained-hit
+  guards (where one existed, e.g. Super Bomberman's) were re-verified
+  to still hold a per-attempt miss counter at +1, not +2, for a single
+  rapid chained hit.
 - **All existing leaderboard scores reset, site-wide, in one change**:
   rather than asking every visitor to manually clear anything, or only
   resetting the games whose formula changed, `leaderboard.js`'s
@@ -1497,48 +1549,26 @@ every live revive. Reset scores for all game."):
   (`tm.oilSystem.gameBest.*`, `tm.fuelSystem.gameBest`) were *not*
   touched — their scoring formula didn't change, so there was nothing
   to invalidate there.
-- **Maze Muncher, Super Bomberman, Barrel Climb, Tank Battle, Bubble
-  Shooter**: each needs a genuine "finished faster = bonus points" time
-  component added on top of the same revive penalty, since (unlike
-  Shooting) their rounds don't run a fixed duration — see each file's
-  own `stageClear()`/`levelClear()`-equivalent for the eventual exact
-  formula once this lands.
-
-### Shared password changed to "APP888"; "📘 Exam Guide" stub removed everywhere; Maze Muncher's scoring updated
-
-By request ("change password to APP888") — every settings/leaderboard-
-reset password check in `leaderboard.js` (`SETTINGS_PASSWORD`) and every
-arcade game's own `MCQ_EDIT_PASSWORD`/`EDIT_PASSWORD` constant (Barrel
-Climb, Super Bomberman, Bubble Shooter, Engine Emergency, Jump
-Challenge, Maze Muncher, Tank Battle, Shooting) changed from `'APP'` to
-`'APP888'`. The separate `'APP2'` password used by the diagram/marker
-editors (Air System, APU System, Fire System, Turbofan Engine, Virtual
-Lab) is untouched — a different password for a different purpose, never
-part of this request.
-
-By request ("remove all element on giving exam tips") — the "📘 Exam
-guide" button + its placeholder panel ("This section is empty for now
-— exam tips for this game will be added here by January 2027.") was
-removed from all 6 games that had it (Barrel Climb, Super Bomberman,
-Engine Emergency, Jump Challenge, Maze Muncher, Shooting) — button,
-panel markup, and its click handler, all gone; Jump Challenge's
-`.ep-guide` CSS (used by nothing else) was deleted outright, while the
-other 5 games' shared `.xx-guide` CSS class stays since their Settings
-panel reuses the same class for its own styling. Tank Battle and Bubble
-Shooter never had this stub to begin with (built after it would have
-been added), so nothing to remove there.
-
-Maze Muncher (`pacman-arcade`) also got the first of the per-game
-"time bonus + revive penalty" scoring changes described in the section
-above: `PAR_SECONDS = 45`, `POINTS_PER_SECOND = 5`, `MISS_PENALTY =
-150` (tuned to this maze's size and its own scoring scale — a 150-point
-penalty is roughly one eaten ghost's worth), tracked via
-`levelStartTime`/`missesThisLevel` reset at the start of every maze (not
-just a new game, since mazes repeat). The maze-clear overlay message now
-shows the full arithmetic, e.g. "Score: 0 + 221 time bonus − 150 for 1
-revive = 71", so a leaderboard result that differs from the raw on-
-screen score is never a silent surprise. Super Bomberman, Barrel Climb,
-Tank Battle, and Bubble Shooter are getting the same treatment next.
+- **Shared password changed to "APP888"**: every settings/leaderboard-
+  reset password check in `leaderboard.js` (`SETTINGS_PASSWORD`) and
+  every arcade game's own `MCQ_EDIT_PASSWORD`/`EDIT_PASSWORD` constant
+  (Barrel Climb, Super Bomberman, Bubble Shooter, Engine Emergency,
+  Jump Challenge, Maze Muncher, Tank Battle, Shooting) changed from
+  `'APP'` to `'APP888'`. The separate `'APP2'` password used by the
+  diagram/marker editors (Air System, APU System, Fire System,
+  Turbofan Engine, Virtual Lab) is untouched — a different password for
+  a different purpose, never part of this request.
+- **"📘 Exam Guide" stub removed everywhere**: the button + its
+  placeholder panel ("This section is empty for now — exam tips for
+  this game will be added here by January 2027.") was removed from all
+  6 games that had it (Barrel Climb, Super Bomberman, Engine Emergency,
+  Jump Challenge, Maze Muncher, Shooting) — button, panel markup, and
+  its click handler, all gone; Jump Challenge's `.ep-guide` CSS (used by
+  nothing else) was deleted outright, while the other 5 games' shared
+  `.xx-guide` CSS class stays since their Settings panel reuses the
+  same class for its own styling. Tank Battle and Bubble Shooter never
+  had this stub to begin with (built after it would have been added),
+  so nothing to remove there.
 
 ### Phase 2 — Scaffolded topics, content pending
 
