@@ -86,5 +86,11 @@
       description: 'A randomly generated crossword built from this course\'s key words — pick Term 1 or Term 2, read the clues, and fill it in.',
       icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18"></path><path d="M3 15h18"></path><path d="M9 3v18"></path><path d="M15 3v18"></path></svg>',
     },
+    {
+      id: 'barrel-climb',
+      name: 'Barrel Climb',
+      description: 'A Donkey-Kong-style climbing arcade game — dodge rolling barrels and roaming flames up sloped girders to reach the rescue at the top.',
+      icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="3"></circle><path d="M4 21l6-9 2 3 2-3 6 9"></path><path d="M9 14l-3 2"></path><path d="M15 14l3 2"></path></svg>',
+    },
   ];
 })();
