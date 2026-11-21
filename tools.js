@@ -80,5 +80,11 @@
       description: 'A western-bar shooting gallery — gun down the outlaws popping up around the saloon, but spare the bartender and the regulars.',
       icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v4"></path><path d="M12 15h.01"></path><path d="M3 12h4"></path><path d="M17 12h4"></path></svg>',
     },
+    {
+      id: 'exam-crossword',
+      name: 'Crossword Challenge',
+      description: 'A randomly generated crossword built from this course\'s key words — pick Term 1 or Term 2, read the clues, and fill it in.',
+      icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18"></path><path d="M3 15h18"></path><path d="M9 3v18"></path><path d="M15 3v18"></path></svg>',
+    },
   ];
 })();
