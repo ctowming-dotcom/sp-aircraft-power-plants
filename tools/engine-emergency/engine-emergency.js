@@ -85,6 +85,42 @@
   var MIN_TIME_FRACTION = 0.55; // never speeds scenarios up past 55% of their base time
   var MS_PER_ROUND_CLEARED = 150; // each cleared round shaves this much off every timer
 
+  // Tiny self-contained Web Audio sound effects — no audio files, just
+  // oscillator beeps, so the site stays build-step-free. The AudioContext
+  // is only created lazily on the first sound (itself only ever triggered
+  // from a click handler), which satisfies browsers' autoplay-gesture
+  // requirement without any extra plumbing.
+  var SOUND_KEY = 'tm.engineEmergency.sound';
+  var soundOn = true;
+  try { soundOn = localStorage.getItem(SOUND_KEY) !== 'off'; } catch (err) { soundOn = true; }
+  var audioCtx = null;
+  function ensureAudio() {
+    if (!soundOn) return null;
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) { return null; }
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+  function beep(freq, dur, type, vol, delay) {
+    var ctx = ensureAudio();
+    if (!ctx) return;
+    var t0 = ctx.currentTime + (delay || 0);
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = type || 'square';
+    osc.frequency.setValueAtTime(freq, t0);
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(vol == null ? 0.18 : vol, t0 + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(t0); osc.stop(t0 + dur + 0.03);
+  }
+  function playCorrectStep() { beep(660, 0.08, 'square', 0.15); }
+  function playSuccess() { beep(523, 0.09, 'square', 0.18); beep(784, 0.11, 'square', 0.18, 0.09); beep(1046, 0.16, 'square', 0.18, 0.18); }
+  function playFail() { beep(220, 0.22, 'sawtooth', 0.2); beep(160, 0.26, 'sawtooth', 0.18, 0.08); }
+  function playGameOver() { beep(392, 0.18, 'square', 0.18); beep(330, 0.18, 'square', 0.18, 0.16); beep(220, 0.32, 'square', 0.18, 0.32); }
+
   function mount(root) {
     root.innerHTML =
       '<div class="ee-wrap">' +
@@ -94,6 +130,7 @@
       '<div class="ee-stat"><span class="ee-stat-label">Score</span><span class="ee-stat-value" id="eeScore">0</span></div>' +
       '<div class="ee-stat"><span class="ee-stat-label">High score</span><span class="ee-stat-value" id="eeHigh">0</span></div>' +
       '<div class="ee-stat"><span class="ee-stat-label">Lives</span><span class="ee-stat-value" id="eeLives">❤❤❤</span></div>' +
+      '<button type="button" class="ee-mute-btn" id="eeMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '</div>' +
       '<div class="ee-card ee-start" id="eeStart">' +
       '<h2>Ready for your shift?</h2>' +
@@ -200,6 +237,7 @@
         btn.classList.add('is-correct-step');
         stepIndex += 1;
         if (stepIndex >= scenario.sequence.length) succeed();
+        else playCorrectStep();
       } else {
         fail();
       }
@@ -215,6 +253,7 @@
       roundsCleared += 1;
       bannerEl.textContent = '✅ Handled — +' + gained + ' points';
       panelEl.classList.add('is-success');
+      playSuccess();
       updateHud();
       nextTimer = setTimeout(startRound, 900);
     }
@@ -224,6 +263,7 @@
       lives -= 1;
       panelEl.classList.add('is-fail');
       bannerEl.textContent = '❌ ' + (scenario ? scenario.symptom.replace(/^\S+\s/, '') : '') + ' — not handled in time!';
+      playFail();
       updateHud();
       if (lives <= 0) {
         gameOver();
@@ -237,6 +277,7 @@
       scenario = null;
       gameCard.classList.add('hidden');
       overCard.classList.remove('hidden');
+      playGameOver();
       var beat = score > highScore;
       if (beat) {
         highScore = score;
@@ -260,6 +301,12 @@
 
     root.querySelector('#eeStartBtn').addEventListener('click', startGame);
     root.querySelector('#eeRestartBtn').addEventListener('click', startGame);
+    root.querySelector('#eeMuteBtn').addEventListener('click', function (e) {
+      soundOn = !soundOn;
+      try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch (err) { /* ignore */ }
+      e.target.textContent = soundOn ? '🔊' : '🔇';
+      if (soundOn) ensureAudio();
+    });
 
     updateHud();
 

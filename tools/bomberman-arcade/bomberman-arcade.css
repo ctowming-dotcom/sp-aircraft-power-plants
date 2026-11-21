@@ -45,6 +45,21 @@
   font-weight: 600;
 }
 
+.bm-mute-btn {
+  flex: 0 0 auto;
+  font-size: 1.2rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.bm-mute-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .bm-stage {
   position: relative;
   display: flex;

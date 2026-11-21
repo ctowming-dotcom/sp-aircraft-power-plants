@@ -135,6 +135,40 @@
     return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
   }
 
+  // Tiny self-contained Web Audio sound effects — no audio files, so the
+  // site stays build-step-free. Lazily created on first sound, which is
+  // always triggered from a user gesture (jump key, click), satisfying
+  // the browser autoplay-gesture requirement with no extra plumbing.
+  var SOUND_KEY = 'tm.examPlatformer.sound';
+  var soundOn = true;
+  try { soundOn = localStorage.getItem(SOUND_KEY) !== 'off'; } catch (err) { soundOn = true; }
+  var audioCtx = null;
+  function ensureAudio() {
+    if (!soundOn) return null;
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) { return null; }
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+  function beep(freq, dur, type, vol, delay) {
+    var ctx = ensureAudio();
+    if (!ctx) return;
+    var t0 = ctx.currentTime + (delay || 0);
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = type || 'square';
+    osc.frequency.setValueAtTime(freq, t0);
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(vol == null ? 0.16 : vol, t0 + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(t0); osc.stop(t0 + dur + 0.03);
+  }
+  function playJump() { beep(520, 0.1, 'square', 0.12); }
+  function playDeath() { beep(300, 0.12, 'sawtooth', 0.18); beep(180, 0.22, 'sawtooth', 0.16, 0.1); }
+  function playClear() { beep(523, 0.1, 'square', 0.18); beep(659, 0.1, 'square', 0.18, 0.1); beep(784, 0.1, 'square', 0.18, 0.2); beep(1046, 0.22, 'square', 0.2, 0.3); }
+
   function mount(root) {
     var clues = loadClues();
     var completed = loadProgress();
@@ -144,12 +178,14 @@
       '<div class="ep-wrap">' +
       '<h1>🏁 Exam Clue Challenge</h1>' +
       '<p class="ep-intro">Clear a stage to reveal one exam clue. Arrow keys / A-D to move, Space or Up to jump — touching a spike or falling in a gap costs a life; 3 lives per attempt.</p>' +
-      '<div class="ep-toolbar"><button type="button" class="ep-btn ep-btn-ghost" id="epEditBtn">✎ Edit clues</button></div>' +
+      '<div class="ep-toolbar"><button type="button" class="ep-btn ep-btn-ghost" id="epMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
+      '<button type="button" class="ep-btn ep-btn-ghost" id="epEditBtn">✎ Edit clues</button></div>' +
       '<div class="ep-stagepicker" id="epStagePicker"></div>' +
       '<div class="ep-gameview hidden" id="epGameView">' +
       '<div class="ep-hud">' +
       '<button type="button" class="ep-btn ep-btn-ghost" id="epBackBtn">← Stages</button>' +
       '<span class="ep-hud-name" id="epStageName"></span>' +
+      '<button type="button" class="ep-btn ep-btn-ghost" id="epMuteBtn2" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<span class="ep-hud-lives" id="epLives"></span>' +
       '</div>' +
       '<canvas id="epCanvas" width="' + W + '" height="' + H + '"></canvas>' +
@@ -230,6 +266,19 @@
       });
     }
 
+    var muteBtn = root.querySelector('#epMuteBtn');
+    var muteBtn2 = root.querySelector('#epMuteBtn2');
+    function toggleSound() {
+      soundOn = !soundOn;
+      try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch (err) { /* ignore */ }
+      var icon = soundOn ? '🔊' : '🔇';
+      muteBtn.textContent = icon;
+      muteBtn2.textContent = icon;
+      if (soundOn) ensureAudio();
+    }
+    muteBtn.addEventListener('click', toggleSound);
+    muteBtn2.addEventListener('click', toggleSound);
+
     root.querySelector('#epEditBtn').addEventListener('click', function () {
       if (editUnlocked) { editUnlocked = false; renderEditPanel(); return; }
       var pw = window.prompt('Edit password:');
@@ -283,6 +332,7 @@
 
     function died() {
       lives -= 1;
+      playDeath();
       updateLivesHud();
       if (lives <= 0) {
         running = false;
@@ -301,6 +351,7 @@
 
     function completeStage() {
       running = false;
+      playClear();
       if (completed.indexOf(stage.id) === -1) { completed.push(stage.id); saveProgress(completed); }
       showOverlay('Stage complete! 🎉', clues[stage.id], 'Back to stages', backToStages);
     }
@@ -323,6 +374,7 @@
       if (jumpRequested && player.onGround) {
         player.vy = JUMP_V;
         player.onGround = false;
+        playJump();
       }
       jumpRequested = false;
 

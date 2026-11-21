@@ -45,6 +45,21 @@
   font-weight: 600;
 }
 
+.ee-mute-btn {
+  flex: 0 0 auto;
+  font-size: 1.3rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.9rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.ee-mute-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .ee-card {
   background: var(--surface);
   border: 1px solid var(--border);

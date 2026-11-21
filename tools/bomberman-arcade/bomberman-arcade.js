@@ -16,6 +16,62 @@
   var HIGH_SCORE_KEY = 'tm.bombermanArcade.highScore';
   var INVULN_MS = 2000;
 
+  // Tiny self-contained Web Audio sound effects — no audio files, so the
+  // site stays build-step-free. Lazily created on first sound, which is
+  // always triggered from a user gesture (move/bomb key, click),
+  // satisfying the browser autoplay-gesture requirement with no extra
+  // plumbing. Explosions use a short burst of filtered noise rather than
+  // an oscillator beep, since that's what actually reads as a "boom".
+  var SOUND_KEY = 'tm.bombermanArcade.sound';
+  var soundOn = true;
+  try { soundOn = localStorage.getItem(SOUND_KEY) !== 'off'; } catch (err) { soundOn = true; }
+  var audioCtx = null;
+  function ensureAudio() {
+    if (!soundOn) return null;
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) { return null; }
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+  function beep(freq, dur, type, vol, delay) {
+    var ctx = ensureAudio();
+    if (!ctx) return;
+    var t0 = ctx.currentTime + (delay || 0);
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = type || 'square';
+    osc.frequency.setValueAtTime(freq, t0);
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(vol == null ? 0.16 : vol, t0 + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(t0); osc.stop(t0 + dur + 0.03);
+  }
+  function noiseBurst(dur, vol) {
+    var ctx = ensureAudio();
+    if (!ctx) return;
+    var bufferSize = Math.max(1, Math.floor(ctx.sampleRate * dur));
+    var buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    var data = buffer.getChannelData(0);
+    for (var i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+    var src = ctx.createBufferSource();
+    src.buffer = buffer;
+    var filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1400, ctx.currentTime);
+    var gain = ctx.createGain();
+    gain.gain.setValueAtTime(vol == null ? 0.3 : vol, ctx.currentTime);
+    src.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+    src.start();
+  }
+  function playPlant() { beep(200, 0.06, 'square', 0.1); }
+  function playExplosion() { noiseBurst(0.35, 0.3); beep(90, 0.3, 'sawtooth', 0.12); }
+  function playPickup() { beep(660, 0.07, 'square', 0.16); beep(880, 0.09, 'square', 0.18, 0.07); }
+  function playHurt() { beep(260, 0.14, 'sawtooth', 0.18); beep(160, 0.2, 'sawtooth', 0.16, 0.1); }
+  function playClear() { beep(523, 0.1, 'square', 0.18); beep(659, 0.1, 'square', 0.18, 0.1); beep(784, 0.1, 'square', 0.18, 0.2); beep(1046, 0.22, 'square', 0.2, 0.3); }
+  function playGameOver() { beep(392, 0.18, 'square', 0.18); beep(330, 0.18, 'square', 0.18, 0.16); beep(220, 0.32, 'square', 0.18, 0.32); }
+
   var DIRS = {
     up: { dr: -1, dc: 0 },
     down: { dr: 1, dc: 0 },
@@ -47,6 +103,7 @@
       '<div class="bm-stat"><span class="bm-stat-label">High score</span><span class="bm-stat-value" id="bmHigh">0</span></div>' +
       '<div class="bm-stat"><span class="bm-stat-label">Time</span><span class="bm-stat-value" id="bmTime">0</span></div>' +
       '<div class="bm-stat"><span class="bm-stat-label">Lives</span><span class="bm-stat-value" id="bmLives">●●●</span></div>' +
+      '<button type="button" class="bm-mute-btn" id="bmMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '</div>' +
       '<div class="bm-stage">' +
       '<canvas id="bmCanvas" width="' + W + '" height="' + H + '"></canvas>' +
@@ -202,6 +259,7 @@
         else if (item === 'fire') player.range = Math.min(player.range + 1, 6);
         else if (item === 'speed') player.speed = Math.min(player.speed + 0.35, 3.6);
         score += 20;
+        playPickup();
       }
       if (now > player.invulnerableUntil) {
         for (var i = 0; i < enemies.length; i++) {
@@ -246,6 +304,7 @@
       var activeCount = bombs.length;
       if (activeCount >= player.maxBombs) return;
       bombs.push({ r: t.r, c: t.c, placedAt: performance.now(), range: player.range, exploded: false });
+      playPlant();
     }
 
     function destroySoftBlock(r, c) {
@@ -270,6 +329,7 @@
         }
       });
       explosions.push({ tiles: tiles, until: now + EXPLOSION_MS });
+      playExplosion();
 
       var tileSet = {};
       tiles.forEach(function (t) { tileSet[keyOf(t.r, t.c)] = true; });
@@ -292,6 +352,7 @@
 
     function hurtPlayer(now) {
       lives -= 1;
+      playHurt();
       updateHud();
       if (lives <= 0) {
         gameOver();
@@ -302,6 +363,7 @@
 
     function gameOver() {
       running = false;
+      playGameOver();
       var beat = score > highScore;
       if (beat) { highScore = score; try { localStorage.setItem(HIGH_SCORE_KEY, String(highScore)); } catch (err) {} highEl.textContent = highScore; }
       showOverlay('Game over', 'Final score: ' + score + (beat ? ' — new high score!' : ' · High score: ' + highScore), 'Play again', function () {
@@ -312,6 +374,7 @@
 
     function stageClear() {
       running = false;
+      playClear();
       var bonus = Math.ceil(timeLeft) * 10;
       score += bonus;
       updateHud();
@@ -483,6 +546,13 @@
     function bindTouch(el, action) {
       el.addEventListener('pointerdown', function (e) { e.preventDefault(); action(); });
     }
+    root.querySelector('#bmMuteBtn').addEventListener('click', function (e) {
+      soundOn = !soundOn;
+      try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch (err) { /* ignore */ }
+      e.target.textContent = soundOn ? '🔊' : '🔇';
+      if (soundOn) ensureAudio();
+    });
+
     bindTouch(root.querySelector('#bmUpBtn'), function () { if (player) player.want = 'up'; });
     bindTouch(root.querySelector('#bmDownBtn'), function () { if (player) player.want = 'down'; });
     bindTouch(root.querySelector('#bmLeftBtn'), function () { if (player) player.want = 'left'; });

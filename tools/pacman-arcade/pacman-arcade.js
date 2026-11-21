@@ -69,6 +69,43 @@
   var LIVES_START = 3;
   var HIGH_SCORE_KEY = 'tm.pacmanArcade.highScore';
 
+  // Tiny self-contained Web Audio sound effects — no audio files, so the
+  // site stays build-step-free. Lazily created on first sound, which is
+  // always triggered from a user gesture (move key, click), satisfying
+  // the browser autoplay-gesture requirement with no extra plumbing.
+  var SOUND_KEY = 'tm.pacmanArcade.sound';
+  var soundOn = true;
+  try { soundOn = localStorage.getItem(SOUND_KEY) !== 'off'; } catch (err) { soundOn = true; }
+  var audioCtx = null;
+  function ensureAudio() {
+    if (!soundOn) return null;
+    if (!audioCtx) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) { return null; }
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+  }
+  function beep(freq, dur, type, vol, delay) {
+    var ctx = ensureAudio();
+    if (!ctx) return;
+    var t0 = ctx.currentTime + (delay || 0);
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = type || 'square';
+    osc.frequency.setValueAtTime(freq, t0);
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(vol == null ? 0.14 : vol, t0 + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(t0); osc.stop(t0 + dur + 0.03);
+  }
+  var dotToneToggle = false;
+  function playDotEat() { dotToneToggle = !dotToneToggle; beep(dotToneToggle ? 300 : 220, 0.05, 'square', 0.08); }
+  function playPelletEat() { beep(180, 0.12, 'sawtooth', 0.16); beep(140, 0.14, 'sawtooth', 0.14, 0.08); }
+  function playGhostEat() { beep(440, 0.07, 'square', 0.16); beep(660, 0.07, 'square', 0.16, 0.07); beep(880, 0.1, 'square', 0.18, 0.14); }
+  function playLoseLife() { beep(280, 0.14, 'sawtooth', 0.18); beep(200, 0.16, 'sawtooth', 0.16, 0.1); beep(120, 0.22, 'sawtooth', 0.16, 0.22); }
+  function playClear() { beep(523, 0.1, 'square', 0.18); beep(659, 0.1, 'square', 0.18, 0.1); beep(784, 0.1, 'square', 0.18, 0.2); beep(1046, 0.22, 'square', 0.2, 0.3); }
+
   var DIRS = {
     up: { dr: -1, dc: 0 },
     down: { dr: 1, dc: 0 },
@@ -95,6 +132,7 @@
       '<div class="pac-stat"><span class="pac-stat-label">Score</span><span class="pac-stat-value" id="pacScore">0</span></div>' +
       '<div class="pac-stat"><span class="pac-stat-label">High score</span><span class="pac-stat-value" id="pacHigh">0</span></div>' +
       '<div class="pac-stat"><span class="pac-stat-label">Lives</span><span class="pac-stat-value" id="pacLives">●●●</span></div>' +
+      '<button type="button" class="pac-mute-btn" id="pacMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '</div>' +
       '<div class="pac-stage">' +
       '<canvas id="pacCanvas" width="' + W + '" height="' + H + '"></canvas>' +
@@ -233,9 +271,12 @@
         pelletsLeft--;
         score += wasPellet ? 50 : 10;
         if (wasPellet) {
+          playPelletEat();
           frightenedUntil = performance.now() + FRIGHTENED_MS;
           eatMultiplier = 1;
           ghosts.forEach(function (g) { if (g.state === 'chase' || g.state === 'scatter' || g.state === 'frightened') g.state = 'frightened'; });
+        } else {
+          playDotEat();
         }
         updateHud();
         if (pelletsLeft <= 0) levelClear();
@@ -332,6 +373,7 @@
           if (g.state === 'frightened') {
             score += 200 * eatMultiplier;
             eatMultiplier = Math.min(eatMultiplier + 1, 8);
+            playGhostEat();
             updateHud();
             g.state = 'eyes';
           } else if (g.state !== 'eyes') {
@@ -344,6 +386,7 @@
 
     function loseLife() {
       lives -= 1;
+      playLoseLife();
       updateHud();
       if (lives <= 0) {
         running = false;
@@ -357,6 +400,7 @@
 
     function levelClear() {
       running = false;
+      playClear();
       var beat = score > highScore;
       if (beat) { highScore = score; try { localStorage.setItem(HIGH_SCORE_KEY, String(highScore)); } catch (err) {} highEl.textContent = highScore; }
       showOverlay('Maze clear! 🎉', 'Score: ' + score + (beat ? ' — new high score!' : ''), 'Next maze', function () {
@@ -488,6 +532,13 @@
     function bindTouch(el, dir) {
       el.addEventListener('pointerdown', function (e) { e.preventDefault(); if (player) player.want = dir; });
     }
+    root.querySelector('#pacMuteBtn').addEventListener('click', function (e) {
+      soundOn = !soundOn;
+      try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch (err) { /* ignore */ }
+      e.target.textContent = soundOn ? '🔊' : '🔇';
+      if (soundOn) ensureAudio();
+    });
+
     bindTouch(root.querySelector('#pacUpBtn'), 'up');
     bindTouch(root.querySelector('#pacDownBtn'), 'down');
     bindTouch(root.querySelector('#pacLeftBtn'), 'left');
