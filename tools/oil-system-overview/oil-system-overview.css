@@ -567,3 +567,70 @@
   60% { transform: translateX(-3px); }
   80% { transform: translateX(3px); }
 }
+
+/* --- "Match the Definition" timed challenge --- */
+
+.oil-match-panel {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--box-stroke-dim);
+}
+
+.oil-match-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.oil-match-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.oil-match-tile {
+  font: inherit;
+  text-align: left;
+  font-size: 13.5px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: var(--box-fill2);
+  border: 1px solid var(--box-stroke);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.oil-match-tile:hover:not(.is-solved):not(:disabled) {
+  border-color: var(--amber);
+}
+
+.oil-match-tile.is-selected {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 1px var(--amber) inset;
+}
+
+.oil-match-tile.is-solved {
+  background: rgba(74, 222, 128, 0.18);
+  border-color: var(--supply);
+  color: var(--supply);
+  cursor: default;
+}
+
+.oil-match-tile.is-wrong-flash {
+  animation: oil-game-shake 0.4s ease;
+  background: var(--return);
+  border-color: var(--return);
+  color: #2a0a0a;
+}
+
+.oil-match-tile.is-revealed:not(.is-solved) {
+  border-color: var(--amber);
+  opacity: 0.7;
+  cursor: default;
+}
+
+@media (max-width: 640px) {
+  .oil-match-columns {
+    grid-template-columns: 1fr;
+  }
+}

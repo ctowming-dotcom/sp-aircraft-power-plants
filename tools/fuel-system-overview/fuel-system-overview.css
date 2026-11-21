@@ -480,3 +480,70 @@
 .fd-game-panel.is-floating .fd-game-intro {
   display: none;
 }
+
+/* --- "Match the Definition" timed challenge --- */
+
+.fd-match-panel {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line);
+}
+
+.fd-match-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.fd-match-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fd-match-tile {
+  font: inherit;
+  text-align: left;
+  font-size: 13.5px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: #1d3e61;
+  border: 1px solid var(--box);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.fd-match-tile:hover:not(.is-solved):not(:disabled) {
+  border-color: #f2b134;
+}
+
+.fd-match-tile.is-selected {
+  border-color: #f2b134;
+  box-shadow: 0 0 0 1px #f2b134 inset;
+}
+
+.fd-match-tile.is-solved {
+  background: rgba(74, 222, 128, 0.18);
+  border-color: var(--green);
+  color: var(--green);
+  cursor: default;
+}
+
+.fd-match-tile.is-wrong-flash {
+  animation: fd-game-shake 0.4s ease;
+  background: var(--red);
+  border-color: var(--red);
+  color: #2a0a0a;
+}
+
+.fd-match-tile.is-revealed:not(.is-solved) {
+  border-color: #f2b134;
+  opacity: 0.7;
+  cursor: default;
+}
+
+@media (max-width: 640px) {
+  .fd-match-columns {
+    grid-template-columns: 1fr;
+  }
+}
