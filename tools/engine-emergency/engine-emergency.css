@@ -95,7 +95,11 @@
 
 .ee-guide p {
   color: var(--text-muted);
-  margin: 0;
+  margin: 0 0 0.8rem;
+}
+
+.ee-guide p:last-child {
+  margin-bottom: 0;
 }
 
 .ee-btn {
@@ -114,6 +118,27 @@
 
 .ee-btn-primary:hover {
   filter: brightness(1.05);
+}
+
+.ee-btn-ghost {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.ee-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ee-btn-ghost.is-active {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: transparent;
+}
+
+.ee-row {
+  display: flex;
+  gap: 0.6rem;
 }
 
 .ee-banner {

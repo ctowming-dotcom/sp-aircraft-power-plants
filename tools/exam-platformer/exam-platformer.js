@@ -10,9 +10,19 @@
   var MOVE_SPEED = 4.2;
   var PLAYER_W = 28;
   var PLAYER_H = 36;
-  var LIVES_START = 3;
   var GROUND_Y = 340; // top of ground-level solids; player stands with its
                       // feet at this y when on a ground segment
+
+  // Difficulty only changes lives per attempt — the jump physics and
+  // stage layouts stay the same at every level so they stay fair.
+  var DIFFICULTY_KEY = 'tm.examPlatformer.difficulty';
+  var DIFFICULTY_SETTINGS = { easy: { lives: 5 }, normal: { lives: 3 }, hard: { lives: 2 } };
+  var difficulty = 'normal';
+  try {
+    var savedDiff = localStorage.getItem(DIFFICULTY_KEY);
+    if (DIFFICULTY_SETTINGS[savedDiff]) difficulty = savedDiff;
+  } catch (err) { /* ignore */ }
+  function diffCfg() { return DIFFICULTY_SETTINGS[difficulty]; }
 
   // Every stage is a flat list of "solids" (things you can stand on — both
   // ground segments and floating platforms are the same shape to the
@@ -176,14 +186,24 @@
 
     root.innerHTML =
       '<div class="ep-wrap">' +
-      '<h1>🏁 Exam Clue Challenge</h1>' +
-      '<p class="ep-intro">Clear a stage to reveal one exam clue. Arrow keys / A-D to move, Space or Up to jump — touching a spike or falling in a gap costs a life; 3 lives per attempt.</p>' +
+      '<h1>🏁 Jump Challenge</h1>' +
+      '<p class="ep-intro">Clear a stage to reveal one exam clue. Arrow keys / A-D to move, Space or Up to jump — touching a spike or falling in a gap costs a life.</p>' +
       '<div class="ep-toolbar"><button type="button" class="ep-btn ep-btn-ghost" id="epMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="ep-btn ep-btn-ghost" id="epGuideBtn">📘 Exam guide</button>' +
+      '<button type="button" class="ep-btn ep-btn-ghost" id="epSettingsBtn">⚙️ Settings</button>' +
       '<button type="button" class="ep-btn ep-btn-ghost" id="epEditBtn">✎ Edit clues</button></div>' +
       '<div class="ep-guide hidden" id="epGuideStage">' +
       '<h2>📘 Exam Guide</h2>' +
       '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
+      '</div>' +
+      '<div class="ep-guide hidden" id="epSettings">' +
+      '<h2>⚙️ Game Settings</h2>' +
+      '<p>Easy gives you 5 lives per attempt, Normal 3, Hard 2. Takes effect on your next stage attempt.</p>' +
+      '<div class="ep-row">' +
+      '<button type="button" class="ep-btn ep-btn-ghost ep-diff-btn" data-diff="easy">Easy</button>' +
+      '<button type="button" class="ep-btn ep-btn-ghost ep-diff-btn" data-diff="normal">Normal</button>' +
+      '<button type="button" class="ep-btn ep-btn-ghost ep-diff-btn" data-diff="hard">Hard</button>' +
+      '</div>' +
       '</div>' +
       '<div class="ep-stagepicker" id="epStagePicker"></div>' +
       '<div class="ep-gameview hidden" id="epGameView">' +
@@ -287,6 +307,17 @@
     root.querySelector('#epGuideBtn').addEventListener('click', function () {
       root.querySelector('#epGuideStage').classList.toggle('hidden');
     });
+    root.querySelector('#epSettingsBtn').addEventListener('click', function () {
+      root.querySelector('#epSettings').classList.toggle('hidden');
+    });
+    root.querySelectorAll('.ep-diff-btn').forEach(function (btn) {
+      btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);
+      btn.addEventListener('click', function () {
+        difficulty = btn.getAttribute('data-diff');
+        try { localStorage.setItem(DIFFICULTY_KEY, difficulty); } catch (err) { /* ignore */ }
+        root.querySelectorAll('.ep-diff-btn').forEach(function (b) { b.classList.toggle('is-active', b === btn); });
+      });
+    });
 
     root.querySelector('#epEditBtn').addEventListener('click', function () {
       if (editUnlocked) { editUnlocked = false; renderEditPanel(); return; }
@@ -298,7 +329,7 @@
     // ---- game state (reset per openStage) ----
     var stage = null;
     var player = null;
-    var lives = LIVES_START;
+    var lives = diffCfg().lives;
     var cameraX = 0;
     var running = false;
     var rafId = null;
@@ -308,7 +339,7 @@
 
     function openStage(stageId) {
       stage = STAGES.filter(function (s) { return s.id === stageId; })[0];
-      lives = LIVES_START;
+      lives = diffCfg().lives;
       resetPlayer();
       stageNameEl.textContent = stage.name;
       updateLivesHud();
@@ -346,7 +377,7 @@
       if (lives <= 0) {
         running = false;
         showOverlay('Stage failed', 'Out of lives. Give it another go.', 'Retry stage', function () {
-          lives = LIVES_START;
+          lives = diffCfg().lives;
           updateLivesHud();
           resetPlayer();
           running = true;

@@ -81,9 +81,21 @@
   ];
 
   var HIGH_SCORE_KEY = 'tm.engineEmergency.highScore';
-  var START_LIVES = 3;
-  var MIN_TIME_FRACTION = 0.55; // never speeds scenarios up past 55% of their base time
-  var MS_PER_ROUND_CLEARED = 150; // each cleared round shaves this much off every timer
+
+  // Difficulty: more lives, more generous time floor and a slower
+  // speed-up ramp on Easy; the opposite on Hard.
+  var DIFFICULTY_KEY = 'tm.engineEmergency.difficulty';
+  var DIFFICULTY_SETTINGS = {
+    easy: { lives: 4, minTimeFraction: 0.7, msPerRoundCleared: 100 },
+    normal: { lives: 3, minTimeFraction: 0.55, msPerRoundCleared: 150 },
+    hard: { lives: 2, minTimeFraction: 0.4, msPerRoundCleared: 220 },
+  };
+  var difficulty = 'normal';
+  try {
+    var savedDiff = localStorage.getItem(DIFFICULTY_KEY);
+    if (DIFFICULTY_SETTINGS[savedDiff]) difficulty = savedDiff;
+  } catch (err) { /* ignore */ }
+  function diffCfg() { return DIFFICULTY_SETTINGS[difficulty]; }
 
   // Tiny self-contained Web Audio sound effects — no audio files, just
   // oscillator beeps, so the site stays build-step-free. The AudioContext
@@ -132,10 +144,20 @@
       '<div class="ee-stat"><span class="ee-stat-label">Lives</span><span class="ee-stat-value" id="eeLives">❤❤❤</span></div>' +
       '<button type="button" class="ee-mute-btn" id="eeMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="ee-mute-btn" id="eeGuideBtn" aria-label="Exam guide">📘</button>' +
+      '<button type="button" class="ee-mute-btn" id="eeSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '</div>' +
       '<div class="ee-card ee-guide hidden" id="eeGuide">' +
       '<h2>📘 Exam Guide</h2>' +
       '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
+      '</div>' +
+      '<div class="ee-card ee-guide hidden" id="eeSettings">' +
+      '<h2>⚙️ Game Settings</h2>' +
+      '<p>Easy gives more lives, more time and a slower speed-up; Hard gives fewer lives, less time and a faster speed-up. Takes effect on your next shift.</p>' +
+      '<div class="ee-row">' +
+      '<button type="button" class="ee-btn ee-btn-ghost ee-diff-btn" data-diff="easy">Easy</button>' +
+      '<button type="button" class="ee-btn ee-btn-ghost ee-diff-btn" data-diff="normal">Normal</button>' +
+      '<button type="button" class="ee-btn ee-btn-ghost ee-diff-btn" data-diff="hard">Hard</button>' +
+      '</div>' +
       '</div>' +
       '<div class="ee-card ee-start" id="eeStart">' +
       '<h2>Ready for your shift?</h2>' +
@@ -170,7 +192,7 @@
     highEl.textContent = highScore;
 
     var score = 0;
-    var lives = START_LIVES;
+    var lives = diffCfg().lives;
     var roundsCleared = 0;
     var lastScenarioId = null;
     var scenario = null;
@@ -208,8 +230,8 @@
     }
 
     function effectiveTimeLimit(base) {
-      var shaved = base - roundsCleared * MS_PER_ROUND_CLEARED;
-      return Math.max(base * MIN_TIME_FRACTION, shaved);
+      var shaved = base - roundsCleared * diffCfg().msPerRoundCleared;
+      return Math.max(base * diffCfg().minTimeFraction, shaved);
     }
 
     function startRound() {
@@ -294,7 +316,7 @@
 
     function startGame() {
       score = 0;
-      lives = START_LIVES;
+      lives = diffCfg().lives;
       roundsCleared = 0;
       lastScenarioId = null;
       updateHud();
@@ -314,6 +336,17 @@
     });
     root.querySelector('#eeGuideBtn').addEventListener('click', function () {
       root.querySelector('#eeGuide').classList.toggle('hidden');
+    });
+    root.querySelector('#eeSettingsBtn').addEventListener('click', function () {
+      root.querySelector('#eeSettings').classList.toggle('hidden');
+    });
+    root.querySelectorAll('.ee-diff-btn').forEach(function (btn) {
+      btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);
+      btn.addEventListener('click', function () {
+        difficulty = btn.getAttribute('data-diff');
+        try { localStorage.setItem(DIFFICULTY_KEY, difficulty); } catch (err) { /* ignore */ }
+        root.querySelectorAll('.ee-diff-btn').forEach(function (b) { b.classList.toggle('is-active', b === btn); });
+      });
     });
 
     updateHud();

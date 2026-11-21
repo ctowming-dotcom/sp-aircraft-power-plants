@@ -46,28 +46,38 @@
     return set;
   })();
 
-  // 5 ghosts, one released every 8s (by request — "3 to 5 hunters
-  // release on every 30 secs", then tightened to "every 8s per ghost")
-  // so the pressure keeps ramping up the
-  // longer a maze runs, rather than all of them being loose from the start.
-  var GHOST_RELEASE_INTERVAL_MS = 8000;
+  // 5 ghosts, one released every N seconds (by request — "3 to 5 hunters
+  // release on every 30 secs", then tightened to "every 8s per ghost") so
+  // the pressure keeps ramping up the longer a maze runs, rather than all
+  // of them being loose from the start. The actual interval is set per
+  // difficulty below; releaseIndex just says "1st/2nd/3rd... to release".
   var GHOST_DEFS = [
-    { color: '#ff4d4d', spawn: { r: 10, c: 8 }, scatter: { r: 1, c: 1 }, releaseMs: 0 * GHOST_RELEASE_INTERVAL_MS },
-    { color: '#ffb8de', spawn: { r: 9, c: 9 }, scatter: { r: 1, c: 17 }, releaseMs: 1 * GHOST_RELEASE_INTERVAL_MS },
-    { color: '#4dd2ff', spawn: { r: 10, c: 10 }, scatter: { r: 19, c: 1 }, releaseMs: 2 * GHOST_RELEASE_INTERVAL_MS },
-    { color: '#ffb347', spawn: { r: 10, c: 9 }, scatter: { r: 19, c: 17 }, releaseMs: 3 * GHOST_RELEASE_INTERVAL_MS },
-    { color: '#8bd45c', spawn: { r: 11, c: 9 }, scatter: { r: 1, c: 9 }, releaseMs: 4 * GHOST_RELEASE_INTERVAL_MS },
+    { color: '#ff4d4d', spawn: { r: 10, c: 8 }, scatter: { r: 1, c: 1 }, releaseIndex: 0 },
+    { color: '#ffb8de', spawn: { r: 9, c: 9 }, scatter: { r: 1, c: 17 }, releaseIndex: 1 },
+    { color: '#4dd2ff', spawn: { r: 10, c: 10 }, scatter: { r: 19, c: 1 }, releaseIndex: 2 },
+    { color: '#ffb347', spawn: { r: 10, c: 9 }, scatter: { r: 19, c: 17 }, releaseIndex: 3 },
+    { color: '#8bd45c', spawn: { r: 11, c: 9 }, scatter: { r: 1, c: 9 }, releaseIndex: 4 },
   ];
 
   var PLAYER_SPEED = 2.1;
-  var GHOST_SPEED = 1.7;
-  var FRIGHTENED_SPEED = 1.0;
-  var EYES_SPEED = 3.4;
-  var FRIGHTENED_MS = 7000;
   var SCATTER_MS = 7000;
   var CHASE_MS = 20000;
-  var LIVES_START = 3;
   var HIGH_SCORE_KEY = 'tm.pacmanArcade.highScore';
+
+  // Difficulty: slower/later ghosts and a longer power-pellet window on
+  // Easy; faster/sooner ghosts and a shorter window on Hard.
+  var DIFFICULTY_KEY = 'tm.pacmanArcade.difficulty';
+  var DIFFICULTY_SETTINGS = {
+    easy: { lives: 4, ghostSpeed: 1.4, frightenedSpeed: 0.9, eyesSpeed: 3.2, frightenedMs: 9000, releaseIntervalMs: 12000 },
+    normal: { lives: 3, ghostSpeed: 1.7, frightenedSpeed: 1.0, eyesSpeed: 3.4, frightenedMs: 7000, releaseIntervalMs: 8000 },
+    hard: { lives: 2, ghostSpeed: 2.0, frightenedSpeed: 1.1, eyesSpeed: 3.6, frightenedMs: 5000, releaseIntervalMs: 5000 },
+  };
+  var difficulty = 'normal';
+  try {
+    var savedDiff = localStorage.getItem(DIFFICULTY_KEY);
+    if (DIFFICULTY_SETTINGS[savedDiff]) difficulty = savedDiff;
+  } catch (err) { /* ignore */ }
+  function diffCfg() { return DIFFICULTY_SETTINGS[difficulty]; }
 
   // Tiny self-contained Web Audio sound effects — no audio files, so the
   // site stays build-step-free. Lazily created on first sound, which is
@@ -127,17 +137,27 @@
     root.innerHTML =
       '<div class="pac-wrap">' +
       '<h1>👻 Maze Muncher</h1>' +
-      '<p class="pac-intro">Clear every dot while dodging the ghosts — one more ghost joins every 8 seconds, up to 5, so the longer a maze runs the hotter it gets. Grab a big pellet to turn the tables — chase them down for bonus points while they\'re blue. Arrow keys / WASD to move.</p>' +
+      '<p class="pac-intro">Clear every dot while dodging the ghosts — one more ghost joins every so often, up to 5, so the longer a maze runs the hotter it gets. Grab a big pellet to turn the tables — chase them down for bonus points while they\'re blue. Arrow keys / WASD to move.</p>' +
       '<div class="pac-hud">' +
       '<div class="pac-stat"><span class="pac-stat-label">Score</span><span class="pac-stat-value" id="pacScore">0</span></div>' +
       '<div class="pac-stat"><span class="pac-stat-label">High score</span><span class="pac-stat-value" id="pacHigh">0</span></div>' +
       '<div class="pac-stat"><span class="pac-stat-label">Lives</span><span class="pac-stat-value" id="pacLives">●●●</span></div>' +
       '<button type="button" class="pac-mute-btn" id="pacMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="pac-mute-btn" id="pacGuideBtn" aria-label="Exam guide">📘</button>' +
+      '<button type="button" class="pac-mute-btn" id="pacSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '</div>' +
       '<div class="pac-guide hidden" id="pacGuide">' +
       '<h2>📘 Exam Guide</h2>' +
       '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
+      '</div>' +
+      '<div class="pac-guide hidden" id="pacSettings">' +
+      '<h2>⚙️ Game Settings</h2>' +
+      '<p>Easy means slower ghosts, released further apart, with a longer power-pellet window; Hard means the opposite. Takes effect on your next maze.</p>' +
+      '<div class="pac-diff-row">' +
+      '<button type="button" class="pac-tab pac-diff-btn" data-diff="easy">Easy</button>' +
+      '<button type="button" class="pac-tab pac-diff-btn" data-diff="normal">Normal</button>' +
+      '<button type="button" class="pac-tab pac-diff-btn" data-diff="hard">Hard</button>' +
+      '</div>' +
       '</div>' +
       '<div class="pac-stage">' +
       '<canvas id="pacCanvas" width="' + W + '" height="' + H + '"></canvas>' +
@@ -193,13 +213,14 @@
       player = { x: p.x, y: p.y, dir: null, want: null };
       ghosts = GHOST_DEFS.map(function (def, i) {
         var g = tileCenter(def.spawn.r, def.spawn.c);
+        var releaseMs = def.releaseIndex * diffCfg().releaseIntervalMs;
         return {
           color: def.color,
           scatter: def.scatter,
           x: g.x, y: g.y,
           dir: 'up',
-          state: def.releaseMs === 0 ? 'exiting' : 'house',
-          releaseAt: performance.now() + def.releaseMs,
+          state: releaseMs === 0 ? 'exiting' : 'house',
+          releaseAt: performance.now() + releaseMs,
         };
       });
     }
@@ -215,7 +236,7 @@
 
     function startGame() {
       score = 0;
-      lives = LIVES_START;
+      lives = diffCfg().lives;
       startLevel();
       updateHud();
       overlay.classList.add('hidden');
@@ -277,7 +298,7 @@
         score += wasPellet ? 50 : 10;
         if (wasPellet) {
           playPelletEat();
-          frightenedUntil = performance.now() + FRIGHTENED_MS;
+          frightenedUntil = performance.now() + diffCfg().frightenedMs;
           eatMultiplier = 1;
           ghosts.forEach(function (g) { if (g.state === 'chase' || g.state === 'scatter' || g.state === 'frightened') g.state = 'frightened'; });
         } else {
@@ -326,9 +347,9 @@
         if (now >= g.releaseAt) g.state = 'exiting';
         return;
       }
-      var speed = GHOST_SPEED;
-      if (g.state === 'frightened') speed = FRIGHTENED_SPEED;
-      else if (g.state === 'eyes' || g.state === 'exiting') speed = EYES_SPEED;
+      var speed = diffCfg().ghostSpeed;
+      if (g.state === 'frightened') speed = diffCfg().frightenedSpeed;
+      else if (g.state === 'eyes' || g.state === 'exiting') speed = diffCfg().eyesSpeed;
 
       if (isCentered(g)) {
         var t = entityTile(g);
@@ -545,6 +566,17 @@
     });
     root.querySelector('#pacGuideBtn').addEventListener('click', function () {
       root.querySelector('#pacGuide').classList.toggle('hidden');
+    });
+    root.querySelector('#pacSettingsBtn').addEventListener('click', function () {
+      root.querySelector('#pacSettings').classList.toggle('hidden');
+    });
+    root.querySelectorAll('.pac-diff-btn').forEach(function (btn) {
+      btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);
+      btn.addEventListener('click', function () {
+        difficulty = btn.getAttribute('data-diff');
+        try { localStorage.setItem(DIFFICULTY_KEY, difficulty); } catch (err) { /* ignore */ }
+        root.querySelectorAll('.pac-diff-btn').forEach(function (b) { b.classList.toggle('is-active', b === btn); });
+      });
     });
 
     bindTouch(root.querySelector('#pacUpBtn'), 'up');

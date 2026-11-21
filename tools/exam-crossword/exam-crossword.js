@@ -51,10 +51,26 @@
     ],
   };
 
-  var WORDS_PER_PUZZLE = 8;
   var MIN_WORDS_ACCEPTED = 5;
   var GRID_SIZE = 21;
   var BEST_KEY_PREFIX = 'tm.examCrossword.best.';
+
+  // Difficulty just changes how many letters of each word are given away
+  // for free at the start and how many words appear in a puzzle — easier
+  // settings reveal more letters and use fewer words. Every level still
+  // reveals at least 2 letters per word by request.
+  var DIFFICULTY_KEY = 'tm.examCrossword.difficulty';
+  var DIFFICULTY_SETTINGS = {
+    easy: { wordsPerPuzzle: 6, revealPerWord: 4 },
+    normal: { wordsPerPuzzle: 8, revealPerWord: 2 },
+    hard: { wordsPerPuzzle: 10, revealPerWord: 2 },
+  };
+  var difficulty = 'normal';
+  try {
+    var savedDiff = localStorage.getItem(DIFFICULTY_KEY);
+    if (DIFFICULTY_SETTINGS[savedDiff]) difficulty = savedDiff;
+  } catch (err) { /* ignore */ }
+  function diffCfg() { return DIFFICULTY_SETTINGS[difficulty]; }
 
   // Tiny self-contained Web Audio sound effects — same pattern as this
   // portal's other arcade games: no audio files, lazily created on first
@@ -184,8 +200,9 @@
   }
 
   function generatePuzzle(pool) {
+    var wordsPerPuzzle = diffCfg().wordsPerPuzzle;
     for (var attempt = 0; attempt < 30; attempt++) {
-      var candidates = shuffled(pool).slice(0, Math.min(WORDS_PER_PUZZLE * 2, pool.length));
+      var candidates = shuffled(pool).slice(0, Math.min(wordsPerPuzzle * 2, pool.length));
       candidates.sort(function (a, b) { return b.word.length - a.word.length; });
       var grid = makeEmptyGrid(GRID_SIZE);
       var placed = [];
@@ -195,7 +212,7 @@
       place(grid, first.word, startRow, startCol, 'A');
       placed.push({ word: first.word, clue: first.clue, row: startRow, col: startCol, dir: 'A' });
 
-      for (var ci = 1; ci < candidates.length && placed.length < WORDS_PER_PUZZLE; ci++) {
+      for (var ci = 1; ci < candidates.length && placed.length < wordsPerPuzzle; ci++) {
         var cand = candidates[ci];
         var options = [];
         for (var pi = 0; pi < placed.length; pi++) {
@@ -241,10 +258,20 @@
       '<button type="button" class="xw-tab" id="xwTabTerm2" data-term="term2">Term 2</button>' +
       '<button type="button" class="xw-mute-btn" id="xwMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="xw-mute-btn" id="xwGuideBtn" aria-label="Exam guide">📘</button>' +
+      '<button type="button" class="xw-mute-btn" id="xwSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '</div>' +
       '<div class="xw-guide hidden" id="xwGuide">' +
       '<h2>📘 Exam Guide</h2>' +
       '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
+      '</div>' +
+      '<div class="xw-settings hidden" id="xwSettings">' +
+      '<h2>⚙️ Game Settings</h2>' +
+      '<p class="xw-settings-note">Easy reveals more letters per word and uses fewer words; Hard reveals the bare minimum (2) and uses more words. Takes effect on your next puzzle.</p>' +
+      '<div class="xw-diff-row">' +
+      '<button type="button" class="xw-diff-btn" data-diff="easy">Easy</button>' +
+      '<button type="button" class="xw-diff-btn" data-diff="normal">Normal</button>' +
+      '<button type="button" class="xw-diff-btn" data-diff="hard">Hard</button>' +
+      '</div>' +
       '</div>' +
       '<div class="xw-hud">' +
       '<div class="xw-stat"><span class="xw-stat-label">Time</span><span class="xw-stat-value" id="xwTime">0:00</span></div>' +
@@ -430,9 +457,29 @@
       else if (e.key === 'ArrowUp') { e.preventDefault(); moveFocus(r, c, -1, 0); }
     }
 
+    // Picks, per word, at least `perWord` of its cells to reveal for free —
+    // crossing words naturally share some reveals, so a word can end up
+    // with more than its own quota, never fewer.
+    function computeRevealedCells(puzzle, perWord) {
+      var revealed = {};
+      var allWords = puzzle.across.concat(puzzle.down);
+      allWords.forEach(function (w) {
+        var dr = w.dir === 'D' ? 1 : 0, dc = w.dir === 'A' ? 1 : 0;
+        var cells = [];
+        for (var i = 0; i < w.word.length; i++) cells.push({ r: w.row + dr * i, c: w.col + dc * i });
+        var already = cells.filter(function (cell) { return revealed[cell.r + ',' + cell.c]; }).length;
+        var need = Math.max(0, perWord - already);
+        if (!need) return;
+        var pool = shuffled(cells.filter(function (cell) { return !revealed[cell.r + ',' + cell.c]; }));
+        pool.slice(0, need).forEach(function (cell) { revealed[cell.r + ',' + cell.c] = true; });
+      });
+      return revealed;
+    }
+
     function buildGrid() {
       gridEl.innerHTML = '';
       inputs = {};
+      var revealedCells = computeRevealedCells(puzzle, diffCfg().revealPerWord);
       gridEl.style.gridTemplateColumns = 'repeat(' + puzzle.cols + ', 1fr)';
       for (var r = 0; r < puzzle.rows; r++) {
         for (var c = 0; c < puzzle.cols; c++) {
@@ -453,6 +500,11 @@
             input.maxLength = 1;
             input.autocomplete = 'off';
             input.spellcheck = false;
+            if (revealedCells[r + ',' + c]) {
+              input.value = puzzle.grid[r][c];
+              input.readOnly = true;
+              cellWrap.classList.add('is-given');
+            }
             (function (rr, cc) {
               input.addEventListener('focus', function () { onCellFocusOrClick(rr, cc); });
               input.addEventListener('click', function () { onCellFocusOrClick(rr, cc); });
@@ -550,10 +602,21 @@
     root.querySelector('#xwGuideBtn').addEventListener('click', function () {
       root.querySelector('#xwGuide').classList.toggle('hidden');
     });
+    root.querySelector('#xwSettingsBtn').addEventListener('click', function () {
+      root.querySelector('#xwSettings').classList.toggle('hidden');
+    });
+    root.querySelectorAll('.xw-diff-btn').forEach(function (btn) {
+      btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);
+      btn.addEventListener('click', function () {
+        difficulty = btn.getAttribute('data-diff');
+        try { localStorage.setItem(DIFFICULTY_KEY, difficulty); } catch (err) { /* ignore */ }
+        root.querySelectorAll('.xw-diff-btn').forEach(function (b) { b.classList.toggle('is-active', b === btn); });
+      });
+    });
 
     newPuzzle();
 
-    window.TM.toolModules['exam-crossword'].debugState = function () { return { puzzle: puzzle, inputs: inputs, currentTerm: currentTerm }; };
+    window.TM.toolModules['exam-crossword'].debugState = function () { return { puzzle: puzzle, inputs: inputs, currentTerm: currentTerm, difficulty: difficulty }; };
 
     window.TM.toolModules['exam-crossword'].unmount = function () {
       stopTimer();

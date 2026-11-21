@@ -21,14 +21,25 @@
     { x: 620, y: 270, row: 'bar' },
   ];
 
-  var LIVES_START = 3;
   var AMMO_MAX = 6;
   var RELOAD_MS = 900;
   var HIGH_SCORE_KEY = 'tm.westernSaloon.highScore';
   var POP_IN_MS = 140;
-  var MIN_SPAWN_MS = 420;
-  var MIN_LIFESPAN_MS = 700;
-  var MAX_CIVILIAN_CHANCE = 0.48;
+
+  // Difficulty: more lives, slower/longer-lived targets and fewer
+  // bystanders mixed in on Easy; the opposite on Hard.
+  var DIFFICULTY_KEY = 'tm.westernSaloon.difficulty';
+  var DIFFICULTY_SETTINGS = {
+    easy: { lives: 4, baseSpawnMs: 1150, minSpawnMs: 550, baseLifespanMs: 1900, minLifespanMs: 950, maxCivilianChance: 0.32 },
+    normal: { lives: 3, baseSpawnMs: 900, minSpawnMs: 420, baseLifespanMs: 1500, minLifespanMs: 700, maxCivilianChance: 0.48 },
+    hard: { lives: 2, baseSpawnMs: 650, minSpawnMs: 300, baseLifespanMs: 1100, minLifespanMs: 500, maxCivilianChance: 0.6 },
+  };
+  var difficulty = 'normal';
+  try {
+    var savedDiff = localStorage.getItem(DIFFICULTY_KEY);
+    if (DIFFICULTY_SETTINGS[savedDiff]) difficulty = savedDiff;
+  } catch (err) { /* ignore */ }
+  function diffCfg() { return DIFFICULTY_SETTINGS[difficulty]; }
 
   // Tiny self-contained Web Audio sound effects — same pattern as this
   // portal's other arcade games: no audio files, lazily created on first
@@ -96,10 +107,20 @@
       '<div class="ws-stat"><span class="ws-stat-label">Lives</span><span class="ws-stat-value" id="wsLives">❤❤❤</span></div>' +
       '<button type="button" class="ws-mute-btn" id="wsMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="ws-mute-btn" id="wsGuideBtn" aria-label="Exam guide">📘</button>' +
+      '<button type="button" class="ws-mute-btn" id="wsSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '</div>' +
       '<div class="ws-guide hidden" id="wsGuide">' +
       '<h2>📘 Exam Guide</h2>' +
       '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
+      '</div>' +
+      '<div class="ws-guide hidden" id="wsSettings">' +
+      '<h2>⚙️ Game Settings</h2>' +
+      '<p>Easy gives more lives, slower/longer-lived targets and fewer bystanders; Hard gives the opposite. Takes effect on your next shift.</p>' +
+      '<div class="ws-diff-row">' +
+      '<button type="button" class="ws-tab ws-diff-btn" data-diff="easy">Easy</button>' +
+      '<button type="button" class="ws-tab ws-diff-btn" data-diff="normal">Normal</button>' +
+      '<button type="button" class="ws-tab ws-diff-btn" data-diff="hard">Hard</button>' +
+      '</div>' +
       '</div>' +
       '<div class="ws-stage">' +
       '<canvas id="wsCanvas" width="' + W + '" height="' + H + '"></canvas>' +
@@ -156,9 +177,9 @@
       overlay.classList.remove('hidden');
     }
 
-    function spawnIntervalNow() { return Math.max(MIN_SPAWN_MS, 900 - hitsCleared * 18); }
-    function lifespanNow() { return Math.max(MIN_LIFESPAN_MS, 1500 - hitsCleared * 22); }
-    function civilianChanceNow() { return Math.min(MAX_CIVILIAN_CHANCE, 0.22 + hitsCleared * 0.01); }
+    function spawnIntervalNow() { return Math.max(diffCfg().minSpawnMs, diffCfg().baseSpawnMs - hitsCleared * 18); }
+    function lifespanNow() { return Math.max(diffCfg().minLifespanMs, diffCfg().baseLifespanMs - hitsCleared * 22); }
+    function civilianChanceNow() { return Math.min(diffCfg().maxCivilianChance, 0.22 + hitsCleared * 0.01); }
     function maxConcurrentNow() { return Math.min(4, 2 + Math.floor(hitsCleared / 8)); }
 
     function freeSlots() {
@@ -246,7 +267,7 @@
 
     function startGame() {
       score = 0;
-      lives = LIVES_START;
+      lives = diffCfg().lives;
       ammo = AMMO_MAX;
       reloading = false;
       reloadUntil = 0;
@@ -444,8 +465,19 @@
     root.querySelector('#wsGuideBtn').addEventListener('click', function () {
       root.querySelector('#wsGuide').classList.toggle('hidden');
     });
+    root.querySelector('#wsSettingsBtn').addEventListener('click', function () {
+      root.querySelector('#wsSettings').classList.toggle('hidden');
+    });
+    root.querySelectorAll('.ws-diff-btn').forEach(function (btn) {
+      btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);
+      btn.addEventListener('click', function () {
+        difficulty = btn.getAttribute('data-diff');
+        try { localStorage.setItem(DIFFICULTY_KEY, difficulty); } catch (err) { /* ignore */ }
+        root.querySelectorAll('.ws-diff-btn').forEach(function (b) { b.classList.toggle('is-active', b === btn); });
+      });
+    });
 
-    score = 0; lives = LIVES_START; ammo = AMMO_MAX; reloading = false; hitsCleared = 0; targets = [];
+    score = 0; lives = diffCfg().lives; ammo = AMMO_MAX; reloading = false; hitsCleared = 0; targets = [];
     updateHud();
     render(performance.now());
     showOverlay('Ready?', 'Shoot the outlaws, spare the bartender and the regulars. 3 lives, 6 shots per cylinder.', 'Start', startGame);

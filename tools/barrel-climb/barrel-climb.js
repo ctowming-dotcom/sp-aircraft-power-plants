@@ -12,9 +12,23 @@
   var CLIMB_SPEED = 2.2;
   var BARREL_SPEED = 1.8;
   var BARREL_LADDER_CHANCE = 0.18; // per ladder pass, chance a barrel descends it instead of rolling on
-  var LIVES_START = 3;
   var HIGH_SCORE_KEY = 'tm.barrelClimb.highScore';
   var RESPAWN_INVULN_MS = 1500;
+
+  // Difficulty: more lives, slower/less frequent barrels and fewer
+  // flames on Easy; the opposite on Hard.
+  var DIFFICULTY_KEY = 'tm.barrelClimb.difficulty';
+  var DIFFICULTY_SETTINGS = {
+    easy: { lives: 4, barrelIntervalBase: 3400, barrelIntervalMin: 1300, barrelIntervalStep: 180, fireballCap: 1 },
+    normal: { lives: 3, barrelIntervalBase: 2600, barrelIntervalMin: 900, barrelIntervalStep: 220, fireballCap: 2 },
+    hard: { lives: 2, barrelIntervalBase: 1900, barrelIntervalMin: 650, barrelIntervalStep: 260, fireballCap: 3 },
+  };
+  var difficulty = 'normal';
+  try {
+    var savedDiff = localStorage.getItem(DIFFICULTY_KEY);
+    if (DIFFICULTY_SETTINGS[savedDiff]) difficulty = savedDiff;
+  } catch (err) { /* ignore */ }
+  function diffCfg() { return DIFFICULTY_SETTINGS[difficulty]; }
 
   // Each row is one sloped girder: a solid run from xStart to xEnd (the
   // rest of the row's width is an open gap), with its surface height
@@ -108,10 +122,20 @@
       '<div class="bc-stat"><span class="bc-stat-label">Lives</span><span class="bc-stat-value" id="bcLives">❤❤❤</span></div>' +
       '<button type="button" class="bc-mute-btn" id="bcMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="bc-mute-btn" id="bcGuideBtn" aria-label="Exam guide">📘</button>' +
+      '<button type="button" class="bc-mute-btn" id="bcSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '</div>' +
       '<div class="bc-guide hidden" id="bcGuide">' +
       '<h2>📘 Exam Guide</h2>' +
       '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
+      '</div>' +
+      '<div class="bc-guide hidden" id="bcSettings">' +
+      '<h2>⚙️ Game Settings</h2>' +
+      '<p>Easy gives more lives, slower/less frequent barrels and fewer flames; Hard gives the opposite. Takes effect on your next game.</p>' +
+      '<div class="bc-diff-row">' +
+      '<button type="button" class="bc-tab bc-diff-btn" data-diff="easy">Easy</button>' +
+      '<button type="button" class="bc-tab bc-diff-btn" data-diff="normal">Normal</button>' +
+      '<button type="button" class="bc-tab bc-diff-btn" data-diff="hard">Hard</button>' +
+      '</div>' +
       '</div>' +
       '<div class="bc-stage">' +
       '<canvas id="bcCanvas" width="' + W + '" height="' + H + '"></canvas>' +
@@ -162,8 +186,8 @@
       overlay.classList.remove('hidden');
     }
 
-    function barrelIntervalNow() { return Math.max(900, 2600 - stage * 220); }
-    function fireballCountNow() { return Math.min(2, 1 + Math.floor((stage - 1) / 2)); }
+    function barrelIntervalNow() { return Math.max(diffCfg().barrelIntervalMin, diffCfg().barrelIntervalBase - stage * diffCfg().barrelIntervalStep); }
+    function fireballCountNow() { return Math.min(diffCfg().fireballCap, 1 + Math.floor((stage - 1) / 2)); }
 
     function resetPlayer() {
       var p = ROWS[PLAYER_SPAWN.row];
@@ -197,7 +221,7 @@
 
     function newGame() {
       score = 0;
-      lives = LIVES_START;
+      lives = diffCfg().lives;
       stage = 1;
       player = {};
       startStage();
@@ -486,10 +510,23 @@
     root.querySelector('#bcGuideBtn').addEventListener('click', function () {
       root.querySelector('#bcGuide').classList.toggle('hidden');
     });
+    root.querySelector('#bcSettingsBtn').addEventListener('click', function () {
+      root.querySelector('#bcSettings').classList.toggle('hidden');
+    });
+    root.querySelectorAll('.bc-diff-btn').forEach(function (btn) {
+      btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);
+      btn.addEventListener('click', function () {
+        difficulty = btn.getAttribute('data-diff');
+        try { localStorage.setItem(DIFFICULTY_KEY, difficulty); } catch (err) { /* ignore */ }
+        root.querySelectorAll('.bc-diff-btn').forEach(function (b) { b.classList.toggle('is-active', b === btn); });
+      });
+    });
 
     newGame();
     render();
-    showOverlay('Ready?', 'Climb to the top, dodge the barrels and flames, and reach the rescue. 3 lives.', 'Start', startRunning);
+    showOverlay('Ready?', 'Climb to the top, dodge the barrels and flames, and reach the rescue.', 'Start', function () {
+      newGame(); startRunning(); // re-applies the difficulty picked while still on this screen
+    });
 
     window.TM.toolModules['barrel-climb'].debugState = function () {
       return { player: player, barrels: barrels, fireballs: fireballs, rows: ROWS, ladders: LADDERS, score: score, lives: lives, goal: GOAL_POS, topRow: TOP_ROW };

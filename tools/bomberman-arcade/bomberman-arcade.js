@@ -11,10 +11,23 @@
   var BASE_SPEED = 2.2;
   var BOMB_FUSE_MS = 2200;
   var EXPLOSION_MS = 450;
-  var STAGE_TIME_START = 150; // seconds
-  var LIVES_START = 3;
   var HIGH_SCORE_KEY = 'tm.bombermanArcade.highScore';
   var INVULN_MS = 2000;
+
+  // Difficulty: more lives, more starting time and fewer enemies per
+  // stage on Easy; the opposite on Hard.
+  var DIFFICULTY_KEY = 'tm.bombermanArcade.difficulty';
+  var DIFFICULTY_SETTINGS = {
+    easy: { lives: 4, stageTimeStart: 190, enemyBase: 2, enemyCap: 7 },
+    normal: { lives: 3, stageTimeStart: 150, enemyBase: 3, enemyCap: 9 },
+    hard: { lives: 2, stageTimeStart: 120, enemyBase: 4, enemyCap: 11 },
+  };
+  var difficulty = 'normal';
+  try {
+    var savedDiff = localStorage.getItem(DIFFICULTY_KEY);
+    if (DIFFICULTY_SETTINGS[savedDiff]) difficulty = savedDiff;
+  } catch (err) { /* ignore */ }
+  function diffCfg() { return DIFFICULTY_SETTINGS[difficulty]; }
 
   // Tiny self-contained Web Audio sound effects — no audio files, so the
   // site stays build-step-free. Lazily created on first sound, which is
@@ -105,10 +118,20 @@
       '<div class="bm-stat"><span class="bm-stat-label">Lives</span><span class="bm-stat-value" id="bmLives">●●●</span></div>' +
       '<button type="button" class="bm-mute-btn" id="bmMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="bm-mute-btn" id="bmGuideBtn" aria-label="Exam guide">📘</button>' +
+      '<button type="button" class="bm-mute-btn" id="bmSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '</div>' +
       '<div class="bm-guide hidden" id="bmGuide">' +
       '<h2>📘 Exam Guide</h2>' +
       '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
+      '</div>' +
+      '<div class="bm-guide hidden" id="bmSettings">' +
+      '<h2>⚙️ Game Settings</h2>' +
+      '<p>Easy gives more lives, more time per stage and fewer enemies; Hard gives the opposite. Takes effect on your next game.</p>' +
+      '<div class="bm-diff-row">' +
+      '<button type="button" class="bm-tab bm-diff-btn" data-diff="easy">Easy</button>' +
+      '<button type="button" class="bm-tab bm-diff-btn" data-diff="normal">Normal</button>' +
+      '<button type="button" class="bm-tab bm-diff-btn" data-diff="hard">Hard</button>' +
+      '</div>' +
       '</div>' +
       '<div class="bm-stage">' +
       '<canvas id="bmCanvas" width="' + W + '" height="' + H + '"></canvas>' +
@@ -200,7 +223,7 @@
 
     function newGame() {
       score = 0;
-      lives = LIVES_START;
+      lives = diffCfg().lives;
       stage = 1;
       player = { x: 0, y: 0, dir: null, want: null, maxBombs: 1, range: 1, speed: BASE_SPEED, invulnerableUntil: 0 };
       startStage();
@@ -209,9 +232,9 @@
 
     function startStage() {
       buildStage();
-      spawnEnemies(Math.min(3 + stage, 9));
+      spawnEnemies(Math.min(diffCfg().enemyBase + stage, diffCfg().enemyCap));
       resetPlayer();
-      timeLeft = Math.max(70, STAGE_TIME_START - (stage - 1) * 8);
+      timeLeft = Math.max(70, diffCfg().stageTimeStart - (stage - 1) * 8);
     }
 
     function updateHud() {
@@ -404,7 +427,7 @@
       if (timeLeft <= 0) {
         timeLeft = 0;
         hurtPlayer(now);
-        if (running) timeLeft = Math.max(70, STAGE_TIME_START - (stage - 1) * 8);
+        if (running) timeLeft = Math.max(70, diffCfg().stageTimeStart - (stage - 1) * 8);
       }
       updateHud();
     }
@@ -560,6 +583,17 @@
     root.querySelector('#bmGuideBtn').addEventListener('click', function () {
       root.querySelector('#bmGuide').classList.toggle('hidden');
     });
+    root.querySelector('#bmSettingsBtn').addEventListener('click', function () {
+      root.querySelector('#bmSettings').classList.toggle('hidden');
+    });
+    root.querySelectorAll('.bm-diff-btn').forEach(function (btn) {
+      btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);
+      btn.addEventListener('click', function () {
+        difficulty = btn.getAttribute('data-diff');
+        try { localStorage.setItem(DIFFICULTY_KEY, difficulty); } catch (err) { /* ignore */ }
+        root.querySelectorAll('.bm-diff-btn').forEach(function (b) { b.classList.toggle('is-active', b === btn); });
+      });
+    });
 
     bindTouch(root.querySelector('#bmUpBtn'), function () { if (player) player.want = 'up'; });
     bindTouch(root.querySelector('#bmDownBtn'), function () { if (player) player.want = 'down'; });
@@ -569,7 +603,9 @@
 
     newGame();
     render(0);
-    showOverlay('Ready?', 'Blast blocks, grab power-ups, clear every creature before time runs out.', 'Start', startRunning);
+    showOverlay('Ready?', 'Blast blocks, grab power-ups, clear every creature before time runs out.', 'Start', function () {
+      newGame(); startRunning(); // re-applies the difficulty picked while still on this screen
+    });
 
     window.TM.toolModules['bomberman-arcade'].debugState = function () {
       return { player: player, enemies: enemies, bombs: bombs, soft: soft, items: items, score: score, lives: lives, timeLeft: timeLeft };

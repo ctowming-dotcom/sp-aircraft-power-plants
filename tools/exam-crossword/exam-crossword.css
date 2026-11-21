@@ -79,6 +79,52 @@
   margin: 0;
 }
 
+.xw-settings {
+  margin-bottom: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.4rem;
+}
+
+.xw-settings.hidden {
+  display: none;
+}
+
+.xw-settings h2 {
+  font-family: var(--font-display);
+  margin: 0 0 0.6rem;
+}
+
+.xw-settings-note {
+  color: var(--text-muted);
+  margin: 0 0 0.8rem;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.xw-diff-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.xw-diff-btn {
+  font: inherit;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  border-radius: var(--radius-pill);
+  padding: 0.5rem 1.2rem;
+  cursor: pointer;
+}
+
+.xw-diff-btn.is-active {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: transparent;
+}
+
 .xw-hud {
   display: flex;
   gap: 0.6rem;
@@ -171,10 +217,12 @@
   width: 30px;
   height: 30px;
   background: var(--surface);
+  border: 1px solid rgba(234, 243, 251, 0.35);
 }
 
 .xw-cell.is-block {
   background: var(--bg);
+  border-color: transparent;
 }
 
 .xw-cell.is-active {
@@ -187,6 +235,15 @@
 
 .xw-cell.is-wrong {
   background: rgba(248, 113, 113, 0.3);
+}
+
+.xw-cell.is-given {
+  background: rgba(74, 222, 128, 0.1);
+}
+
+.xw-cell.is-given input {
+  color: var(--success);
+  font-weight: 800;
 }
 
 .xw-cell-num {
