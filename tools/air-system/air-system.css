@@ -19,6 +19,7 @@
 .air-sys-toggle {
   display: flex;
   gap: 0.6rem;
+  margin-top: 1.1rem;
   margin-bottom: 1.25rem;
   flex-wrap: wrap;
 }
@@ -35,10 +36,20 @@
   cursor: pointer;
 }
 
-.air-sys-mode-btn.active {
-  background: var(--accent);
-  color: var(--accent-contrast);
-  border-color: var(--accent);
+/* Internal/External each keep their own identity color (matching the
+   blue/red marker colors used on the diagram itself) regardless of
+   which one is currently active, rather than both just turning the
+   page's one generic accent color when selected. */
+.air-sys-mode-btn[data-mode="internal"].active {
+  background: #3d7fd1;
+  color: #fff;
+  border-color: #3d7fd1;
+}
+
+.air-sys-mode-btn[data-mode="external"].active {
+  background: #d1392b;
+  color: #fff;
+  border-color: #d1392b;
 }
 
 .air-sys-edit-btn {
