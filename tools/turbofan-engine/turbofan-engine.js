@@ -354,6 +354,7 @@
       '<div>' +
       '<h1 class="tf-title">Triple-Spool Turbofan Engine</h1>' +
       '<p class="tf-subtitle">Interactive schematic — compare single, twin, and triple spool arrangements</p>' +
+      '<a class="game-mode-btn" href="#turbofan-engine-game-mode">🎮 Game Mode</a>' +
       '</div>' +
       '<button type="button" class="tf-edit-btn" title="Edit part-label markers">✎ Edit</button>' +
       '</div>' +
@@ -364,23 +365,6 @@
       '<button type="button" class="tf-mode-btn" data-mode="single">Single spool</button>' +
       '<span class="tf-spacer"></span>' +
       '<span class="tf-note tf-mode-desc"></span>' +
-      '</div>' +
-
-      '<div class="tf-match-panel">' +
-      '<h3 class="tf-match-title">🧠 Match the Definition — Timed Challenge</h3>' +
-      '<p class="tf-match-intro">Click a part name on the left, then its matching description on the right (or the other way round) — a correct pair locks in green, a wrong one just flashes and resets. Each round picks a random mix of the parts visible in this engine configuration.</p>' +
-      '<div class="tf-match-hud">' +
-      '<div class="tf-match-stat"><span class="tf-match-stat-label">Score</span><span class="tf-match-stat-value" id="tfMatchScore">0</span></div>' +
-      '<div class="tf-match-stat"><span class="tf-match-stat-label">Matched</span><span class="tf-match-stat-value" id="tfMatchSolved">0/0</span></div>' +
-      '<div class="tf-match-stat"><span class="tf-match-stat-label">Time</span><span class="tf-match-stat-value" id="tfMatchTime">--</span></div>' +
-      '<div class="tf-match-stat"><span class="tf-match-stat-label">Best (this config)</span><span class="tf-match-stat-value" id="tfMatchBest">--</span></div>' +
-      '<button type="button" class="tf-match-btn" id="tfMatchStartBtn">▶ Start challenge</button>' +
-      '</div>' +
-      '<p class="tf-match-result" id="tfMatchResult"></p>' +
-      '<div class="tf-match-columns">' +
-      '<div class="tf-match-col" id="tfMatchTerms"></div>' +
-      '<div class="tf-match-col" id="tfMatchDefs"></div>' +
-      '</div>' +
       '</div>' +
 
       '<svg class="tf-engine-svg" viewBox="0 0 1180 500" role="img" aria-label="Animated schematic of a selectable single, twin, or triple spool turbofan engine">' +
@@ -623,7 +607,7 @@
         var handle = elt('circle', { cx: p.x + p.r, cy: p.y, r: 8, 'class': 'tf-part-resize' }, g);
         p.groupEl = g;
 
-        g.addEventListener('mouseenter', function (evt) { if (!editUnlocked && !(matchMaskedIds && matchMaskedIds[id])) showTip(evt, p); });
+        g.addEventListener('mouseenter', function (evt) { if (!editUnlocked) showTip(evt, p); });
         g.addEventListener('mousemove', positionTip);
         g.addEventListener('mouseleave', hideTip);
 
@@ -1080,9 +1064,7 @@
     wrap.querySelectorAll('.tf-mode-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         currentMode = btn.dataset.mode;
-        if (matchActive) endMatch('reset'); // the visible-parts pool changes with mode
         applyMode();
-        updateMatchBestDisplay();
       });
     });
     wrap.querySelector('.tf-pause').addEventListener('click', function () {
@@ -1164,222 +1146,11 @@
       '<p>A large fan pushes most of the air around the core through the bypass duct instead of through it. Standard on commercial airliners (CFM56, Trent, GE90, LEAP): quieter and far more fuel-efficient at subsonic cruise, at the cost of a bulkier nacelle and less benefit at very high speed.</p>' +
       '</div>';
 
-    // --- "Match the Definition" timed challenge --------------------------
-    // Click a part name then its matching description (or the reverse
-    // order — whichever comes second triggers the check). Pool is
-    // PART_LABELS filtered to whatever's actually visible in the current
-    // engine-configuration mode (same filter applyPartMarkerVisibility()
-    // uses, including the fanBlade-hidden-in-single-spool special case),
-    // so the round never quizzes on a part that isn't shown. Same
-    // mechanic as Oil/Fuel System's own "Match the Definition" game.
-    var MATCH_SECONDS_PER_ITEM = 14;
-    var MATCH_BEST_KEY_PREFIX = 'tm.turbofanEngine.matchBest.';
-    var matchTermsEl = wrap.querySelector('#tfMatchTerms');
-    var matchDefsEl = wrap.querySelector('#tfMatchDefs');
-    var matchScoreEl = wrap.querySelector('#tfMatchScore');
-    var matchSolvedEl = wrap.querySelector('#tfMatchSolved');
-    var matchTimeEl = wrap.querySelector('#tfMatchTime');
-    var matchBestEl = wrap.querySelector('#tfMatchBest');
-    var matchResultEl = wrap.querySelector('#tfMatchResult');
-    var matchStartBtn = wrap.querySelector('#tfMatchStartBtn');
-
-    var matchActive = false;
-    var matchScore = 0, matchSolved = 0, matchTotal = 0;
-    var matchDuration = 0, matchDeadline = 0, matchTimerId = null;
-    var selTermEl = null, selDefEl = null, selTermId = null, selDefId = null;
-    var matchMaskedIds = null; // null = no masking (round not running)
-
-    function shuffled(arr) {
-      var a = arr.slice();
-      for (var i = a.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
-      }
-      return a;
-    }
-
-    // Tiny self-contained Web Audio beeps — same no-audio-files pattern
-    // every other game in this portal uses.
-    var matchAudioCtx = null;
-    function ensureMatchAudio() {
-      if (!matchAudioCtx) {
-        try { matchAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) { return null; }
-      }
-      if (matchAudioCtx.state === 'suspended') matchAudioCtx.resume();
-      return matchAudioCtx;
-    }
-    function matchBeep(freq, dur, type, vol, delay) {
-      var ctx = ensureMatchAudio();
-      if (!ctx) return;
-      var t0 = ctx.currentTime + (delay || 0);
-      var osc = ctx.createOscillator();
-      var gain = ctx.createGain();
-      osc.type = type || 'square';
-      osc.frequency.setValueAtTime(freq, t0);
-      gain.gain.setValueAtTime(0, t0);
-      gain.gain.linearRampToValueAtTime(vol == null ? 0.16 : vol, t0 + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(t0); osc.stop(t0 + dur + 0.03);
-    }
-    function playMatchRight() { matchBeep(660, 0.08, 'square', 0.15); }
-    function playMatchWrong() { matchBeep(180, 0.16, 'sawtooth', 0.16); }
-    function playMatchClear() { matchBeep(523, 0.09, 'square', 0.18); matchBeep(784, 0.11, 'square', 0.18, 0.09); matchBeep(1046, 0.16, 'square', 0.18, 0.18); }
-
-    function loadMatchBest(mode) {
-      try { return Number(localStorage.getItem(MATCH_BEST_KEY_PREFIX + mode)) || 0; } catch (err) { return 0; }
-    }
-    function saveMatchBest(mode, val) {
-      try { localStorage.setItem(MATCH_BEST_KEY_PREFIX + mode, String(val)); } catch (err) { /* ignore */ }
-    }
-    function updateMatchBestDisplay() {
-      var best = loadMatchBest(currentMode);
-      matchBestEl.textContent = best > 0 ? best : '--';
-    }
-
-    function visiblePartsPool() {
-      var visibleSpools = MODES[currentMode].visible;
-      return Object.keys(PART_LABELS)
-        .filter(function (id) {
-          var p = PART_LABELS[id];
-          return visibleSpools.indexOf(p.spool) !== -1 && !(id === 'fanBlade' && currentMode === 'single');
-        })
-        .map(function (id) { return { id: id, name: PART_LABELS[id].name, desc: PART_LABELS[id].desc }; });
-    }
-
-    function updateMatchHud() {
-      matchScoreEl.textContent = matchScore;
-      matchSolvedEl.textContent = matchSolved + '/' + matchTotal;
-      var remaining = Math.max(0, matchDeadline - performance.now());
-      matchTimeEl.textContent = matchActive ? Math.ceil(remaining / 1000) + 's' : '--';
-    }
-
-    function clearMatchSelection() {
-      if (selTermEl) selTermEl.classList.remove('is-selected');
-      if (selDefEl) selDefEl.classList.remove('is-selected');
-      selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
-    }
-
-    function tryMatch() {
-      if (selTermId == null || selDefId == null) return;
-      if (selTermId === selDefId) {
-        selTermEl.classList.remove('is-selected'); selTermEl.classList.add('is-solved');
-        selDefEl.classList.remove('is-selected'); selDefEl.classList.add('is-solved');
-        matchSolved += 1;
-        var remainingFrac = Math.max(0, (matchDeadline - performance.now()) / matchDuration);
-        matchScore += Math.round(100 * (0.4 + 0.6 * remainingFrac));
-        playMatchRight();
-        selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
-        updateMatchHud();
-        if (matchSolved >= matchTotal) endMatch('cleared');
-      } else {
-        var badTerm = selTermEl, badDef = selDefEl;
-        badTerm.classList.add('is-wrong-flash');
-        badDef.classList.add('is-wrong-flash');
-        playMatchWrong();
-        setTimeout(function () {
-          badTerm.classList.remove('is-wrong-flash', 'is-selected');
-          badDef.classList.remove('is-wrong-flash', 'is-selected');
-        }, 400);
-        selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
-      }
-    }
-
-    function buildMatchTile(item, kind) {
-      var tile = document.createElement('button');
-      tile.type = 'button';
-      tile.className = 'tf-match-tile';
-      tile.textContent = kind === 'term' ? item.name : item.desc;
-      tile.dataset.id = item.id;
-      tile.addEventListener('click', function () {
-        if (!matchActive || tile.classList.contains('is-solved')) return;
-        if (kind === 'term') {
-          if (selTermEl) selTermEl.classList.remove('is-selected');
-          selTermEl = tile; selTermId = item.id;
-        } else {
-          if (selDefEl) selDefEl.classList.remove('is-selected');
-          selDefEl = tile; selDefId = item.id;
-        }
-        tile.classList.add('is-selected');
-        tryMatch();
-      });
-      return tile;
-    }
-
-    function startMatch() {
-      if (matchActive) return;
-      var all = visiblePartsPool();
-      var count = all.length <= 3 ? all.length : 3 + Math.floor(Math.random() * (all.length - 2));
-      var items = shuffled(all).slice(0, count);
-
-      matchActive = true;
-      matchTotal = items.length;
-      matchScore = 0;
-      matchSolved = 0;
-      clearMatchSelection();
-      matchResultEl.textContent = '';
-      matchStartBtn.disabled = true;
-
-      matchMaskedIds = {};
-      items.forEach(function (it) { matchMaskedIds[it.id] = true; });
-
-      matchTermsEl.innerHTML = '';
-      matchDefsEl.innerHTML = '';
-      shuffled(items).forEach(function (it) { matchTermsEl.appendChild(buildMatchTile(it, 'term')); });
-      shuffled(items).forEach(function (it) { matchDefsEl.appendChild(buildMatchTile(it, 'def')); });
-
-      matchDuration = MATCH_SECONDS_PER_ITEM * 1000 * matchTotal;
-      matchDeadline = performance.now() + matchDuration;
-      updateMatchHud();
-
-      if (matchTimerId != null) clearInterval(matchTimerId);
-      matchTimerId = setInterval(function () {
-        if (performance.now() >= matchDeadline) { endMatch('timeup'); return; }
-        updateMatchHud();
-      }, 200);
-    }
-
-    function endMatch(reason) {
-      if (!matchActive) return;
-      matchActive = false;
-      if (matchTimerId != null) { clearInterval(matchTimerId); matchTimerId = null; }
-      clearMatchSelection();
-      matchTermsEl.querySelectorAll('.tf-match-tile:not(.is-solved)').forEach(function (el) { el.classList.add('is-revealed'); });
-      matchDefsEl.querySelectorAll('.tf-match-tile:not(.is-solved)').forEach(function (el) { el.classList.add('is-revealed'); });
-      matchMaskedIds = null;
-      matchStartBtn.disabled = false;
-      updateMatchHud();
-
-      if (reason === 'reset') { matchResultEl.textContent = ''; return; }
-
-      var best = loadMatchBest(currentMode);
-      var beat = matchScore > best;
-      if (beat) { saveMatchBest(currentMode, matchScore); updateMatchBestDisplay(); }
-
-      if (reason === 'cleared') {
-        playMatchClear();
-        matchResultEl.textContent = '🎉 All ' + matchTotal + ' matched! Score: ' + matchScore + (beat ? ' — new best!' : '');
-      } else {
-        matchResultEl.textContent = '⏱ Time\'s up — matched ' + matchSolved + '/' + matchTotal + '. Score: ' + matchScore + (beat ? ' — new best!' : '');
-      }
-    }
-
-    matchStartBtn.addEventListener('click', startMatch);
-    updateMatchBestDisplay();
-
     applyMode();
     rafId = requestAnimationFrame(tick);
 
-    window.TM.toolModules['turbofan-engine'].debugMatchState = function () {
-      return { matchActive: matchActive, matchScore: matchScore, matchSolved: matchSolved, matchTotal: matchTotal };
-    };
-    window.TM.toolModules['turbofan-engine'].debugForceMatchTimeout = function () {
-      matchDeadline = performance.now() - 1;
-    };
-
     window.TM.toolModules['turbofan-engine'].unmount = function () {
       if (rafId != null) cancelAnimationFrame(rafId);
-      if (matchTimerId != null) clearInterval(matchTimerId);
     };
   }
 

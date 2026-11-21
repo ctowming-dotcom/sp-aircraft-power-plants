@@ -160,6 +160,7 @@
       '<div class="bc-hud">' +
       '<div class="bc-stat"><span class="bc-stat-label">Score</span><span class="bc-stat-value" id="bcScore">0</span></div>' +
       '<div class="bc-stat"><span class="bc-stat-label">High score</span><span class="bc-stat-value" id="bcHigh">0</span></div>' +
+      '<div class="bc-stat"><span class="bc-stat-label">Top score</span><span class="bc-stat-value" id="bcTop">--</span></div>' +
       '<div class="bc-stat"><span class="bc-stat-label">Misses</span><span class="bc-stat-value" id="bcLives">0</span></div>' +
       '<button type="button" class="bc-mute-btn" id="bcMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="bc-mute-btn" id="bcGuideBtn" aria-label="Exam guide">📘</button>' +
@@ -178,6 +179,7 @@
       '<button type="button" class="bc-tab bc-diff-btn" data-diff="normal">Normal</button>' +
       '<button type="button" class="bc-tab bc-diff-btn" data-diff="hard">Hard</button>' +
       '</div>' +
+      '<button type="button" class="bc-btn bc-btn-primary" id="bcResetTopBtn">Reset top score…</button>' +
       '</div>' +
       '<div class="bc-stage">' +
       '<canvas id="bcCanvas" width="' + W + '" height="' + H + '"></canvas>' +
@@ -198,6 +200,7 @@
       '</div>' +
       '<div class="bc-mcq-overlay hidden" id="bcMcqOverlay">' +
       '<div class="bc-mcq-card">' +
+      '<button type="button" class="bc-mcq-close hidden" id="bcMcqCloseBtn" aria-label="Close">✕</button>' +
       '<h2>📝 Quick Check</h2>' +
       '<p class="bc-mcq-note">Answer correctly to get back in — try as many times as you need.</p>' +
       '<p class="bc-mcq-question" id="bcMcqQuestion"></p>' +
@@ -230,12 +233,21 @@
     var mcqQuestionEl = root.querySelector('#bcMcqQuestion');
     var mcqChoicesEl = root.querySelector('#bcMcqChoices');
     var mcqFeedbackEl = root.querySelector('#bcMcqFeedback');
+    var mcqCloseBtn = root.querySelector('#bcMcqCloseBtn');
+    var topEl = root.querySelector('#bcTop');
     var mcqs = loadMcqs();
     var mcqEditUnlocked = false;
+    var settingsUnlocked = false;
+    var pendingMcqCorrect = null;
+
+    var GAME_ID = 'barrelClimb';
 
     var highScore = 0;
     try { highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0; } catch (err) { highScore = 0; }
     highEl.textContent = highScore;
+
+    function updateTopDisplay() { topEl.textContent = TM.Leaderboard.bestLabel(GAME_ID); }
+    updateTopDisplay();
 
     var score, misses, stage, player, barrels, fireballs, barrelSpawnAt, running, rafId, lastTime;
     var keys = { left: false, right: false, up: false, down: false };
@@ -458,6 +470,8 @@
       mcqFeedbackEl.textContent = '';
       mcqFeedbackEl.className = 'bc-mcq-feedback';
       mcqChoicesEl.innerHTML = '';
+      mcqCloseBtn.classList.add('hidden');
+      pendingMcqCorrect = onCorrect;
       order.forEach(function (opt) {
         var btn = document.createElement('button');
         btn.type = 'button';
@@ -466,13 +480,11 @@
         btn.dataset.correct = opt.correct ? '1' : '0';
         btn.addEventListener('click', function () {
           if (opt.correct) {
-            mcqFeedbackEl.textContent = '✅ Correct!';
+            mcqFeedbackEl.textContent = '✅ Correct! Press ✕ to continue.';
             mcqFeedbackEl.className = 'bc-mcq-feedback is-correct';
             playMcqRight();
-            setTimeout(function () {
-              mcqOverlay.classList.add('hidden');
-              if (onCorrect) onCorrect();
-            }, 500);
+            mcqChoicesEl.querySelectorAll('.bc-mcq-choice').forEach(function (b) { b.disabled = true; });
+            mcqCloseBtn.classList.remove('hidden');
           } else {
             mcqFeedbackEl.textContent = '❌ Not quite — try again.';
             mcqFeedbackEl.className = 'bc-mcq-feedback is-wrong';
@@ -483,6 +495,13 @@
       });
       mcqOverlay.classList.remove('hidden');
     }
+    mcqCloseBtn.addEventListener('click', function () {
+      mcqOverlay.classList.add('hidden');
+      mcqCloseBtn.classList.add('hidden');
+      var cb = pendingMcqCorrect;
+      pendingMcqCorrect = null;
+      if (cb) cb();
+    });
 
     // --- MCQ editor -----------------------------------------------------
     function renderMcqEditList() {
@@ -529,6 +548,8 @@
       playClear();
       var beat = score > highScore;
       updateHud();
+      TM.Leaderboard.submitScore(GAME_ID, score, { higherIsBetter: true });
+      updateTopDisplay();
       showOverlay('Rescue complete! 🎉', 'Stage ' + stage + ' cleared — score ' + score + (beat ? ' — new high score!' : ''), 'Next stage', function () {
         stage += 1; startStage(); updateHud(); startRunning();
       });
@@ -663,7 +684,17 @@
       root.querySelector('#bcGuide').classList.toggle('hidden');
     });
     root.querySelector('#bcSettingsBtn').addEventListener('click', function () {
-      root.querySelector('#bcSettings').classList.toggle('hidden');
+      var panel = root.querySelector('#bcSettings');
+      if (panel.classList.contains('hidden')) {
+        if (!settingsUnlocked && !TM.Leaderboard.checkPassword('Enter the settings password to unlock game settings:')) return;
+        settingsUnlocked = true;
+        panel.classList.remove('hidden');
+      } else {
+        panel.classList.add('hidden');
+      }
+    });
+    root.querySelector('#bcResetTopBtn').addEventListener('click', function () {
+      if (TM.Leaderboard.resetBest(GAME_ID)) updateTopDisplay();
     });
     root.querySelectorAll('.bc-diff-btn').forEach(function (btn) {
       btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);

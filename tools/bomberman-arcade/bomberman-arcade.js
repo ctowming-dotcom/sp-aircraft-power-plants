@@ -156,6 +156,7 @@
       '<div class="bm-hud">' +
       '<div class="bm-stat"><span class="bm-stat-label">Score</span><span class="bm-stat-value" id="bmScore">0</span></div>' +
       '<div class="bm-stat"><span class="bm-stat-label">High score</span><span class="bm-stat-value" id="bmHigh">0</span></div>' +
+      '<div class="bm-stat"><span class="bm-stat-label">Top</span><span class="bm-stat-value" id="bmTop">--</span></div>' +
       '<div class="bm-stat"><span class="bm-stat-label">Time</span><span class="bm-stat-value" id="bmTime">0</span></div>' +
       '<div class="bm-stat"><span class="bm-stat-label">Misses</span><span class="bm-stat-value" id="bmLives">0</span></div>' +
       '<button type="button" class="bm-mute-btn" id="bmMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
@@ -175,6 +176,7 @@
       '<button type="button" class="bm-tab bm-diff-btn" data-diff="normal">Normal</button>' +
       '<button type="button" class="bm-tab bm-diff-btn" data-diff="hard">Hard</button>' +
       '</div>' +
+      '<button type="button" class="bm-btn bm-btn-primary" id="bmResetTopBtn">Reset top score…</button>' +
       '</div>' +
       '<div class="bm-stage">' +
       '<canvas id="bmCanvas" width="' + W + '" height="' + H + '"></canvas>' +
@@ -195,6 +197,7 @@
       '</div>' +
       '<div class="bm-mcq-overlay hidden" id="bmMcqOverlay">' +
       '<div class="bm-mcq-card">' +
+      '<button type="button" class="bm-mcq-close hidden" id="bmMcqCloseBtn" aria-label="Close">✕</button>' +
       '<h2>📝 Quick Check</h2>' +
       '<p class="bm-mcq-note">Answer correctly to get back in — try as many times as you need.</p>' +
       '<p class="bm-mcq-question" id="bmMcqQuestion"></p>' +
@@ -228,12 +231,19 @@
     var mcqQuestionEl = root.querySelector('#bmMcqQuestion');
     var mcqChoicesEl = root.querySelector('#bmMcqChoices');
     var mcqFeedbackEl = root.querySelector('#bmMcqFeedback');
+    var mcqCloseBtn = root.querySelector('#bmMcqCloseBtn');
+    var topEl = root.querySelector('#bmTop');
     var mcqs = loadMcqs();
     var mcqEditUnlocked = false;
+    var settingsUnlocked = false;
+    var pendingMcqCorrect = null;
+    var LEADERBOARD_ID = 'bombermanArcade';
 
     var highScore = 0;
     try { highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0; } catch (err) { highScore = 0; }
     highEl.textContent = highScore;
+    function updateTopDisplay() { topEl.textContent = TM.Leaderboard.bestLabel(LEADERBOARD_ID); }
+    updateTopDisplay();
 
     var soft, powerUnder, items, bombs, explosions, enemies, player, score, misses, timeLeft, stage, running, rafId, lastTime;
 
@@ -483,6 +493,8 @@
       mcqFeedbackEl.textContent = '';
       mcqFeedbackEl.className = 'bm-mcq-feedback';
       mcqChoicesEl.innerHTML = '';
+      mcqCloseBtn.classList.add('hidden');
+      pendingMcqCorrect = null;
       order.forEach(function (opt) {
         var btn = document.createElement('button');
         btn.type = 'button';
@@ -491,13 +503,12 @@
         btn.dataset.correct = opt.correct ? '1' : '0';
         btn.addEventListener('click', function () {
           if (opt.correct) {
-            mcqFeedbackEl.textContent = '✅ Correct!';
+            mcqFeedbackEl.textContent = '✅ Correct! Press ✕ to continue.';
             mcqFeedbackEl.className = 'bm-mcq-feedback is-correct';
             playMcqRight();
-            setTimeout(function () {
-              mcqOverlay.classList.add('hidden');
-              if (onCorrect) onCorrect();
-            }, 500);
+            mcqChoicesEl.querySelectorAll('.bm-mcq-choice').forEach(function (b) { b.disabled = true; });
+            pendingMcqCorrect = onCorrect;
+            mcqCloseBtn.classList.remove('hidden');
           } else {
             mcqFeedbackEl.textContent = '❌ Not quite — try again.';
             mcqFeedbackEl.className = 'bm-mcq-feedback is-wrong';
@@ -508,6 +519,14 @@
       });
       mcqOverlay.classList.remove('hidden');
     }
+    mcqCloseBtn.addEventListener('click', function () {
+      if (!pendingMcqCorrect) return;
+      var cb = pendingMcqCorrect;
+      pendingMcqCorrect = null;
+      mcqCloseBtn.classList.add('hidden');
+      mcqOverlay.classList.add('hidden');
+      cb();
+    });
 
     // --- MCQ editor -----------------------------------------------------
     function renderMcqEditList() {
@@ -556,7 +575,9 @@
       updateHud();
       var beat = score > highScore;
       if (beat) { highScore = score; try { localStorage.setItem(HIGH_SCORE_KEY, String(highScore)); } catch (err) {} highEl.textContent = highScore; }
-      showOverlay('Stage clear! 🎉', 'Time bonus +' + bonus + ' · Score: ' + score + (beat ? ' — new high score!' : ''), 'Next stage', function () {
+      var lb = TM.Leaderboard.submitScore(LEADERBOARD_ID, score, { higherIsBetter: true });
+      if (lb.submitted) updateTopDisplay();
+      showOverlay('Stage clear! 🎉', 'Time bonus +' + bonus + ' · Score: ' + score + (beat ? ' — new high score!' : '') + (lb.submitted ? ' — new top score!' : ''), 'Next stage', function () {
         stage += 1;
         startStage();
         updateHud();
@@ -731,7 +752,17 @@
       root.querySelector('#bmGuide').classList.toggle('hidden');
     });
     root.querySelector('#bmSettingsBtn').addEventListener('click', function () {
-      root.querySelector('#bmSettings').classList.toggle('hidden');
+      var panel = root.querySelector('#bmSettings');
+      if (panel.classList.contains('hidden')) {
+        if (!settingsUnlocked && !TM.Leaderboard.checkPassword('Enter the settings password to unlock game settings:')) return;
+        settingsUnlocked = true;
+        panel.classList.remove('hidden');
+      } else {
+        panel.classList.add('hidden');
+      }
+    });
+    root.querySelector('#bmResetTopBtn').addEventListener('click', function () {
+      if (TM.Leaderboard.resetBest(LEADERBOARD_ID)) updateTopDisplay();
     });
     root.querySelectorAll('.bm-diff-btn').forEach(function (btn) {
       btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);

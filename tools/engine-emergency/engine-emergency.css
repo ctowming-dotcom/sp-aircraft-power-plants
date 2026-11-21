@@ -250,6 +250,7 @@
 }
 
 .ee-mcq-card {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -257,6 +258,39 @@
   max-width: 480px;
   width: 100%;
   text-align: center;
+}
+
+.ee-mcq-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.ee-mcq-close.hidden {
+  display: none;
+}
+
+.ee-mcq-choice:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.ee-stat-top .ee-stat-value {
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
 }
 
 .ee-mcq-card h2 {

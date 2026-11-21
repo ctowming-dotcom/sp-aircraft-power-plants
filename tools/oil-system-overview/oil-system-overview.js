@@ -172,6 +172,7 @@
       '<span class="tag">REF: THE JET ENGINE — ROLLS ROYCE</span>' +
       '<h1>Turbofan Engine Oil System — Full Flow Dry Sump</h1>' +
       '<p>Toggle spool configuration and oil circuits. Hover any component for its function.</p>' +
+      '<a class="game-mode-btn" href="#oil-system-overview-game-mode">🎮 Game Mode</a>' +
       '</div>' +
       '</header>' +
 
@@ -205,23 +206,6 @@
       '</div>' +
       '<p class="oil-game-result" id="oilGameResult"></p>' +
       '<div class="oil-game-bank" id="oilGameBank"></div>' +
-      '</div>' +
-
-      '<div class="oil-match-panel">' +
-      '<h3 class="oil-game-title">🧠 Match the Definition — Timed Challenge</h3>' +
-      '<p class="oil-game-intro">Click a part name on the left, then its matching description on the right (or the other way round) — a correct pair locks in green, a wrong one just flashes and resets. Each round picks a random mix of this configuration\'s components.</p>' +
-      '<div class="oil-game-hud">' +
-      '<div class="oil-game-stat"><span class="oil-game-stat-label">Score</span><span class="oil-game-stat-value" id="oilMatchScore">0</span></div>' +
-      '<div class="oil-game-stat"><span class="oil-game-stat-label">Matched</span><span class="oil-game-stat-value" id="oilMatchSolved">0/0</span></div>' +
-      '<div class="oil-game-stat"><span class="oil-game-stat-label">Time</span><span class="oil-game-stat-value" id="oilMatchTime">--</span></div>' +
-      '<div class="oil-game-stat"><span class="oil-game-stat-label">Best (this config)</span><span class="oil-game-stat-value" id="oilMatchBest">--</span></div>' +
-      '<button type="button" class="oil-game-btn" id="oilMatchStartBtn">▶ Start challenge</button>' +
-      '</div>' +
-      '<p class="oil-game-result" id="oilMatchResult"></p>' +
-      '<div class="oil-match-columns">' +
-      '<div class="oil-match-col" id="oilMatchTerms"></div>' +
-      '<div class="oil-match-col" id="oilMatchDefs"></div>' +
-      '</div>' +
       '</div>' +
 
       '<div class="stage-wrap">' +
@@ -451,7 +435,7 @@
     }
 
     function startGame() {
-      if (gameActive || matchActive) return;
+      if (gameActive) return;
       var all = SPOOLS[currentSpool].columns;
       // A random subset each time (never fewer than 3, or the whole set
       // if there are 3 or fewer) so repeat rounds on the same spool
@@ -465,7 +449,6 @@
       gamePlaced = 0;
       gameResultEl.textContent = '';
       gameStartBtn.disabled = true;
-      matchStartBtn.disabled = true; // the other game can't run at the same time
       // Pinned to the bottom of the viewport while running — the Start
       // button lives below a long diagram + reference list, so without
       // this the student would have to keep scrolling all the way back
@@ -504,7 +487,6 @@
       renderCompList();
       gameBankEl.innerHTML = '';
       gameStartBtn.disabled = false;
-      matchStartBtn.disabled = false;
       gamePanelEl.classList.remove('is-floating');
       updateGameHud();
 
@@ -521,191 +503,6 @@
         gameResultEl.textContent = '⏱ Time\'s up — placed ' + gamePlaced + '/' + gameTotal + '. Score: ' + gameScore + (beat ? ' — new best!' : '');
       }
     }
-
-    // --- "Match the Definition" timed challenge --------------------------
-    // A second, independent game on this same page: instead of dragging a
-    // label onto the diagram, click a part name then its matching
-    // description (or the reverse order — whichever comes second
-    // triggers the check). Unlike the drag challenge above, the round's
-    // pool is every component currently shown on the diagram (oil tank,
-    // pumps, valve, filters, FOHE, breather, MCDs AND the bearing/gearbox
-    // columns), not just the bearing/gearbox columns — reusing exactly
-    // the same dedupe-by-title walk renderCompList() already does so the
-    // two never drift apart. Shares `gameMaskedTitles` with the drag
-    // challenge (so the reference list/hover tooltips are suppressed the
-    // same way for whichever game is running) — safe since only one of
-    // the two games can be active at a time (each Start checks the
-    // other's `*Active` flag first).
-    var MATCH_SECONDS_PER_ITEM = 14;
-    var MATCH_BEST_KEY_PREFIX = 'tm.oilSystem.matchBest.';
-    var matchTermsEl = wrap.querySelector('#oilMatchTerms');
-    var matchDefsEl = wrap.querySelector('#oilMatchDefs');
-    var matchScoreEl = wrap.querySelector('#oilMatchScore');
-    var matchSolvedEl = wrap.querySelector('#oilMatchSolved');
-    var matchTimeEl = wrap.querySelector('#oilMatchTime');
-    var matchBestEl = wrap.querySelector('#oilMatchBest');
-    var matchResultEl = wrap.querySelector('#oilMatchResult');
-    var matchStartBtn = wrap.querySelector('#oilMatchStartBtn');
-
-    var matchActive = false;
-    var matchScore = 0, matchSolved = 0, matchTotal = 0;
-    var matchDuration = 0, matchDeadline = 0, matchTimerId = null;
-    var selTermEl = null, selDefEl = null, selTermId = null, selDefId = null;
-
-    function loadMatchBest(spool) {
-      try { return Number(localStorage.getItem(MATCH_BEST_KEY_PREFIX + spool)) || 0; } catch (err) { return 0; }
-    }
-    function saveMatchBest(spool, val) {
-      try { localStorage.setItem(MATCH_BEST_KEY_PREFIX + spool, String(val)); } catch (err) { /* ignore */ }
-    }
-    function updateMatchBestDisplay() {
-      var best = loadMatchBest(currentSpool);
-      matchBestEl.textContent = best > 0 ? best : '--';
-    }
-    function playMatchRight() { gameBeep(660, 0.08, 'square', 0.15); }
-    function playMatchWrong() { gameBeep(180, 0.16, 'sawtooth', 0.16); }
-    function playMatchClear() { gameBeep(523, 0.09, 'square', 0.18); gameBeep(784, 0.11, 'square', 0.18, 0.09); gameBeep(1046, 0.16, 'square', 0.18, 0.18); }
-
-    function allComponentsPool() {
-      var seen = {};
-      var items = [];
-      wrap.querySelectorAll('.comp').forEach(function (g) {
-        var title = g.dataset.title;
-        if (seen[title]) return;
-        seen[title] = true;
-        items.push({ id: title, name: title, desc: g.dataset.desc });
-      });
-      return items;
-    }
-
-    function updateMatchHud() {
-      matchScoreEl.textContent = matchScore;
-      matchSolvedEl.textContent = matchSolved + '/' + matchTotal;
-      var remaining = Math.max(0, matchDeadline - performance.now());
-      matchTimeEl.textContent = matchActive ? Math.ceil(remaining / 1000) + 's' : '--';
-    }
-
-    function clearSelection() {
-      if (selTermEl) selTermEl.classList.remove('is-selected');
-      if (selDefEl) selDefEl.classList.remove('is-selected');
-      selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
-    }
-
-    function tryMatch() {
-      if (selTermId == null || selDefId == null) return;
-      if (selTermId === selDefId) {
-        selTermEl.classList.remove('is-selected'); selTermEl.classList.add('is-solved');
-        selDefEl.classList.remove('is-selected'); selDefEl.classList.add('is-solved');
-        matchSolved += 1;
-        var remainingFrac = Math.max(0, (matchDeadline - performance.now()) / matchDuration);
-        matchScore += Math.round(100 * (0.4 + 0.6 * remainingFrac));
-        playMatchRight();
-        selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
-        updateMatchHud();
-        if (matchSolved >= matchTotal) endMatch('cleared');
-      } else {
-        var badTerm = selTermEl, badDef = selDefEl;
-        badTerm.classList.add('is-wrong-flash');
-        badDef.classList.add('is-wrong-flash');
-        playMatchWrong();
-        setTimeout(function () {
-          badTerm.classList.remove('is-wrong-flash', 'is-selected');
-          badDef.classList.remove('is-wrong-flash', 'is-selected');
-        }, 400);
-        selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
-      }
-    }
-
-    function buildMatchTile(item, kind) {
-      var tile = document.createElement('button');
-      tile.type = 'button';
-      tile.className = 'oil-match-tile';
-      tile.textContent = kind === 'term' ? item.name : item.desc;
-      tile.dataset.id = item.id;
-      tile.addEventListener('click', function () {
-        if (!matchActive || tile.classList.contains('is-solved')) return;
-        if (kind === 'term') {
-          if (selTermEl) selTermEl.classList.remove('is-selected');
-          selTermEl = tile; selTermId = item.id;
-        } else {
-          if (selDefEl) selDefEl.classList.remove('is-selected');
-          selDefEl = tile; selDefId = item.id;
-        }
-        tile.classList.add('is-selected');
-        tryMatch();
-      });
-      return tile;
-    }
-
-    function startMatch() {
-      if (matchActive || gameActive) return;
-      var all = allComponentsPool();
-      // A random subset each time (never fewer than 3, or the whole set
-      // if there are 3 or fewer) so repeat rounds don't always quiz the
-      // exact same parts.
-      var count = all.length <= 3 ? all.length : 3 + Math.floor(Math.random() * (all.length - 2));
-      var items = shuffled(all).slice(0, count);
-
-      matchActive = true;
-      matchTotal = items.length;
-      matchScore = 0;
-      matchSolved = 0;
-      clearSelection();
-      matchResultEl.textContent = '';
-      matchStartBtn.disabled = true;
-      gameStartBtn.disabled = true; // the other game can't run at the same time
-
-      gameMaskedTitles = {};
-      items.forEach(function (it) { gameMaskedTitles[it.name] = true; });
-      renderCompList();
-
-      matchTermsEl.innerHTML = '';
-      matchDefsEl.innerHTML = '';
-      shuffled(items).forEach(function (it) { matchTermsEl.appendChild(buildMatchTile(it, 'term')); });
-      shuffled(items).forEach(function (it) { matchDefsEl.appendChild(buildMatchTile(it, 'def')); });
-
-      matchDuration = MATCH_SECONDS_PER_ITEM * 1000 * matchTotal;
-      matchDeadline = performance.now() + matchDuration;
-      updateMatchHud();
-
-      if (matchTimerId != null) clearInterval(matchTimerId);
-      matchTimerId = setInterval(function () {
-        if (performance.now() >= matchDeadline) { endMatch('timeup'); return; }
-        updateMatchHud();
-      }, 200);
-    }
-
-    function endMatch(reason) {
-      if (!matchActive) return;
-      matchActive = false;
-      if (matchTimerId != null) { clearInterval(matchTimerId); matchTimerId = null; }
-      clearSelection();
-      // Reveal whatever wasn't matched in time, marked distinctly from a
-      // scored pair, so the student can still see the right answer.
-      matchTermsEl.querySelectorAll('.oil-match-tile:not(.is-solved)').forEach(function (el) { el.classList.add('is-revealed'); });
-      matchDefsEl.querySelectorAll('.oil-match-tile:not(.is-solved)').forEach(function (el) { el.classList.add('is-revealed'); });
-      gameMaskedTitles = null;
-      renderCompList();
-      matchStartBtn.disabled = false;
-      gameStartBtn.disabled = false;
-      updateMatchHud();
-
-      if (reason === 'reset') { matchResultEl.textContent = ''; return; }
-
-      var best = loadMatchBest(currentSpool);
-      var beat = matchScore > best;
-      if (beat) { saveMatchBest(currentSpool, matchScore); updateMatchBestDisplay(); }
-
-      if (reason === 'cleared') {
-        playMatchClear();
-        matchResultEl.textContent = '🎉 All ' + matchTotal + ' matched! Score: ' + matchScore + (beat ? ' — new best!' : '');
-      } else {
-        matchResultEl.textContent = '⏱ Time\'s up — matched ' + matchSolved + '/' + matchTotal + '. Score: ' + matchScore + (beat ? ' — new best!' : '');
-      }
-    }
-
-    matchStartBtn.addEventListener('click', startMatch);
-    updateMatchBestDisplay();
 
     gameStartBtn.addEventListener('click', startGame);
     updateGameBestDisplay();
@@ -769,10 +566,8 @@
         btn.classList.add('active');
         currentSpool = btn.dataset.spool;
         if (gameActive) endGame('reset'); // target set changes with spool config
-        if (matchActive) endMatch('reset');
         render();
         updateGameBestDisplay();
-        updateMatchBestDisplay();
       });
     });
 
@@ -844,16 +639,8 @@
     window.TM.toolModules['oil-system-overview'].debugForceTimeout = function () {
       gameDeadline = performance.now() - 1;
     };
-    window.TM.toolModules['oil-system-overview'].debugMatchState = function () {
-      return { matchActive: matchActive, matchScore: matchScore, matchSolved: matchSolved, matchTotal: matchTotal };
-    };
-    window.TM.toolModules['oil-system-overview'].debugForceMatchTimeout = function () {
-      matchDeadline = performance.now() - 1;
-    };
-
     window.TM.toolModules['oil-system-overview'].unmount = function () {
       if (gameTimerId != null) { clearInterval(gameTimerId); gameTimerId = null; }
-      if (matchTimerId != null) { clearInterval(matchTimerId); matchTimerId = null; }
       document.removeEventListener('pointermove', onDragPointerMove);
       document.removeEventListener('pointerup', onDragPointerUp);
       if (dragState && dragState.clone) dragState.clone.remove();

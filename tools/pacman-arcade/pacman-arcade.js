@@ -183,6 +183,7 @@
       '<div class="pac-hud">' +
       '<div class="pac-stat"><span class="pac-stat-label">Score</span><span class="pac-stat-value" id="pacScore">0</span></div>' +
       '<div class="pac-stat"><span class="pac-stat-label">High score</span><span class="pac-stat-value" id="pacHigh">0</span></div>' +
+      '<div class="pac-stat pac-stat-top"><span class="pac-stat-label">Top score</span><span class="pac-stat-value" id="pacTopScore">--</span></div>' +
       '<div class="pac-stat"><span class="pac-stat-label">Misses</span><span class="pac-stat-value" id="pacLives">0</span></div>' +
       '<button type="button" class="pac-mute-btn" id="pacMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="pac-mute-btn" id="pacGuideBtn" aria-label="Exam guide">📘</button>' +
@@ -201,6 +202,7 @@
       '<button type="button" class="pac-tab pac-diff-btn" data-diff="normal">Normal</button>' +
       '<button type="button" class="pac-tab pac-diff-btn" data-diff="hard">Hard</button>' +
       '</div>' +
+      '<button type="button" class="pac-btn pac-btn-ghost" id="pacResetTopBtn" style="margin-top:10px;">Reset top score…</button>' +
       '</div>' +
       '<div class="pac-stage">' +
       '<canvas id="pacCanvas" width="' + W + '" height="' + H + '"></canvas>' +
@@ -221,6 +223,7 @@
       '</div>' +
       '<div class="pac-mcq-overlay hidden" id="pacMcqOverlay">' +
       '<div class="pac-mcq-card">' +
+      '<button type="button" class="pac-mcq-close hidden" id="pacMcqCloseBtn" aria-label="Close">✕</button>' +
       '<h2>📝 Quick Check</h2>' +
       '<p class="pac-mcq-note">Answer correctly to get back in — try as many times as you need.</p>' +
       '<p class="pac-mcq-question" id="pacMcqQuestion"></p>' +
@@ -255,10 +258,17 @@
     var mcqFeedbackEl = root.querySelector('#pacMcqFeedback');
     var mcqs = loadMcqs();
     var mcqEditUnlocked = false;
+    var mcqCloseBtn = root.querySelector('#pacMcqCloseBtn');
+    var pendingMcqCorrect = null;
+    var topScoreEl = root.querySelector('#pacTopScore');
+    var settingsUnlocked = false;
 
     var highScore = 0;
     try { highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0; } catch (err) { highScore = 0; }
     highEl.textContent = highScore;
+
+    function updateTopScoreDisplay() { topScoreEl.textContent = TM.Leaderboard.bestLabel('pacmanArcade'); }
+    updateTopScoreDisplay();
 
     var dots, pelletsLeft, score, misses, player, ghosts, mode, modeTimer, frightenedUntil, eatMultiplier, running, rafId, lastTime;
 
@@ -523,6 +533,8 @@
       mcqFeedbackEl.textContent = '';
       mcqFeedbackEl.className = 'pac-mcq-feedback';
       mcqChoicesEl.innerHTML = '';
+      mcqCloseBtn.classList.add('hidden');
+      pendingMcqCorrect = onCorrect;
       order.forEach(function (opt) {
         var btn = document.createElement('button');
         btn.type = 'button';
@@ -534,10 +546,8 @@
             mcqFeedbackEl.textContent = '✅ Correct!';
             mcqFeedbackEl.className = 'pac-mcq-feedback is-correct';
             playMcqRight();
-            setTimeout(function () {
-              mcqOverlay.classList.add('hidden');
-              if (onCorrect) onCorrect();
-            }, 500);
+            mcqChoicesEl.querySelectorAll('.pac-mcq-choice').forEach(function (b) { b.disabled = true; });
+            mcqCloseBtn.classList.remove('hidden');
           } else {
             mcqFeedbackEl.textContent = '❌ Not quite — try again.';
             mcqFeedbackEl.className = 'pac-mcq-feedback is-wrong';
@@ -548,6 +558,14 @@
       });
       mcqOverlay.classList.remove('hidden');
     }
+
+    mcqCloseBtn.addEventListener('click', function () {
+      mcqOverlay.classList.add('hidden');
+      mcqCloseBtn.classList.add('hidden');
+      var cb = pendingMcqCorrect;
+      pendingMcqCorrect = null;
+      if (cb) cb();
+    });
 
     // --- MCQ editor -----------------------------------------------------
     function renderMcqEditList() {
@@ -593,6 +611,8 @@
       playClear();
       var beat = score > highScore;
       if (beat) { highScore = score; try { localStorage.setItem(HIGH_SCORE_KEY, String(highScore)); } catch (err) {} highEl.textContent = highScore; }
+      TM.Leaderboard.submitScore('pacmanArcade', score, { higherIsBetter: true });
+      updateTopScoreDisplay();
       showOverlay('Maze clear! 🎉', 'Score: ' + score + (beat ? ' — new high score!' : ''), 'Next maze', function () {
         startLevel();
         updateHud();
@@ -732,7 +752,17 @@
       root.querySelector('#pacGuide').classList.toggle('hidden');
     });
     root.querySelector('#pacSettingsBtn').addEventListener('click', function () {
-      root.querySelector('#pacSettings').classList.toggle('hidden');
+      var panel = root.querySelector('#pacSettings');
+      if (panel.classList.contains('hidden')) {
+        if (!settingsUnlocked && !TM.Leaderboard.checkPassword('Enter the settings password to unlock game settings:')) return;
+        settingsUnlocked = true;
+        panel.classList.remove('hidden');
+      } else {
+        panel.classList.add('hidden');
+      }
+    });
+    root.querySelector('#pacResetTopBtn').addEventListener('click', function () {
+      if (TM.Leaderboard.resetBest('pacmanArcade')) updateTopScoreDisplay();
     });
     root.querySelectorAll('.pac-diff-btn').forEach(function (btn) {
       btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);

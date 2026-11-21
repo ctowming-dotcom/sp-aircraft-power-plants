@@ -3,6 +3,18 @@
   margin: 0 auto;
 }
 
+.xw-back {
+  display: inline-block;
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+  margin-bottom: 0.8rem;
+}
+
+.xw-back:hover {
+  text-decoration: underline;
+}
+
 .xw-wrap h1 {
   font-family: var(--font-display);
   font-size: 2rem;
@@ -153,6 +165,14 @@
   font-family: var(--font-display);
   font-size: 1.2rem;
   font-weight: 600;
+}
+
+#xwBest {
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
 }
 
 .xw-controls {

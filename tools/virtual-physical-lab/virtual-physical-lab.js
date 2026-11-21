@@ -227,27 +227,11 @@
       '<div class="vlab-header">' +
       '<h1>Virtual Lab on Engine Practical</h1>' +
       '<p>Push the throttle to increase engine RPM, and watch pressure, temperature, fuel flow and thrust respond across the engine in real time.</p>' +
+      '<a class="game-mode-btn" href="#virtual-physical-lab-game-mode">🎮 Game Mode</a>' +
       '</div>' +
 
       '<div class="vlab-edit-bar">' +
       '<button type="button" class="vlab-edit-btn" title="Edit part positions/wording, flow route and combustor glows">✎ Edit</button>' +
-      '</div>' +
-
-      '<div class="vlab-match-panel">' +
-      '<h3 class="vlab-match-title">🧠 Match the Definition — Timed Challenge</h3>' +
-      '<p class="vlab-match-intro">Click a part name on the left, then its matching description on the right (or the other way round) — a correct pair locks in green, a wrong one just flashes and resets. Each round picks a random mix of parts.</p>' +
-      '<div class="vlab-match-hud">' +
-      '<div class="vlab-match-stat"><span class="vlab-match-stat-label">Score</span><span class="vlab-match-stat-value" id="vlabMatchScore">0</span></div>' +
-      '<div class="vlab-match-stat"><span class="vlab-match-stat-label">Matched</span><span class="vlab-match-stat-value" id="vlabMatchSolved">0/0</span></div>' +
-      '<div class="vlab-match-stat"><span class="vlab-match-stat-label">Time</span><span class="vlab-match-stat-value" id="vlabMatchTime">--</span></div>' +
-      '<div class="vlab-match-stat"><span class="vlab-match-stat-label">Best</span><span class="vlab-match-stat-value" id="vlabMatchBest">--</span></div>' +
-      '<button type="button" class="vlab-match-btn" id="vlabMatchStartBtn">▶ Start challenge</button>' +
-      '</div>' +
-      '<p class="vlab-match-result" id="vlabMatchResult"></p>' +
-      '<div class="vlab-match-columns">' +
-      '<div class="vlab-match-col" id="vlabMatchTerms"></div>' +
-      '<div class="vlab-match-col" id="vlabMatchDefs"></div>' +
-      '</div>' +
       '</div>' +
 
       '<div class="vlab-stage">' +
@@ -380,14 +364,14 @@
     function hideTip() {
       tooltip.style.display = 'none';
     }
-    root.querySelector('[data-comp="cpr"]').addEventListener('mouseenter', function (e) { if (!isMatchMasked('cpr')) showTip(e, CPR_INFO); });
+    root.querySelector('[data-comp="cpr"]').addEventListener('mouseenter', function (e) { showTip(e, CPR_INFO); });
     root.querySelector('[data-comp="cpr"]').addEventListener('mousemove', positionTip);
     root.querySelector('[data-comp="cpr"]').addEventListener('mouseleave', hideTip);
     root.querySelectorAll('.vlab-tile[data-comp]').forEach(function (el) {
       var comp = el.getAttribute('data-comp');
       if (comp === 'cpr') return;
       var part = PARTS.filter(function (p) { return p.comp === comp; })[0];
-      el.addEventListener('mouseenter', function (e) { if (!isMatchMasked(comp)) showTip(e, part); });
+      el.addEventListener('mouseenter', function (e) { showTip(e, part); });
       el.addEventListener('mousemove', positionTip);
       el.addEventListener('mouseleave', hideTip);
     });
@@ -405,7 +389,7 @@
       markerLayer.querySelectorAll('.vlab-marker').forEach(function (el, i) {
         var part = PARTS[i];
         var resizeHandle = el.querySelector('.vlab-marker-resize');
-        el.addEventListener('mouseenter', function (e) { if (!editUnlocked && !isMatchMasked(part.comp)) showTip(e, part); });
+        el.addEventListener('mouseenter', function (e) { if (!editUnlocked) showTip(e, part); });
         el.addEventListener('mousemove', positionTip);
         el.addEventListener('mouseleave', hideTip);
         el.addEventListener('pointerdown', function (evt) {
@@ -460,25 +444,16 @@
       });
     }
 
-    // While the "Match the Definition" challenge below is running, the
-    // entries for its round's own parts are masked out so this always-
-    // visible list can't be used to peek at the answer — see the match
-    // game section further down.
     function renderEditPartsList() {
       editPartsList.innerHTML = PARTS.map(function (p) {
-        var masked = matchMaskedIds && matchMaskedIds[p.comp];
-        var nameHtml = masked ? '🔒 ?????' : TM.escapeHtml(p.name);
-        var descHtml = masked
-          ? 'Hidden while the Match the Definition challenge is running — click the correct pair instead.'
-          : TM.escapeHtml(p.desc);
-        return '<li class="vlab-edit-parts-item' + (masked ? ' is-masked' : '') + '" data-comp="' + p.comp + '">' +
-          '<span class="vlab-edit-parts-name" data-field="name">' + nameHtml + '</span>' +
-          '<span class="vlab-edit-parts-desc" data-field="desc">' + descHtml + '</span>' +
+        return '<li class="vlab-edit-parts-item" data-comp="' + p.comp + '">' +
+          '<span class="vlab-edit-parts-name" data-field="name">' + TM.escapeHtml(p.name) + '</span>' +
+          '<span class="vlab-edit-parts-desc" data-field="desc">' + TM.escapeHtml(p.desc) + '</span>' +
           '</li>';
       }).join('');
       editPartsList.querySelectorAll('.vlab-edit-parts-item').forEach(function (li, i) {
         var part = PARTS[i];
-        li.addEventListener('mouseenter', function (e) { if (!editUnlocked && !isMatchMasked(part.comp)) showTip(e, part); });
+        li.addEventListener('mouseenter', function (e) { if (!editUnlocked) showTip(e, part); });
         li.addEventListener('mousemove', positionTip);
         li.addEventListener('mouseleave', hideTip);
         ['name', 'desc'].forEach(function (field) {
@@ -602,7 +577,6 @@
 
     editBtn.addEventListener('click', function () {
       if (editUnlocked) { setEditMode(false); return; }
-      if (matchActive) { window.alert('Finish the current Match the Definition round first.'); return; }
       var pw = window.prompt('Enter the edit password:');
       if (pw === null) return;
       if (pw === EDIT_PASSWORD) setEditMode(true);
@@ -637,211 +611,6 @@
       editPanelText.select();
       try { document.execCommand('copy'); } catch (e) { /* selection stays, can copy manually */ }
     });
-
-    // --- "Match the Definition" timed challenge --------------------------
-    // Click a part name then its matching description (or the reverse
-    // order — whichever comes second triggers the check). Pool is the 5
-    // PARTS plus the Compressor Pressure Ratio tile's own info (CPR_INFO,
-    // tagged with a synthetic id 'cpr' since it has no `comp` field of its
-    // own — it's a derived readout, not a diagram part). Blocked from
-    // running at the same time as edit mode (both would fight over the
-    // same always-visible parts list and its contenteditable fields).
-    var MATCH_SECONDS_PER_ITEM = 14;
-    var MATCH_BEST_KEY = 'tm.vlab.matchBest';
-    var matchTermsEl = root.querySelector('#vlabMatchTerms');
-    var matchDefsEl = root.querySelector('#vlabMatchDefs');
-    var matchScoreEl = root.querySelector('#vlabMatchScore');
-    var matchSolvedEl = root.querySelector('#vlabMatchSolved');
-    var matchTimeEl = root.querySelector('#vlabMatchTime');
-    var matchBestEl = root.querySelector('#vlabMatchBest');
-    var matchResultEl = root.querySelector('#vlabMatchResult');
-    var matchStartBtn = root.querySelector('#vlabMatchStartBtn');
-
-    var matchActive = false;
-    var matchScore = 0, matchSolved = 0, matchTotal = 0;
-    var matchDuration = 0, matchDeadline = 0, matchTimerId = null;
-    var matchMaskedIds = null; // null = no masking (challenge not running)
-    var selTermEl = null, selDefEl = null, selTermId = null, selDefId = null;
-
-    function isMatchMasked(id) { return !!(matchMaskedIds && matchMaskedIds[id]); }
-
-    function shuffled(arr) {
-      var a = arr.slice();
-      for (var i = a.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
-      }
-      return a;
-    }
-
-    var matchAudioCtx = null;
-    function ensureMatchAudio() {
-      if (!matchAudioCtx) {
-        try { matchAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) { return null; }
-      }
-      if (matchAudioCtx.state === 'suspended') matchAudioCtx.resume();
-      return matchAudioCtx;
-    }
-    function matchBeep(freq, dur, type, vol, delay) {
-      var ctx = ensureMatchAudio();
-      if (!ctx) return;
-      var t0 = ctx.currentTime + (delay || 0);
-      var osc = ctx.createOscillator();
-      var gain = ctx.createGain();
-      osc.type = type || 'square';
-      osc.frequency.setValueAtTime(freq, t0);
-      gain.gain.setValueAtTime(0, t0);
-      gain.gain.linearRampToValueAtTime(vol == null ? 0.16 : vol, t0 + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(t0); osc.stop(t0 + dur + 0.03);
-    }
-    function playMatchRight() { matchBeep(660, 0.08, 'square', 0.15); }
-    function playMatchWrong() { matchBeep(180, 0.16, 'sawtooth', 0.16); }
-    function playMatchClear() { matchBeep(523, 0.09, 'square', 0.18); matchBeep(784, 0.11, 'square', 0.18, 0.09); matchBeep(1046, 0.16, 'square', 0.18, 0.18); }
-
-    function loadMatchBest() {
-      try { return Number(localStorage.getItem(MATCH_BEST_KEY)) || 0; } catch (err) { return 0; }
-    }
-    function saveMatchBest(val) {
-      try { localStorage.setItem(MATCH_BEST_KEY, String(val)); } catch (err) { /* ignore */ }
-    }
-    function updateMatchBestDisplay() {
-      var best = loadMatchBest();
-      matchBestEl.textContent = best > 0 ? best : '--';
-    }
-
-    function matchPool() {
-      return PARTS.map(function (p) { return { id: p.comp, name: p.name, desc: p.desc }; })
-        .concat([{ id: 'cpr', name: CPR_INFO.name, desc: CPR_INFO.desc }]);
-    }
-
-    function updateMatchHud() {
-      matchScoreEl.textContent = matchScore;
-      matchSolvedEl.textContent = matchSolved + '/' + matchTotal;
-      var remaining = Math.max(0, matchDeadline - performance.now());
-      matchTimeEl.textContent = matchActive ? Math.ceil(remaining / 1000) + 's' : '--';
-    }
-
-    function clearMatchSelection() {
-      if (selTermEl) selTermEl.classList.remove('is-selected');
-      if (selDefEl) selDefEl.classList.remove('is-selected');
-      selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
-    }
-
-    function tryMatch() {
-      if (selTermId == null || selDefId == null) return;
-      if (selTermId === selDefId) {
-        selTermEl.classList.remove('is-selected'); selTermEl.classList.add('is-solved');
-        selDefEl.classList.remove('is-selected'); selDefEl.classList.add('is-solved');
-        matchSolved += 1;
-        var remainingFrac = Math.max(0, (matchDeadline - performance.now()) / matchDuration);
-        matchScore += Math.round(100 * (0.4 + 0.6 * remainingFrac));
-        playMatchRight();
-        selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
-        updateMatchHud();
-        if (matchSolved >= matchTotal) endMatch('cleared');
-      } else {
-        var badTerm = selTermEl, badDef = selDefEl;
-        badTerm.classList.add('is-wrong-flash');
-        badDef.classList.add('is-wrong-flash');
-        playMatchWrong();
-        setTimeout(function () {
-          badTerm.classList.remove('is-wrong-flash', 'is-selected');
-          badDef.classList.remove('is-wrong-flash', 'is-selected');
-        }, 400);
-        selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
-      }
-    }
-
-    function buildMatchTile(item, kind) {
-      var tile = document.createElement('button');
-      tile.type = 'button';
-      tile.className = 'vlab-match-tile';
-      tile.textContent = kind === 'term' ? item.name : item.desc;
-      tile.dataset.id = item.id;
-      tile.addEventListener('click', function () {
-        if (!matchActive || tile.classList.contains('is-solved')) return;
-        if (kind === 'term') {
-          if (selTermEl) selTermEl.classList.remove('is-selected');
-          selTermEl = tile; selTermId = item.id;
-        } else {
-          if (selDefEl) selDefEl.classList.remove('is-selected');
-          selDefEl = tile; selDefId = item.id;
-        }
-        tile.classList.add('is-selected');
-        tryMatch();
-      });
-      return tile;
-    }
-
-    function startMatch() {
-      if (matchActive || editUnlocked) return;
-      var all = matchPool();
-      var count = all.length <= 3 ? all.length : 3 + Math.floor(Math.random() * (all.length - 2));
-      var items = shuffled(all).slice(0, count);
-
-      matchActive = true;
-      matchTotal = items.length;
-      matchScore = 0;
-      matchSolved = 0;
-      clearMatchSelection();
-      matchResultEl.textContent = '';
-      matchStartBtn.disabled = true;
-
-      matchMaskedIds = {};
-      items.forEach(function (it) { matchMaskedIds[it.id] = true; });
-      renderEditPartsList();
-
-      matchTermsEl.innerHTML = '';
-      matchDefsEl.innerHTML = '';
-      shuffled(items).forEach(function (it) { matchTermsEl.appendChild(buildMatchTile(it, 'term')); });
-      shuffled(items).forEach(function (it) { matchDefsEl.appendChild(buildMatchTile(it, 'def')); });
-
-      matchDuration = MATCH_SECONDS_PER_ITEM * 1000 * matchTotal;
-      matchDeadline = performance.now() + matchDuration;
-      updateMatchHud();
-
-      if (matchTimerId != null) clearInterval(matchTimerId);
-      matchTimerId = setInterval(function () {
-        if (performance.now() >= matchDeadline) { endMatch('timeup'); return; }
-        updateMatchHud();
-      }, 200);
-    }
-
-    function endMatch(reason) {
-      if (!matchActive) return;
-      matchActive = false;
-      if (matchTimerId != null) { clearInterval(matchTimerId); matchTimerId = null; }
-      clearMatchSelection();
-      matchTermsEl.querySelectorAll('.vlab-match-tile:not(.is-solved)').forEach(function (el) { el.classList.add('is-revealed'); });
-      matchDefsEl.querySelectorAll('.vlab-match-tile:not(.is-solved)').forEach(function (el) { el.classList.add('is-revealed'); });
-      matchMaskedIds = null;
-      renderEditPartsList();
-      matchStartBtn.disabled = false;
-      updateMatchHud();
-
-      var best = loadMatchBest();
-      var beat = matchScore > best;
-      if (beat) { saveMatchBest(matchScore); updateMatchBestDisplay(); }
-
-      if (reason === 'cleared') {
-        playMatchClear();
-        matchResultEl.textContent = '🎉 All ' + matchTotal + ' matched! Score: ' + matchScore + (beat ? ' — new best!' : '');
-      } else {
-        matchResultEl.textContent = '⏱ Time\'s up — matched ' + matchSolved + '/' + matchTotal + '. Score: ' + matchScore + (beat ? ' — new best!' : '');
-      }
-    }
-
-    matchStartBtn.addEventListener('click', startMatch);
-    updateMatchBestDisplay();
-
-    window.TM.toolModules['virtual-physical-lab'].debugMatchState = function () {
-      return { matchActive: matchActive, matchScore: matchScore, matchSolved: matchSolved, matchTotal: matchTotal };
-    };
-    window.TM.toolModules['virtual-physical-lab'].debugForceMatchTimeout = function () {
-      matchDeadline = performance.now() - 1;
-    };
 
     renderMarkers();
     renderEditPartsList();
@@ -976,7 +745,6 @@
 
     window.TM.toolModules['virtual-physical-lab'].unmount = function () {
       if (rafId != null) cancelAnimationFrame(rafId);
-      if (matchTimerId != null) { clearInterval(matchTimerId); matchTimerId = null; }
     };
   }
 

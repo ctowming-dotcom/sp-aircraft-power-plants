@@ -249,6 +249,7 @@
       '</div>' +
       '<div class="ep-mcq-overlay hidden" id="epMcqOverlay">' +
       '<div class="ep-mcq-card">' +
+      '<button type="button" class="ep-mcq-close hidden" id="epMcqCloseBtn" aria-label="Close">✕</button>' +
       '<h2>📝 Quick Check</h2>' +
       '<p class="ep-mcq-note">Answer correctly to get back in — try as many times as you need.</p>' +
       '<p class="ep-mcq-question" id="epMcqQuestion"></p>' +
@@ -275,7 +276,10 @@
     var mcqQuestionEl = root.querySelector('#epMcqQuestion');
     var mcqChoicesEl = root.querySelector('#epMcqChoices');
     var mcqFeedbackEl = root.querySelector('#epMcqFeedback');
+    var mcqCloseBtn = root.querySelector('#epMcqCloseBtn');
     var mcqs = loadMcqs();
+    var pendingMcqOnCorrect = null;
+    var mcqGateOpenedAt = 0;
 
     function renderStagePicker() {
       stagePicker.innerHTML = '';
@@ -388,6 +392,8 @@
     var lastTime = 0;
     var keys = { left: false, right: false };
     var jumpRequested = false;
+    var stageStartTime = 0;
+    var mcqPausedMs = 0;
 
     function openStage(stageId) {
       stage = STAGES.filter(function (s) { return s.id === stageId; })[0];
@@ -401,6 +407,8 @@
       root.querySelector('.ep-toolbar').classList.add('hidden');
       running = true;
       lastTime = performance.now();
+      stageStartTime = performance.now();
+      mcqPausedMs = 0;
       if (rafId == null) rafId = requestAnimationFrame(loop);
     }
 
@@ -452,6 +460,8 @@
       mcqFeedbackEl.textContent = '';
       mcqFeedbackEl.className = 'ep-mcq-feedback';
       mcqChoicesEl.innerHTML = '';
+      mcqCloseBtn.classList.add('hidden');
+      pendingMcqOnCorrect = onCorrect;
       order.forEach(function (opt) {
         var btn = document.createElement('button');
         btn.type = 'button';
@@ -460,13 +470,11 @@
         btn.dataset.correct = opt.correct ? '1' : '0';
         btn.addEventListener('click', function () {
           if (opt.correct) {
-            mcqFeedbackEl.textContent = '✅ Correct!';
+            mcqFeedbackEl.textContent = '✅ Correct! Press ✕ to continue.';
             mcqFeedbackEl.className = 'ep-mcq-feedback is-correct';
             playMcqRight();
-            setTimeout(function () {
-              mcqOverlay.classList.add('hidden');
-              if (onCorrect) onCorrect();
-            }, 500);
+            mcqChoicesEl.querySelectorAll('.ep-mcq-choice').forEach(function (b) { b.disabled = true; });
+            mcqCloseBtn.classList.remove('hidden');
           } else {
             mcqFeedbackEl.textContent = '❌ Not quite — try again.';
             mcqFeedbackEl.className = 'ep-mcq-feedback is-wrong';
@@ -475,19 +483,37 @@
         });
         mcqChoicesEl.appendChild(btn);
       });
+      mcqGateOpenedAt = performance.now();
       mcqOverlay.classList.remove('hidden');
+    }
+
+    mcqCloseBtn.addEventListener('click', function () {
+      mcqOverlay.classList.add('hidden');
+      mcqCloseBtn.classList.add('hidden');
+      mcqPausedMs += performance.now() - mcqGateOpenedAt;
+      var cb = pendingMcqOnCorrect;
+      pendingMcqOnCorrect = null;
+      if (cb) cb();
+    });
+
+    function stageTimeLabel(stageId) {
+      var best = TM.Leaderboard.getBest('examPlatformer.' + stageId);
+      return best ? ('🏆 ' + best.name + ' — ' + TM.Leaderboard.formatTime(best.score)) : 'No record yet';
     }
 
     function completeStage() {
       running = false;
       playClear();
       if (completed.indexOf(stage.id) === -1) { completed.push(stage.id); saveProgress(completed); }
+      var elapsedSeconds = (performance.now() - stageStartTime - mcqPausedMs) / 1000;
+      TM.Leaderboard.submitScore('examPlatformer.' + stage.id, elapsedSeconds, { higherIsBetter: false });
+      var timeLine = 'Your time: ' + TM.Leaderboard.formatTime(elapsedSeconds) + '. Best time: ' + stageTimeLabel(stage.id) + '.';
       var idx = STAGES.indexOf(stage);
       var next = STAGES[idx + 1];
       if (next) {
-        showOverlay('Stage complete! 🎉', clues[stage.id], 'Next stage', function () { openStage(next.id); });
+        showOverlay('Stage complete! 🎉', clues[stage.id] + '\n\n' + timeLine, 'Next stage', function () { openStage(next.id); });
       } else {
-        showOverlay('Stage complete! 🎉', clues[stage.id], 'Replay stage', function () { openStage(stage.id); });
+        showOverlay('Stage complete! 🎉', clues[stage.id] + '\n\n' + timeLine, 'Replay stage', function () { openStage(stage.id); });
       }
     }
 

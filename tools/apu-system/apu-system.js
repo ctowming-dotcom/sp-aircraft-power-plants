@@ -172,25 +172,9 @@
       '<p class="kicker">Official (Open)</p>' +
       '<h1>Auxiliary Power Unit (APU)</h1>' +
       '<p class="apu-sys-sub">Hover any component for its function. In edit mode: drag the yellow boxes to reshape the airflow, drag the divider to resize the two sections, drag a marker to move it, and drag its corner handle to resize it.</p>' +
+      '<a class="game-mode-btn" href="#apu-system-game-mode">🎮 Game Mode</a>' +
       '</div>' +
       '<button type="button" class="apu-sys-edit-btn" title="Edit diagram">✎ Edit</button>' +
-      '</div>' +
-
-      '<div class="apu-sys-match-panel">' +
-      '<h3 class="apu-sys-match-title">🧠 Match the Definition — Timed Challenge</h3>' +
-      '<p class="apu-sys-match-intro">Click a part name on the left, then its matching description on the right (or the other way round) — a correct pair locks in green, a wrong one just flashes and resets. Each round picks a random mix of components.</p>' +
-      '<div class="apu-sys-match-hud">' +
-      '<div class="apu-sys-match-stat"><span class="apu-sys-match-stat-label">Score</span><span class="apu-sys-match-stat-value" id="apuMatchScore">0</span></div>' +
-      '<div class="apu-sys-match-stat"><span class="apu-sys-match-stat-label">Matched</span><span class="apu-sys-match-stat-value" id="apuMatchSolved">0/0</span></div>' +
-      '<div class="apu-sys-match-stat"><span class="apu-sys-match-stat-label">Time</span><span class="apu-sys-match-stat-value" id="apuMatchTime">--</span></div>' +
-      '<div class="apu-sys-match-stat"><span class="apu-sys-match-stat-label">Best</span><span class="apu-sys-match-stat-value" id="apuMatchBest">--</span></div>' +
-      '<button type="button" class="apu-sys-match-btn" id="apuMatchStartBtn">▶ Start challenge</button>' +
-      '</div>' +
-      '<p class="apu-sys-match-result" id="apuMatchResult"></p>' +
-      '<div class="apu-sys-match-columns">' +
-      '<div class="apu-sys-match-col" id="apuMatchTerms"></div>' +
-      '<div class="apu-sys-match-col" id="apuMatchDefs"></div>' +
-      '</div>' +
       '</div>' +
 
       '<div class="apu-sys-legend">' +
@@ -262,21 +246,10 @@
 
     var editUnlocked = false;
 
-    // `matchMaskedIds` (declared with the match game further below) is
-    // read here too: while a "Match the Definition" round is running,
-    // whichever components it's quizzing have their name/desc swapped
-    // for a locked placeholder in BOTH reference lists below, so neither
-    // list can be used to peek at the answer — same convention as the
-    // Oil/Fuel System tools' own matching game.
     function listItemHtml(id, c) {
-      var masked = matchMaskedIds && matchMaskedIds[id];
-      var nameHtml = masked ? '🔒 ?????' : TM.escapeHtml(c.name);
-      var descHtml = masked
-        ? 'Hidden while the Match the Definition challenge is running — match it on the left instead.'
-        : TM.escapeHtml(c.desc);
-      return '<li class="apu-sys-list-item' + (masked ? ' is-masked' : '') + '" data-comp="' + id + '">' +
-        '<span class="apu-sys-list-name">' + nameHtml + '</span>' +
-        '<span class="apu-sys-list-desc">' + descHtml + '</span>' +
+      return '<li class="apu-sys-list-item" data-comp="' + id + '">' +
+        '<span class="apu-sys-list-name">' + TM.escapeHtml(c.name) + '</span>' +
+        '<span class="apu-sys-list-desc">' + TM.escapeHtml(c.desc) + '</span>' +
         '</li>';
     }
     function renderLists() {
@@ -332,7 +305,7 @@
         var id = el.getAttribute('data-comp');
         var c = COMPONENTS[id];
         var resizeHandle = el.querySelector('.apu-sys-marker-resize');
-        el.addEventListener('mouseenter', function (e) { if (!editUnlocked && !(matchMaskedIds && matchMaskedIds[id])) showTip(e, c); setActive(id, true); });
+        el.addEventListener('mouseenter', function (e) { if (!editUnlocked) showTip(e, c); setActive(id, true); });
         el.addEventListener('mousemove', positionTip);
         el.addEventListener('mouseleave', function () { hideTip(); setActive(id, false); });
 
@@ -519,203 +492,6 @@
     }
     renderFlowBoxes();
 
-    // --- "Match the Definition" timed challenge --------------------------
-    // Click a part name, then its matching description (or the reverse
-    // order — whichever comes second triggers the check). The round's
-    // pool is every entry in COMPONENTS (all 12, ignoring the `key` flag
-    // — that's only about which reference list a component's description
-    // lives in, not relevant here). Not edit-gated; doesn't interact with
-    // the divider/flow-box/marker editing above beyond sharing the same
-    // image-wrap layout. Same pointer-free click-to-pair mechanic as the
-    // Oil/Fuel System tools' own "Match the Definition" game.
-    var MATCH_SECONDS_PER_ITEM = 14;
-    var MATCH_BEST_KEY = 'tm.apuSystem.matchBest';
-    var matchTermsEl = root.querySelector('#apuMatchTerms');
-    var matchDefsEl = root.querySelector('#apuMatchDefs');
-    var matchScoreEl = root.querySelector('#apuMatchScore');
-    var matchSolvedEl = root.querySelector('#apuMatchSolved');
-    var matchTimeEl = root.querySelector('#apuMatchTime');
-    var matchBestEl = root.querySelector('#apuMatchBest');
-    var matchResultEl = root.querySelector('#apuMatchResult');
-    var matchStartBtn = root.querySelector('#apuMatchStartBtn');
-
-    var matchActive = false;
-    var matchScore = 0, matchSolved = 0, matchTotal = 0;
-    var matchDuration = 0, matchDeadline = 0, matchTimerId = null;
-    var matchMaskedIds = null; // null = no masking (round not running)
-    var selTermEl = null, selDefEl = null, selTermId = null, selDefId = null;
-
-    function shuffled(arr) {
-      var a = arr.slice();
-      for (var i = a.length - 1; i > 0; i--) {
-        var j = Math.floor(Math.random() * (i + 1));
-        var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
-      }
-      return a;
-    }
-
-    // Tiny self-contained Web Audio beeps — same no-audio-files pattern
-    // every other game in this portal uses.
-    var matchAudioCtx = null;
-    function ensureMatchAudio() {
-      if (!matchAudioCtx) {
-        try { matchAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) { return null; }
-      }
-      if (matchAudioCtx.state === 'suspended') matchAudioCtx.resume();
-      return matchAudioCtx;
-    }
-    function matchBeep(freq, dur, type, vol, delay) {
-      var ctx = ensureMatchAudio();
-      if (!ctx) return;
-      var t0 = ctx.currentTime + (delay || 0);
-      var osc = ctx.createOscillator();
-      var gain = ctx.createGain();
-      osc.type = type || 'square';
-      osc.frequency.setValueAtTime(freq, t0);
-      gain.gain.setValueAtTime(0, t0);
-      gain.gain.linearRampToValueAtTime(vol == null ? 0.16 : vol, t0 + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(t0); osc.stop(t0 + dur + 0.03);
-    }
-    function playMatchRight() { matchBeep(660, 0.08, 'square', 0.15); }
-    function playMatchWrong() { matchBeep(180, 0.16, 'sawtooth', 0.16); }
-    function playMatchClear() { matchBeep(523, 0.09, 'square', 0.18); matchBeep(784, 0.11, 'square', 0.18, 0.09); matchBeep(1046, 0.16, 'square', 0.18, 0.18); }
-
-    function loadMatchBest() {
-      try { return Number(localStorage.getItem(MATCH_BEST_KEY)) || 0; } catch (err) { return 0; }
-    }
-    function saveMatchBest(val) {
-      try { localStorage.setItem(MATCH_BEST_KEY, String(val)); } catch (err) { /* ignore */ }
-    }
-    function updateMatchBestDisplay() {
-      var best = loadMatchBest();
-      matchBestEl.textContent = best > 0 ? best : '--';
-    }
-
-    function updateMatchHud() {
-      matchScoreEl.textContent = matchScore;
-      matchSolvedEl.textContent = matchSolved + '/' + matchTotal;
-      var remaining = Math.max(0, matchDeadline - performance.now());
-      matchTimeEl.textContent = matchActive ? Math.ceil(remaining / 1000) + 's' : '--';
-    }
-
-    function clearMatchSelection() {
-      if (selTermEl) selTermEl.classList.remove('is-selected');
-      if (selDefEl) selDefEl.classList.remove('is-selected');
-      selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
-    }
-
-    function tryMatch() {
-      if (selTermId == null || selDefId == null) return;
-      if (selTermId === selDefId) {
-        selTermEl.classList.remove('is-selected'); selTermEl.classList.add('is-solved');
-        selDefEl.classList.remove('is-selected'); selDefEl.classList.add('is-solved');
-        matchSolved += 1;
-        var remainingFrac = Math.max(0, (matchDeadline - performance.now()) / matchDuration);
-        matchScore += Math.round(100 * (0.4 + 0.6 * remainingFrac));
-        playMatchRight();
-        selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
-        updateMatchHud();
-        if (matchSolved >= matchTotal) endMatch('cleared');
-      } else {
-        var badTerm = selTermEl, badDef = selDefEl;
-        badTerm.classList.add('is-wrong-flash');
-        badDef.classList.add('is-wrong-flash');
-        playMatchWrong();
-        setTimeout(function () {
-          badTerm.classList.remove('is-wrong-flash', 'is-selected');
-          badDef.classList.remove('is-wrong-flash', 'is-selected');
-        }, 400);
-        selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
-      }
-    }
-
-    function buildMatchTile(id, kind) {
-      var tile = document.createElement('button');
-      tile.type = 'button';
-      tile.className = 'apu-sys-match-tile';
-      tile.textContent = kind === 'term' ? COMPONENTS[id].name : COMPONENTS[id].desc;
-      tile.dataset.id = id;
-      tile.addEventListener('click', function () {
-        if (!matchActive || tile.classList.contains('is-solved')) return;
-        if (kind === 'term') {
-          if (selTermEl) selTermEl.classList.remove('is-selected');
-          selTermEl = tile; selTermId = id;
-        } else {
-          if (selDefEl) selDefEl.classList.remove('is-selected');
-          selDefEl = tile; selDefId = id;
-        }
-        tile.classList.add('is-selected');
-        tryMatch();
-      });
-      return tile;
-    }
-
-    function startMatch() {
-      if (matchActive) return;
-      var all = Object.keys(COMPONENTS);
-      // A random subset each time (never fewer than 3, or the whole set
-      // if there are 3 or fewer) so repeat rounds don't always quiz the
-      // exact same parts.
-      var count = all.length <= 3 ? all.length : 3 + Math.floor(Math.random() * (all.length - 2));
-      var roundIds = shuffled(all).slice(0, count);
-
-      matchActive = true;
-      matchTotal = roundIds.length;
-      matchScore = 0;
-      matchSolved = 0;
-      clearMatchSelection();
-      matchResultEl.textContent = '';
-      matchStartBtn.disabled = true;
-
-      matchMaskedIds = {};
-      roundIds.forEach(function (id) { matchMaskedIds[id] = true; });
-      renderLists();
-
-      matchTermsEl.innerHTML = '';
-      matchDefsEl.innerHTML = '';
-      shuffled(roundIds).forEach(function (id) { matchTermsEl.appendChild(buildMatchTile(id, 'term')); });
-      shuffled(roundIds).forEach(function (id) { matchDefsEl.appendChild(buildMatchTile(id, 'def')); });
-
-      matchDuration = MATCH_SECONDS_PER_ITEM * 1000 * matchTotal;
-      matchDeadline = performance.now() + matchDuration;
-      updateMatchHud();
-
-      if (matchTimerId != null) clearInterval(matchTimerId);
-      matchTimerId = setInterval(function () {
-        if (performance.now() >= matchDeadline) { endMatch('timeup'); return; }
-        updateMatchHud();
-      }, 200);
-    }
-
-    function endMatch(reason) {
-      if (!matchActive) return;
-      matchActive = false;
-      if (matchTimerId != null) { clearInterval(matchTimerId); matchTimerId = null; }
-      clearMatchSelection();
-      matchTermsEl.querySelectorAll('.apu-sys-match-tile:not(.is-solved)').forEach(function (el) { el.classList.add('is-revealed'); });
-      matchDefsEl.querySelectorAll('.apu-sys-match-tile:not(.is-solved)').forEach(function (el) { el.classList.add('is-revealed'); });
-      matchMaskedIds = null;
-      renderLists();
-      matchStartBtn.disabled = false;
-      updateMatchHud();
-
-      var best = loadMatchBest();
-      var beat = matchScore > best;
-      if (beat) { saveMatchBest(matchScore); updateMatchBestDisplay(); }
-
-      if (reason === 'cleared') {
-        playMatchClear();
-        matchResultEl.textContent = '🎉 All ' + matchTotal + ' matched! Score: ' + matchScore + (beat ? ' — new best!' : '');
-      } else {
-        matchResultEl.textContent = '⏱ Time\'s up — matched ' + matchSolved + '/' + matchTotal + '. Score: ' + matchScore + (beat ? ' — new best!' : '');
-      }
-    }
-
-    matchStartBtn.addEventListener('click', startMatch);
-    updateMatchBestDisplay();
-
     editBtn.addEventListener('click', function () {
       if (editUnlocked) {
         editUnlocked = false;
@@ -745,20 +521,6 @@
       try { document.execCommand('copy'); } catch (e) { /* text stays selected for manual copy */ }
     });
 
-    // test/debug hooks only — read-only except debugForceMatchTimeout,
-    // which only nudges the game's own deadline to let a test exercise
-    // the timeout path without a real multi-minute wait; no other
-    // gameplay effect.
-    window.TM.toolModules['apu-system'].debugMatchState = function () {
-      return { matchActive: matchActive, matchScore: matchScore, matchSolved: matchSolved, matchTotal: matchTotal };
-    };
-    window.TM.toolModules['apu-system'].debugForceMatchTimeout = function () {
-      matchDeadline = performance.now() - 1;
-    };
-
-    window.TM.toolModules['apu-system'].unmount = function () {
-      if (matchTimerId != null) { clearInterval(matchTimerId); matchTimerId = null; }
-    };
   }
 
   window.TM.registerTool('apu-system', { mount: mount });

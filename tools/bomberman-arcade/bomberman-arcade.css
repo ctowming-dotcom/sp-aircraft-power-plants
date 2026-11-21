@@ -223,6 +223,7 @@
 }
 
 .bm-mcq-card {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -235,6 +236,25 @@
 .bm-mcq-card h2 {
   font-family: var(--font-display);
   margin: 0 0 0.4rem;
+}
+
+.bm-mcq-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.bm-mcq-close.hidden {
+  display: none;
 }
 
 .bm-mcq-note {

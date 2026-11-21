@@ -140,11 +140,13 @@
   function mount(root) {
     root.innerHTML =
       '<div class="ws-wrap">' +
-      '<h1>🤠 Saloon Shootout</h1>' +
-      '<p class="ws-intro">Outlaws keep popping up around the bar — shoot them fast for points. Don\'t hit the bartender or the regulars! Six shots per cylinder, press R (or the Reload button) to reload. Aim with the mouse/touch, click to fire.</p>' +
+      '<h1>🤠 Shooting</h1>' +
+      '<p class="ws-intro">Outlaws keep popping up around the bar — shoot them fast for points before the clock runs out. Don\'t hit the bartender or the regulars! Six shots per cylinder, press R (or the Reload button) to reload. Aim with the mouse/touch, click to fire.</p>' +
       '<div class="ws-hud">' +
       '<div class="ws-stat"><span class="ws-stat-label">Score</span><span class="ws-stat-value" id="wsScore">0</span></div>' +
+      '<div class="ws-stat"><span class="ws-stat-label">Time</span><span class="ws-stat-value" id="wsTime">60</span></div>' +
       '<div class="ws-stat"><span class="ws-stat-label">High score</span><span class="ws-stat-value" id="wsHigh">0</span></div>' +
+      '<div class="ws-stat"><span class="ws-stat-label">Top score</span><span class="ws-stat-value" id="wsTop">--</span></div>' +
       '<div class="ws-stat"><span class="ws-stat-label">Misses</span><span class="ws-stat-value" id="wsLives">0</span></div>' +
       '<button type="button" class="ws-mute-btn" id="wsMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="ws-mute-btn" id="wsGuideBtn" aria-label="Exam guide">📘</button>' +
@@ -163,6 +165,7 @@
       '<button type="button" class="ws-tab ws-diff-btn" data-diff="normal">Normal</button>' +
       '<button type="button" class="ws-tab ws-diff-btn" data-diff="hard">Hard</button>' +
       '</div>' +
+      '<button type="button" class="ws-btn ws-btn-reload" id="wsResetTopBtn">Reset top score…</button>' +
       '</div>' +
       '<div class="ws-stage">' +
       '<canvas id="wsCanvas" width="' + W + '" height="' + H + '"></canvas>' +
@@ -180,6 +183,7 @@
       '</div>' +
       '<div class="ws-mcq-overlay hidden" id="wsMcqOverlay">' +
       '<div class="ws-mcq-card">' +
+      '<button type="button" class="ws-mcq-close hidden" id="wsMcqCloseBtn" aria-label="Close">✕</button>' +
       '<h2>📝 Quick Check</h2>' +
       '<p class="ws-mcq-note">Answer correctly to get back in — try as many times as you need.</p>' +
       '<p class="ws-mcq-question" id="wsMcqQuestion"></p>' +
@@ -202,7 +206,9 @@
     var canvas = root.querySelector('#wsCanvas');
     var ctx = canvas.getContext('2d');
     var scoreEl = root.querySelector('#wsScore');
+    var timeEl = root.querySelector('#wsTime');
     var highEl = root.querySelector('#wsHigh');
+    var topEl = root.querySelector('#wsTop');
     var livesEl = root.querySelector('#wsLives');
     var ammoEl = root.querySelector('#wsAmmo');
     var overlay = root.querySelector('#wsOverlay');
@@ -213,14 +219,23 @@
     var mcqQuestionEl = root.querySelector('#wsMcqQuestion');
     var mcqChoicesEl = root.querySelector('#wsMcqChoices');
     var mcqFeedbackEl = root.querySelector('#wsMcqFeedback');
+    var mcqCloseBtn = root.querySelector('#wsMcqCloseBtn');
     var mcqs = loadMcqs();
     var mcqEditUnlocked = false;
+    var settingsUnlocked = false;
+    var pendingMcqOnCorrect = null;
+    var LEADERBOARD_ID = 'westernSaloon';
+    var ROUND_SECONDS = 60;
 
     var highScore = 0;
     try { highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0; } catch (err) { highScore = 0; }
     highEl.textContent = highScore;
 
+    function updateTopDisplay() { topEl.textContent = TM.Leaderboard.bestLabel(LEADERBOARD_ID); }
+    updateTopDisplay();
+
     var score, misses, ammo, reloading, reloadUntil, hitsCleared, targets, nextSpawnAt, running, rafId, lastTime;
+    var timeLeft = ROUND_SECONDS, roundTimerId = null;
     var crosshair = { x: W / 2, y: H / 2 };
     var flashUntil = 0;
     var screenFlash = 0; // 0 = none, >0 = red tint strength, decays
@@ -239,6 +254,37 @@
         dot.className = 'ws-bullet' + (i < ammo ? ' is-loaded' : '');
         ammoEl.appendChild(dot);
       }
+    }
+
+    function updateTimeDisplay() { timeEl.textContent = timeLeft; }
+
+    function stopRoundTimer() { if (roundTimerId != null) { clearInterval(roundTimerId); roundTimerId = null; } }
+
+    function startRoundTimer() {
+      stopRoundTimer();
+      timeLeft = ROUND_SECONDS;
+      updateTimeDisplay();
+      roundTimerId = setInterval(function () {
+        if (!running) return; // paused while the MCQ gate (or any overlay) is open
+        timeLeft -= 1;
+        updateTimeDisplay();
+        if (timeLeft <= 0) endRound();
+      }, 1000);
+    }
+
+    function endRound() {
+      if (!running) return; // already ended / not in a round
+      running = false;
+      if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+      stopRoundTimer();
+      var result = TM.Leaderboard.submitScore(LEADERBOARD_ID, score, { higherIsBetter: true });
+      updateTopDisplay();
+      showOverlay(
+        "⏰ Time's up!",
+        'Final score: ' + score + (result.submitted ? ' — new top score!' : '') + '.',
+        'Play Again',
+        startGame
+      );
     }
 
     function showOverlay(title, msg, btnLabel, action) {
@@ -347,6 +393,8 @@
       mcqFeedbackEl.textContent = '';
       mcqFeedbackEl.className = 'ws-mcq-feedback';
       mcqChoicesEl.innerHTML = '';
+      mcqCloseBtn.classList.add('hidden');
+      pendingMcqOnCorrect = null;
       order.forEach(function (opt) {
         var btn = document.createElement('button');
         btn.type = 'button';
@@ -358,10 +406,9 @@
             mcqFeedbackEl.textContent = '✅ Correct!';
             mcqFeedbackEl.className = 'ws-mcq-feedback is-correct';
             playMcqRight();
-            setTimeout(function () {
-              mcqOverlay.classList.add('hidden');
-              if (onCorrect) onCorrect();
-            }, 500);
+            mcqChoicesEl.querySelectorAll('.ws-mcq-choice').forEach(function (b) { b.disabled = true; });
+            pendingMcqOnCorrect = onCorrect;
+            mcqCloseBtn.classList.remove('hidden');
           } else {
             mcqFeedbackEl.textContent = '❌ Not quite — try again.';
             mcqFeedbackEl.className = 'ws-mcq-feedback is-wrong';
@@ -372,6 +419,14 @@
       });
       mcqOverlay.classList.remove('hidden');
     }
+
+    mcqCloseBtn.addEventListener('click', function () {
+      mcqOverlay.classList.add('hidden');
+      mcqCloseBtn.classList.add('hidden');
+      var cb = pendingMcqOnCorrect;
+      pendingMcqOnCorrect = null;
+      if (cb) cb();
+    });
 
     // --- MCQ editor -----------------------------------------------------
     function renderMcqEditList() {
@@ -433,6 +488,7 @@
       running = true;
       lastTime = performance.now();
       if (rafId == null) rafId = requestAnimationFrame(loop);
+      startRoundTimer();
     }
 
     function update(now) {
@@ -620,7 +676,17 @@
       root.querySelector('#wsGuide').classList.toggle('hidden');
     });
     root.querySelector('#wsSettingsBtn').addEventListener('click', function () {
-      root.querySelector('#wsSettings').classList.toggle('hidden');
+      var panel = root.querySelector('#wsSettings');
+      if (panel.classList.contains('hidden')) {
+        if (!settingsUnlocked && !TM.Leaderboard.checkPassword('Enter the settings password to unlock game settings:')) return;
+        settingsUnlocked = true;
+        panel.classList.remove('hidden');
+      } else {
+        panel.classList.add('hidden');
+      }
+    });
+    root.querySelector('#wsResetTopBtn').addEventListener('click', function () {
+      if (TM.Leaderboard.resetBest(LEADERBOARD_ID)) updateTopDisplay();
     });
     root.querySelectorAll('.ws-diff-btn').forEach(function (btn) {
       btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);
@@ -656,7 +722,7 @@
     showOverlay('Ready?', 'Shoot the outlaws, spare the bartender and the regulars. Unlimited lives — 6 shots per cylinder.', 'Start', startGame);
 
     window.TM.toolModules['western-saloon'].debugState = function () {
-      return { targets: targets, slots: SLOTS, score: score, misses: misses, ammo: ammo, reloading: reloading, mcqGateOpen: !mcqOverlay.classList.contains('hidden') };
+      return { targets: targets, slots: SLOTS, score: score, misses: misses, ammo: ammo, reloading: reloading, mcqGateOpen: !mcqOverlay.classList.contains('hidden'), timeLeft: timeLeft, running: running };
     };
     window.TM.toolModules['western-saloon'].debugFire = function (x, y) { fire(x, y); };
     window.TM.toolModules['western-saloon'].debugForceCivilianHit = function () {
@@ -668,6 +734,10 @@
         lastTime = performance.now();
         if (rafId == null) rafId = requestAnimationFrame(loop);
       });
+    };
+    window.TM.toolModules['western-saloon'].debugForceTimeUp = function () {
+      timeLeft = 0;
+      endRound();
     };
     window.TM.toolModules['western-saloon'].debugAnswerMcq = function (correct) {
       var btns = mcqChoicesEl.querySelectorAll('.ws-mcq-choice');
@@ -681,6 +751,7 @@
     window.TM.toolModules['western-saloon'].unmount = function () {
       running = false;
       if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+      stopRoundTimer();
       window.removeEventListener('keydown', onKeyDown);
     };
   }

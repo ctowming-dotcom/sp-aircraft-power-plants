@@ -39,6 +39,14 @@
   margin-bottom: 0.25rem;
 }
 
+.pac-stat-top .pac-stat-value {
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
 .pac-stat-value {
   font-family: var(--font-display);
   font-size: 1.3rem;
@@ -223,6 +231,7 @@
 }
 
 .pac-mcq-card {
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -230,6 +239,29 @@
   max-width: 480px;
   width: 100%;
   text-align: center;
+}
+
+.pac-mcq-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.pac-mcq-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.pac-mcq-close.hidden {
+  display: none;
 }
 
 .pac-mcq-card h2 {

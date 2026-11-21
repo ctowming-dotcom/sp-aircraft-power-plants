@@ -38,6 +38,7 @@
       '<div class="fuel-diagram">' +
       '<p class="kicker">Official (Open)</p>' +
       '<h1>Generic Fuel System Block Diagram</h1>' +
+      '<a class="game-mode-btn" href="#fuel-system-overview-game-mode">🎮 Game Mode</a>' +
       '<div class="subhead-row">' +
       '<h2 class="fd-process-title">Fuel system flow – Start process</h2>' +
       '<div class="toggle">' +
@@ -58,23 +59,6 @@
       '</div>' +
       '<p class="fd-game-result" id="fdGameResult"></p>' +
       '<div class="fd-game-bank" id="fdGameBank"></div>' +
-      '</div>' +
-
-      '<div class="fd-match-panel">' +
-      '<h3 class="fd-game-title">🧠 Match the Definition — Timed Challenge</h3>' +
-      '<p class="fd-game-intro">Click a part name on the left, then its matching description on the right (or the other way round) — a correct pair locks in green, a wrong one just flashes and resets. Each round picks a random mix of components.</p>' +
-      '<div class="fd-game-hud">' +
-      '<div class="fd-game-stat"><span class="fd-game-stat-label">Score</span><span class="fd-game-stat-value" id="fdMatchScore">0</span></div>' +
-      '<div class="fd-game-stat"><span class="fd-game-stat-label">Matched</span><span class="fd-game-stat-value" id="fdMatchSolved">0/0</span></div>' +
-      '<div class="fd-game-stat"><span class="fd-game-stat-label">Time</span><span class="fd-game-stat-value" id="fdMatchTime">--</span></div>' +
-      '<div class="fd-game-stat"><span class="fd-game-stat-label">Best</span><span class="fd-game-stat-value" id="fdMatchBest">--</span></div>' +
-      '<button type="button" class="fd-game-btn" id="fdMatchStartBtn">▶ Start challenge</button>' +
-      '</div>' +
-      '<p class="fd-game-result" id="fdMatchResult"></p>' +
-      '<div class="fd-match-columns">' +
-      '<div class="fd-match-col" id="fdMatchTerms"></div>' +
-      '<div class="fd-match-col" id="fdMatchDefs"></div>' +
-      '</div>' +
       '</div>' +
 
       '<svg viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg">' +
@@ -502,7 +486,7 @@
     }
 
     function startGame() {
-      if (gameActive || matchActive) return;
+      if (gameActive) return;
       // A random subset each time (never fewer than 3, or the whole set
       // if there are 3 or fewer) so repeat rounds don't always quiz the
       // exact same parts.
@@ -515,7 +499,6 @@
       gamePlaced = 0;
       gameResultEl.textContent = '';
       gameStartBtn.disabled = true;
-      matchStartBtn.disabled = true; // the other game can't run at the same time
       // Pinned to the bottom of the viewport while running — the Start
       // button lives below the diagram and the full reference list, so
       // without this the student would have to keep scrolling all the
@@ -555,7 +538,6 @@
       renderList();
       gameBankEl.innerHTML = '';
       gameStartBtn.disabled = false;
-      matchStartBtn.disabled = false;
       gamePanelEl.classList.remove('is-floating');
       updateGameHud();
 
@@ -571,168 +553,6 @@
       }
     }
 
-    // --- "Match the Definition" timed challenge --------------------------
-    // A second, independent game on this same page: click a part name
-    // then its matching description (or the reverse order — whichever
-    // comes second triggers the check) instead of dragging a label onto
-    // the diagram. Reuses the same `titles`/`descriptions`/`gameKeys`
-    // pool and the drag challenge's `gameMaskedKeys`/`renderList()` for
-    // suppressing the reference list — safe since only one of the two
-    // games can run at a time (each Start checks the other's `*Active`
-    // flag first).
-    var MATCH_SECONDS_PER_ITEM = 14;
-    var MATCH_BEST_KEY = 'tm.fuelSystem.matchBest';
-    var matchTermsEl = root.querySelector('#fdMatchTerms');
-    var matchDefsEl = root.querySelector('#fdMatchDefs');
-    var matchScoreEl = root.querySelector('#fdMatchScore');
-    var matchSolvedEl = root.querySelector('#fdMatchSolved');
-    var matchTimeEl = root.querySelector('#fdMatchTime');
-    var matchBestEl = root.querySelector('#fdMatchBest');
-    var matchResultEl = root.querySelector('#fdMatchResult');
-    var matchStartBtn = root.querySelector('#fdMatchStartBtn');
-
-    var matchActive = false;
-    var matchScore = 0, matchSolved = 0, matchTotal = 0;
-    var matchDuration = 0, matchDeadline = 0, matchTimerId = null;
-    var selTermEl = null, selDefEl = null, selTermId = null, selDefId = null;
-
-    function loadMatchBest() {
-      try { return Number(localStorage.getItem(MATCH_BEST_KEY)) || 0; } catch (err) { return 0; }
-    }
-    function saveMatchBest(val) {
-      try { localStorage.setItem(MATCH_BEST_KEY, String(val)); } catch (err) { /* ignore */ }
-    }
-    function updateMatchBestDisplay() {
-      var best = loadMatchBest();
-      matchBestEl.textContent = best > 0 ? best : '--';
-    }
-    function playMatchRight() { gameBeep(660, 0.08, 'square', 0.15); }
-    function playMatchWrong() { gameBeep(180, 0.16, 'sawtooth', 0.16); }
-    function playMatchClear() { gameBeep(523, 0.09, 'square', 0.18); gameBeep(784, 0.11, 'square', 0.18, 0.09); gameBeep(1046, 0.16, 'square', 0.18, 0.18); }
-
-    function updateMatchHud() {
-      matchScoreEl.textContent = matchScore;
-      matchSolvedEl.textContent = matchSolved + '/' + matchTotal;
-      var remaining = Math.max(0, matchDeadline - performance.now());
-      matchTimeEl.textContent = matchActive ? Math.ceil(remaining / 1000) + 's' : '--';
-    }
-
-    function clearMatchSelection() {
-      if (selTermEl) selTermEl.classList.remove('is-selected');
-      if (selDefEl) selDefEl.classList.remove('is-selected');
-      selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
-    }
-
-    function tryMatch() {
-      if (selTermId == null || selDefId == null) return;
-      if (selTermId === selDefId) {
-        selTermEl.classList.remove('is-selected'); selTermEl.classList.add('is-solved');
-        selDefEl.classList.remove('is-selected'); selDefEl.classList.add('is-solved');
-        matchSolved += 1;
-        var remainingFrac = Math.max(0, (matchDeadline - performance.now()) / matchDuration);
-        matchScore += Math.round(100 * (0.4 + 0.6 * remainingFrac));
-        playMatchRight();
-        selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
-        updateMatchHud();
-        if (matchSolved >= matchTotal) endMatch('cleared');
-      } else {
-        var badTerm = selTermEl, badDef = selDefEl;
-        badTerm.classList.add('is-wrong-flash');
-        badDef.classList.add('is-wrong-flash');
-        playMatchWrong();
-        setTimeout(function () {
-          badTerm.classList.remove('is-wrong-flash', 'is-selected');
-          badDef.classList.remove('is-wrong-flash', 'is-selected');
-        }, 400);
-        selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
-      }
-    }
-
-    function buildMatchTile(key, kind) {
-      var tile = document.createElement('button');
-      tile.type = 'button';
-      tile.className = 'fd-match-tile';
-      tile.textContent = kind === 'term' ? titles[key] : descriptions[key];
-      tile.dataset.id = key;
-      tile.addEventListener('click', function () {
-        if (!matchActive || tile.classList.contains('is-solved')) return;
-        if (kind === 'term') {
-          if (selTermEl) selTermEl.classList.remove('is-selected');
-          selTermEl = tile; selTermId = key;
-        } else {
-          if (selDefEl) selDefEl.classList.remove('is-selected');
-          selDefEl = tile; selDefId = key;
-        }
-        tile.classList.add('is-selected');
-        tryMatch();
-      });
-      return tile;
-    }
-
-    function startMatch() {
-      if (matchActive || gameActive) return;
-      // A random subset each time (never fewer than 3) so repeat rounds
-      // don't always quiz the exact same parts.
-      var count = gameKeys.length <= 3 ? gameKeys.length : 3 + Math.floor(Math.random() * (gameKeys.length - 2));
-      var roundKeys = shuffled(gameKeys).slice(0, count);
-
-      matchActive = true;
-      matchTotal = roundKeys.length;
-      matchScore = 0;
-      matchSolved = 0;
-      clearMatchSelection();
-      matchResultEl.textContent = '';
-      matchStartBtn.disabled = true;
-      gameStartBtn.disabled = true; // the other game can't run at the same time
-
-      gameMaskedKeys = {};
-      roundKeys.forEach(function (k) { gameMaskedKeys[k] = true; });
-      renderList();
-
-      matchTermsEl.innerHTML = '';
-      matchDefsEl.innerHTML = '';
-      shuffled(roundKeys).forEach(function (k) { matchTermsEl.appendChild(buildMatchTile(k, 'term')); });
-      shuffled(roundKeys).forEach(function (k) { matchDefsEl.appendChild(buildMatchTile(k, 'def')); });
-
-      matchDuration = MATCH_SECONDS_PER_ITEM * 1000 * matchTotal;
-      matchDeadline = performance.now() + matchDuration;
-      updateMatchHud();
-
-      if (matchTimerId != null) clearInterval(matchTimerId);
-      matchTimerId = setInterval(function () {
-        if (performance.now() >= matchDeadline) { endMatch('timeup'); return; }
-        updateMatchHud();
-      }, 200);
-    }
-
-    function endMatch(reason) {
-      if (!matchActive) return;
-      matchActive = false;
-      if (matchTimerId != null) { clearInterval(matchTimerId); matchTimerId = null; }
-      clearMatchSelection();
-      matchTermsEl.querySelectorAll('.fd-match-tile:not(.is-solved)').forEach(function (el) { el.classList.add('is-revealed'); });
-      matchDefsEl.querySelectorAll('.fd-match-tile:not(.is-solved)').forEach(function (el) { el.classList.add('is-revealed'); });
-      gameMaskedKeys = null;
-      renderList();
-      matchStartBtn.disabled = false;
-      gameStartBtn.disabled = false;
-      updateMatchHud();
-
-      var best = loadMatchBest();
-      var beat = matchScore > best;
-      if (beat) { saveMatchBest(matchScore); updateMatchBestDisplay(); }
-
-      if (reason === 'cleared') {
-        playMatchClear();
-        matchResultEl.textContent = '🎉 All ' + matchTotal + ' matched! Score: ' + matchScore + (beat ? ' — new best!' : '');
-      } else {
-        matchResultEl.textContent = '⏱ Time\'s up — matched ' + matchSolved + '/' + matchTotal + '. Score: ' + matchScore + (beat ? ' — new best!' : '');
-      }
-    }
-
-    matchStartBtn.addEventListener('click', startMatch);
-    updateMatchBestDisplay();
-
     gameStartBtn.addEventListener('click', startGame);
     updateGameBestDisplay();
 
@@ -746,16 +566,9 @@
     window.TM.toolModules['fuel-system-overview'].debugForceTimeout = function () {
       gameDeadline = performance.now() - 1;
     };
-    window.TM.toolModules['fuel-system-overview'].debugMatchState = function () {
-      return { matchActive: matchActive, matchScore: matchScore, matchSolved: matchSolved, matchTotal: matchTotal };
-    };
-    window.TM.toolModules['fuel-system-overview'].debugForceMatchTimeout = function () {
-      matchDeadline = performance.now() - 1;
-    };
 
     window.TM.toolModules['fuel-system-overview'].unmount = function () {
       if (gameTimerId != null) { clearInterval(gameTimerId); gameTimerId = null; }
-      if (matchTimerId != null) { clearInterval(matchTimerId); matchTimerId = null; }
       document.removeEventListener('pointermove', onDragPointerMove);
       document.removeEventListener('pointerup', onDragPointerUp);
       if (dragState && dragState.clone) dragState.clone.remove();

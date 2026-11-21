@@ -81,16 +81,9 @@
     {
       id: 'western-saloon',
       category: 'game',
-      name: 'Saloon Shootout',
+      name: 'Shooting',
       description: 'A western-bar shooting gallery — gun down the outlaws popping up around the saloon, but spare the bartender and the regulars.',
       icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v4"></path><path d="M12 15h.01"></path><path d="M3 12h4"></path><path d="M17 12h4"></path></svg>',
-    },
-    {
-      id: 'exam-crossword',
-      category: 'game',
-      name: 'Crossword Challenge',
-      description: 'A randomly generated crossword built from this course\'s key words — pick Term 1 or Term 2, read the clues, and fill it in.',
-      icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18"></path><path d="M3 15h18"></path><path d="M9 3v18"></path><path d="M15 3v18"></path></svg>',
     },
     {
       id: 'barrel-climb',
@@ -99,5 +92,17 @@
       description: 'A Donkey-Kong-style climbing arcade game — dodge rolling barrels and roaming flames up sloped girders to reach the rescue at the top.',
       icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="3"></circle><path d="M4 21l6-9 2 3 2-3 6 9"></path><path d="M9 14l-3 2"></path><path d="M15 14l3 2"></path></svg>',
     },
+
+    // Hidden "Game Mode" pages — one per study chapter, each hosting that
+    // chapter's own crossword + Match the Definition. Not catalog cards:
+    // reached only via the "🎮 Game Mode" button on their own study tool.
+    { id: 'virtual-physical-lab-game-mode', hidden: true, name: 'Virtual Lab — Game Mode' },
+    { id: 'turbofan-engine-game-mode', hidden: true, name: 'Turbofan Engine — Game Mode' },
+    { id: 'oil-system-overview-game-mode', hidden: true, name: 'Oil System — Game Mode' },
+    { id: 'fuel-system-overview-game-mode', hidden: true, name: 'Fuel System — Game Mode' },
+    { id: 'air-system-game-mode', hidden: true, name: 'Air System — Game Mode' },
+    { id: 'starting-system-game-mode', hidden: true, name: 'Starting System — Game Mode' },
+    { id: 'apu-system-game-mode', hidden: true, name: 'APU System — Game Mode' },
+    { id: 'fire-system-game-mode', hidden: true, name: 'Fire System — Game Mode' },
   ];
 })();

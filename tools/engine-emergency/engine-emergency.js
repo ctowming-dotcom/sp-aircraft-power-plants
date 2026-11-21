@@ -184,6 +184,8 @@
       '<div class="ee-stat"><span class="ee-stat-label">Score</span><span class="ee-stat-value" id="eeScore">0</span></div>' +
       '<div class="ee-stat"><span class="ee-stat-label">High score</span><span class="ee-stat-value" id="eeHigh">0</span></div>' +
       '<div class="ee-stat"><span class="ee-stat-label">Misses</span><span class="ee-stat-value" id="eeMisses">0</span></div>' +
+      '<div class="ee-stat ee-stat-top"><span class="ee-stat-label">Top score</span><span class="ee-stat-value" id="eeTopScore">--</span></div>' +
+      '<button type="button" class="ee-btn ee-btn-ghost" id="eeSaveScoreBtn">🏆 Save my score</button>' +
       '<button type="button" class="ee-mute-btn" id="eeMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="ee-mute-btn" id="eeGuideBtn" aria-label="Exam guide">📘</button>' +
       '<button type="button" class="ee-mute-btn" id="eeSettingsBtn" aria-label="Game settings">⚙️</button>' +
@@ -201,6 +203,7 @@
       '<button type="button" class="ee-btn ee-btn-ghost ee-diff-btn" data-diff="normal">Normal</button>' +
       '<button type="button" class="ee-btn ee-btn-ghost ee-diff-btn" data-diff="hard">Hard</button>' +
       '</div>' +
+      '<button type="button" class="ee-btn ee-btn-ghost" id="eeResetTopBtn">Reset top score…</button>' +
       '</div>' +
       '<div class="ee-card ee-start" id="eeStart">' +
       '<h2>Ready for your shift?</h2>' +
@@ -214,6 +217,7 @@
       '</div>' +
       '<div class="ee-mcq-overlay hidden" id="eeMcqOverlay">' +
       '<div class="ee-mcq-card">' +
+      '<button type="button" class="ee-mcq-close hidden" id="eeMcqCloseBtn" aria-label="Close">✕</button>' +
       '<h2>📝 Quick Check</h2>' +
       '<p class="ee-mcq-note">Answer correctly to get back to the panel — try as many times as you need.</p>' +
       '<p class="ee-mcq-question" id="eeMcqQuestion"></p>' +
@@ -245,10 +249,15 @@
     var mcqQuestionEl = root.querySelector('#eeMcqQuestion');
     var mcqChoicesEl = root.querySelector('#eeMcqChoices');
     var mcqFeedbackEl = root.querySelector('#eeMcqFeedback');
+    var mcqCloseBtn = root.querySelector('#eeMcqCloseBtn');
+    var topScoreEl = root.querySelector('#eeTopScore');
 
     var highScore = 0;
     try { highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0; } catch (err) { highScore = 0; }
     highEl.textContent = highScore;
+
+    function updateTopScoreDisplay() { topScoreEl.textContent = TM.Leaderboard.bestLabel('engineEmergency'); }
+    updateTopScoreDisplay();
 
     var mcqs = loadMcqs();
 
@@ -370,7 +379,15 @@
     // correct answer's on-screen position never gives it away, and lets
     // the student retry the SAME question as many times as needed —
     // there is no penalty and no limit, only a short pause gate.
+    // On a correct answer the overlay no longer auto-hides after a timeout —
+    // it stays up (choices disabled, a ✕ button revealed) until the student
+    // explicitly dismisses it, so a correct answer is never missed by a
+    // screen that vanished before they could read it.
+    var pendingOnCorrect = null;
+
     function showMcqGate(onCorrect) {
+      pendingOnCorrect = onCorrect;
+      mcqCloseBtn.classList.add('hidden');
       var q = mcqs[Math.floor(Math.random() * mcqs.length)];
       var order = q.choices.map(function (text, i) { return { text: text, correct: i === q.answer }; });
       for (var i = order.length - 1; i > 0; i--) {
@@ -389,13 +406,11 @@
         btn.dataset.correct = opt.correct ? '1' : '0';
         btn.addEventListener('click', function () {
           if (opt.correct) {
-            mcqFeedbackEl.textContent = '✅ Correct!';
+            mcqFeedbackEl.textContent = '✅ Correct! Press ✕ to continue.';
             mcqFeedbackEl.className = 'ee-mcq-feedback is-correct';
             playMcqRight();
-            setTimeout(function () {
-              mcqOverlay.classList.add('hidden');
-              if (onCorrect) onCorrect();
-            }, 500);
+            mcqChoicesEl.querySelectorAll('.ee-mcq-choice').forEach(function (b) { b.disabled = true; });
+            mcqCloseBtn.classList.remove('hidden');
           } else {
             mcqFeedbackEl.textContent = '❌ Not quite — try again.';
             mcqFeedbackEl.className = 'ee-mcq-feedback is-wrong';
@@ -406,6 +421,14 @@
       });
       mcqOverlay.classList.remove('hidden');
     }
+
+    mcqCloseBtn.addEventListener('click', function () {
+      mcqOverlay.classList.add('hidden');
+      mcqCloseBtn.classList.add('hidden');
+      var cb = pendingOnCorrect;
+      pendingOnCorrect = null;
+      if (cb) cb();
+    });
 
     function startGame() {
       score = 0;
@@ -468,8 +491,23 @@
     root.querySelector('#eeGuideBtn').addEventListener('click', function () {
       root.querySelector('#eeGuide').classList.toggle('hidden');
     });
+    var settingsUnlocked = false;
     root.querySelector('#eeSettingsBtn').addEventListener('click', function () {
-      root.querySelector('#eeSettings').classList.toggle('hidden');
+      var panel = root.querySelector('#eeSettings');
+      if (panel.classList.contains('hidden')) {
+        if (!settingsUnlocked && !TM.Leaderboard.checkPassword('Enter the settings password to unlock game settings:')) return;
+        settingsUnlocked = true;
+        panel.classList.remove('hidden');
+      } else {
+        panel.classList.add('hidden');
+      }
+    });
+    root.querySelector('#eeSaveScoreBtn').addEventListener('click', function () {
+      TM.Leaderboard.submitScore('engineEmergency', score, { higherIsBetter: true });
+      updateTopScoreDisplay();
+    });
+    root.querySelector('#eeResetTopBtn').addEventListener('click', function () {
+      if (TM.Leaderboard.resetBest('engineEmergency')) updateTopScoreDisplay();
     });
     root.querySelector('#eeEditBtn').addEventListener('click', function () {
       var editCard = root.querySelector('#eeMcqEdit');

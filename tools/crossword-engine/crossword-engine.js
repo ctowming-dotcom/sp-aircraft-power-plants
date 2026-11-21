@@ -1,109 +1,31 @@
 (function () {
   window.TM = window.TM || {};
 
-  // Word banks — one word, one clue each. All words are single tokens
-  // (letters only, no spaces/hyphens) so each fits in one grid cell per
-  // letter. To change the vocabulary, edit these two arrays directly.
-  var WORD_BANKS = {
-    term1: [
-      { word: 'TURBOFAN', clue: 'Engine type that bypasses some incoming air around the core for extra thrust and efficiency' },
-      { word: 'COMPRESSOR', clue: 'Stage that squeezes incoming air to a higher pressure before combustion' },
-      { word: 'COMBUSTOR', clue: 'Chamber where fuel and compressed air burn continuously' },
-      { word: 'TURBINE', clue: 'Extracts energy from hot gas to drive the compressor and fan' },
-      { word: 'BYPASS', clue: 'Air that flows around the engine core instead of through it' },
-      { word: 'SPOOL', clue: 'A shaft plus its compressor and turbine stages, spinning together as one unit' },
-      { word: 'NACELLE', clue: 'The streamlined housing that covers an engine' },
-      { word: 'THRUST', clue: 'The forward force produced by accelerating air rearward' },
-      { word: 'INTAKE', clue: 'Where air first enters the engine' },
-      { word: 'EXHAUST', clue: 'Where spent gases leave the engine after passing through the turbine' },
-      { word: 'IGNITER', clue: 'Sparks that light the fuel-air mixture in the combustor' },
-      { word: 'ROTOR', clue: 'The rotating set of blades on a compressor or turbine stage' },
-      { word: 'STATOR', clue: 'Fixed vanes that redirect airflow between rotating stages' },
-      { word: 'BLADE', clue: 'A single airfoil-shaped component on a rotor or fan disc' },
-      { word: 'SHAFT', clue: 'The rotating rod connecting a turbine stage to its compressor' },
-      { word: 'NOZZLE', clue: 'Shapes and accelerates exhaust gas as it leaves the engine' },
-      { word: 'PYLON', clue: 'The structure that attaches an engine to the wing' },
-      { word: 'COWLING', clue: 'Removable panels covering the engine for access and streamlining' },
-      { word: 'DIFFUSER', clue: 'Slows and spreads airflow to raise its pressure before the combustor' },
-      { word: 'CORE', clue: 'The gas-generator path — compressor, combustor and turbine together' },
-    ],
-    term2: [
-      { word: 'SCAVENGE', clue: 'The oil circuit that pumps used oil back out of a bearing chamber' },
-      { word: 'BLEED', clue: 'Compressed air tapped off the engine for cabin, anti-ice or pneumatic use' },
-      { word: 'STARTER', clue: 'The motor or air turbine that spins the engine up for its first start' },
-      { word: 'IGNITION', clue: 'The system that fires the igniter plugs during engine start' },
-      { word: 'FILTER', clue: 'Traps debris in the oil before it recirculates' },
-      { word: 'VALVE', clue: 'A component that opens or closes to control a flow of air or fluid' },
-      { word: 'PRESSURE', clue: 'What a gauge on the oil or bleed air system actually measures' },
-      { word: 'SENSOR', clue: 'Detects a condition like temperature or pressure and reports it' },
-      { word: 'DETECTOR', clue: 'Part of a fire-protection loop that senses rising temperature' },
-      { word: 'EXTINGUISHER', clue: 'The agent bottle discharged to put out an engine or APU fire' },
-      { word: 'GENERATOR', clue: 'Driven by the accessory gearbox to supply electrical power' },
-      { word: 'GEARBOX', clue: 'Transmits engine shaft power to driven accessories like pumps' },
-      { word: 'MANIFOLD', clue: 'A branching duct or pipe that distributes air or fuel to several outlets' },
-      { word: 'THROTTLE', clue: 'The lever that commands engine thrust' },
-      { word: 'CUTOUT', clue: 'Automatically disengages the starter once the engine is self-sustaining' },
-      { word: 'SEAL', clue: 'A labyrinth type of this keeps oil from migrating along a rotating shaft' },
-      { word: 'LOOP', clue: 'Fire-detection sensing wire run in redundant pairs, A and B' },
-      { word: 'AGENT', clue: 'The extinguishing chemical stored in a fire-protection bottle' },
-      { word: 'ACCESSORY', clue: 'Pumps, generators and starters driven off the engine are collectively this' },
-      { word: 'CHIP', clue: 'A small metal fragment an oil detector is designed to catch' },
-    ],
-  };
+  // Shared crossword engine used by every study chapter's own "🎮 Game
+  // Mode" crossword page. One engine, one auto-layout algorithm (adapted
+  // from the old standalone Crossword Challenge game, now removed from the
+  // games section per request — see CLAUDE.md), called once per chapter
+  // with that chapter's own word bank. This is "shared chrome" in the same
+  // sense as app.js/tools.js/styles.css, not a tool of its own — each
+  // chapter's thin wrapper file supplies the words/clues and calls
+  // TM.mountCrossword(root, config).
+  //
+  // config:
+  //   gameId        - unique id for leaderboard + settings storage, e.g. 'oilSystemCrossword'
+  //   title         - heading text, e.g. 'Oil System Crossword'
+  //   intro         - one line of instructions under the title
+  //   words         - [{ word: 'TANK', clue: '...' }, ...] (word = letters only, uppercase)
+  //   backHash      - hash of the study tool to return to, e.g. 'oil-system-overview'
+  //   backLabel     - link text, e.g. '← Back to Oil System Overview'
 
   var MIN_WORDS_ACCEPTED = 5;
   var GRID_SIZE = 21;
-  var BEST_KEY_PREFIX = 'tm.examCrossword.best.';
 
-  // Difficulty just changes how many letters of each word are given away
-  // for free at the start and how many words appear in a puzzle — easier
-  // settings reveal more letters and use fewer words. Every level still
-  // reveals at least 2 letters per word by request.
-  var DIFFICULTY_KEY = 'tm.examCrossword.difficulty';
   var DIFFICULTY_SETTINGS = {
     easy: { wordsPerPuzzle: 6, revealPerWord: 4 },
     normal: { wordsPerPuzzle: 8, revealPerWord: 2 },
     hard: { wordsPerPuzzle: 10, revealPerWord: 2 },
   };
-  var difficulty = 'normal';
-  try {
-    var savedDiff = localStorage.getItem(DIFFICULTY_KEY);
-    if (DIFFICULTY_SETTINGS[savedDiff]) difficulty = savedDiff;
-  } catch (err) { /* ignore */ }
-  function diffCfg() { return DIFFICULTY_SETTINGS[difficulty]; }
-
-  // Tiny self-contained Web Audio sound effects — same pattern as this
-  // portal's other arcade games: no audio files, lazily created on first
-  // sound (always from a user gesture), with a persisted mute toggle.
-  var SOUND_KEY = 'tm.examCrossword.sound';
-  var soundOn = true;
-  try { soundOn = localStorage.getItem(SOUND_KEY) !== 'off'; } catch (err) { soundOn = true; }
-  var audioCtx = null;
-  function ensureAudio() {
-    if (!soundOn) return null;
-    if (!audioCtx) {
-      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) { return null; }
-    }
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    return audioCtx;
-  }
-  function beep(freq, dur, type, vol, delay) {
-    var ctx = ensureAudio();
-    if (!ctx) return;
-    var t0 = ctx.currentTime + (delay || 0);
-    var osc = ctx.createOscillator();
-    var gain = ctx.createGain();
-    osc.type = type || 'square';
-    osc.frequency.setValueAtTime(freq, t0);
-    gain.gain.setValueAtTime(0, t0);
-    gain.gain.linearRampToValueAtTime(vol == null ? 0.14 : vol, t0 + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.start(t0); osc.stop(t0 + dur + 0.03);
-  }
-  function playType() { beep(440, 0.03, 'square', 0.05); }
-  function playWrong() { beep(200, 0.12, 'sawtooth', 0.14); }
-  function playSolved() { beep(523, 0.1, 'square', 0.18); beep(659, 0.1, 'square', 0.18, 0.1); beep(784, 0.1, 'square', 0.18, 0.2); beep(1046, 0.22, 'square', 0.2, 0.3); }
 
   function makeEmptyGrid(size) {
     var g = [];
@@ -199,8 +121,7 @@
     return { grid: trimmed, rows: rows, cols: cols, numberGrid: numberGrid, across: across, down: down, cellMap: cellMap };
   }
 
-  function generatePuzzle(pool) {
-    var wordsPerPuzzle = diffCfg().wordsPerPuzzle;
+  function generatePuzzle(pool, wordsPerPuzzle) {
     for (var attempt = 0; attempt < 30; attempt++) {
       var candidates = shuffled(pool).slice(0, Math.min(wordsPerPuzzle * 2, pool.length));
       candidates.sort(function (a, b) { return b.word.length - a.word.length; });
@@ -248,21 +169,59 @@
     return m + ':' + (s < 10 ? '0' : '') + s;
   }
 
-  function mount(root) {
+  function mountCrossword(root, config) {
+    var gameId = config.gameId;
+    var pool = config.words.map(function (w) {
+      return { word: String(w.word).toUpperCase().replace(/[^A-Z]/g, ''), clue: w.clue };
+    }).filter(function (w) { return w.word.length >= 3; });
+
+    var DIFF_KEY = 'tm.crossword.' + gameId + '.difficulty';
+    var SOUND_KEY = 'tm.crossword.' + gameId + '.sound';
+
+    var difficulty = 'normal';
+    try {
+      var savedDiff = localStorage.getItem(DIFF_KEY);
+      if (DIFFICULTY_SETTINGS[savedDiff]) difficulty = savedDiff;
+    } catch (err) { /* ignore */ }
+    function diffCfg() { return DIFFICULTY_SETTINGS[difficulty]; }
+
+    var soundOn = true;
+    try { soundOn = localStorage.getItem(SOUND_KEY) !== 'off'; } catch (err) { soundOn = true; }
+    var audioCtx = null;
+    function ensureAudio() {
+      if (!soundOn) return null;
+      if (!audioCtx) {
+        try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) { return null; }
+      }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+    function beep(freq, dur, type, vol, delay) {
+      var ctx = ensureAudio();
+      if (!ctx) return;
+      var t0 = ctx.currentTime + (delay || 0);
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = type || 'square';
+      osc.frequency.setValueAtTime(freq, t0);
+      gain.gain.setValueAtTime(0, t0);
+      gain.gain.linearRampToValueAtTime(vol == null ? 0.14 : vol, t0 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(t0); osc.stop(t0 + dur + 0.03);
+    }
+    function playType() { beep(440, 0.03, 'square', 0.05); }
+    function playWrong() { beep(200, 0.12, 'sawtooth', 0.14); }
+    function playSolved() { beep(523, 0.1, 'square', 0.18); beep(659, 0.1, 'square', 0.18, 0.1); beep(784, 0.1, 'square', 0.18, 0.2); beep(1046, 0.22, 'square', 0.2, 0.3); }
+
     root.innerHTML =
       '<div class="xw-wrap">' +
-      '<h1>🧩 Crossword Challenge</h1>' +
-      '<p class="xw-intro">A fresh random crossword every time, built from this course\'s key words. Pick a term, click a clue (or a cell), and type the answer — the clue explains what word you\'re looking for.</p>' +
+      (config.backHash ? '<a class="xw-back" href="#' + config.backHash + '">' + TM.escapeHtml(config.backLabel) + '</a>' : '') +
+      '<h1>🧩 ' + TM.escapeHtml(config.title) + '</h1>' +
+      '<p class="xw-intro">' + TM.escapeHtml(config.intro) + '</p>' +
       '<div class="xw-tabs">' +
-      '<button type="button" class="xw-tab is-active" id="xwTabTerm1" data-term="term1">Term 1</button>' +
-      '<button type="button" class="xw-tab" id="xwTabTerm2" data-term="term2">Term 2</button>' +
       '<button type="button" class="xw-mute-btn" id="xwMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
-      '<button type="button" class="xw-mute-btn" id="xwGuideBtn" aria-label="Exam guide">📘</button>' +
       '<button type="button" class="xw-mute-btn" id="xwSettingsBtn" aria-label="Game settings">⚙️</button>' +
-      '</div>' +
-      '<div class="xw-guide hidden" id="xwGuide">' +
-      '<h2>📘 Exam Guide</h2>' +
-      '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
       '</div>' +
       '<div class="xw-settings hidden" id="xwSettings">' +
       '<h2>⚙️ Game Settings</h2>' +
@@ -272,10 +231,11 @@
       '<button type="button" class="xw-diff-btn" data-diff="normal">Normal</button>' +
       '<button type="button" class="xw-diff-btn" data-diff="hard">Hard</button>' +
       '</div>' +
+      '<button type="button" class="xw-btn xw-btn-ghost" id="xwResetBestBtn">Reset top score…</button>' +
       '</div>' +
       '<div class="xw-hud">' +
       '<div class="xw-stat"><span class="xw-stat-label">Time</span><span class="xw-stat-value" id="xwTime">0:00</span></div>' +
-      '<div class="xw-stat"><span class="xw-stat-label">Best</span><span class="xw-stat-value" id="xwBest">--</span></div>' +
+      '<div class="xw-stat"><span class="xw-stat-label">Top score</span><span class="xw-stat-value" id="xwBest">--</span></div>' +
       '<div class="xw-stat"><span class="xw-stat-label">Words</span><span class="xw-stat-value" id="xwProgress">0/0</span></div>' +
       '</div>' +
       '<div class="xw-controls">' +
@@ -307,26 +267,19 @@
     var progressEl = root.querySelector('#xwProgress');
     var overlay = root.querySelector('#xwOverlay');
     var overlayMsg = root.querySelector('#xwOverlayMsg');
+    var settingsPanel = root.querySelector('#xwSettings');
+    var settingsUnlocked = false;
 
-    var currentTerm = 'term1';
     var puzzle = null;
-    var inputs = {}; // "r,c" -> input element
+    var inputs = {};
     var currentWord = null;
     var elapsed = 0;
     var timerId = null;
     var solved = false;
     var revealed = false;
 
-    function loadBest(term) {
-      try { return Number(localStorage.getItem(BEST_KEY_PREFIX + term)) || 0; } catch (err) { return 0; }
-    }
-    function saveBest(term, val) {
-      try { localStorage.setItem(BEST_KEY_PREFIX + term, String(val)); } catch (err) { /* ignore */ }
-    }
-
     function updateBestDisplay() {
-      var best = loadBest(currentTerm);
-      bestEl.textContent = best > 0 ? best : '--';
+      bestEl.textContent = TM.Leaderboard.bestLabel(gameId);
     }
 
     function stopTimer() { if (timerId != null) { clearInterval(timerId); timerId = null; } }
@@ -425,8 +378,8 @@
         playSolved();
         var score = revealed ? 0 : Math.max(50, 1000 - elapsed * 5);
         if (!revealed) {
-          var best = loadBest(currentTerm);
-          if (score > best) { saveBest(currentTerm, score); updateBestDisplay(); }
+          TM.Leaderboard.submitScore(gameId, score, { higherIsBetter: true });
+          updateBestDisplay();
         }
         overlayMsg.textContent = revealed
           ? 'Revealed in ' + formatTime(elapsed) + '. Try a fresh one without peeking for a real score!'
@@ -457,23 +410,20 @@
       else if (e.key === 'ArrowUp') { e.preventDefault(); moveFocus(r, c, -1, 0); }
     }
 
-    // Picks, per word, at least `perWord` of its cells to reveal for free —
-    // crossing words naturally share some reveals, so a word can end up
-    // with more than its own quota, never fewer.
     function computeRevealedCells(puzzle, perWord) {
-      var revealed = {};
+      var revealedMap = {};
       var allWords = puzzle.across.concat(puzzle.down);
       allWords.forEach(function (w) {
         var dr = w.dir === 'D' ? 1 : 0, dc = w.dir === 'A' ? 1 : 0;
         var cells = [];
         for (var i = 0; i < w.word.length; i++) cells.push({ r: w.row + dr * i, c: w.col + dc * i });
-        var already = cells.filter(function (cell) { return revealed[cell.r + ',' + cell.c]; }).length;
+        var already = cells.filter(function (cell) { return revealedMap[cell.r + ',' + cell.c]; }).length;
         var need = Math.max(0, perWord - already);
         if (!need) return;
-        var pool = shuffled(cells.filter(function (cell) { return !revealed[cell.r + ',' + cell.c]; }));
-        pool.slice(0, need).forEach(function (cell) { revealed[cell.r + ',' + cell.c] = true; });
+        var pool2 = shuffled(cells.filter(function (cell) { return !revealedMap[cell.r + ',' + cell.c]; }));
+        pool2.slice(0, need).forEach(function (cell) { revealedMap[cell.r + ',' + cell.c] = true; });
       });
-      return revealed;
+      return revealedMap;
     }
 
     function buildGrid() {
@@ -543,8 +493,8 @@
       solved = false;
       revealed = false;
       currentWord = null;
-      puzzle = generatePuzzle(WORD_BANKS[currentTerm]);
-      if (!puzzle) return; // should not happen given the curated word banks
+      puzzle = generatePuzzle(pool, diffCfg().wordsPerPuzzle);
+      if (!puzzle) return;
       buildGrid();
       buildClues();
       updateProgress();
@@ -553,16 +503,6 @@
       selectWord(puzzle.across[0] || puzzle.down[0]);
     }
 
-    function switchTerm(term) {
-      if (term === currentTerm) return;
-      currentTerm = term;
-      root.querySelector('#xwTabTerm1').classList.toggle('is-active', term === 'term1');
-      root.querySelector('#xwTabTerm2').classList.toggle('is-active', term === 'term2');
-      newPuzzle();
-    }
-
-    root.querySelector('#xwTabTerm1').addEventListener('click', function () { switchTerm('term1'); });
-    root.querySelector('#xwTabTerm2').addEventListener('click', function () { switchTerm('term2'); });
     root.querySelector('#xwNewBtn').addEventListener('click', newPuzzle);
     root.querySelector('#xwOverlayBtn').addEventListener('click', newPuzzle);
 
@@ -585,7 +525,7 @@
 
     root.querySelector('#xwRevealBtn').addEventListener('click', function () {
       revealed = true;
-      solved = true; // no "Solved!" popup for a reveal — let the student see the filled grid
+      solved = true;
       stopTimer();
       Object.keys(inputs).forEach(function (k) {
         var r = Number(k.split(',')[0]), c = Number(k.split(',')[1]);
@@ -600,29 +540,38 @@
       e.target.textContent = soundOn ? '🔊' : '🔇';
       if (soundOn) ensureAudio();
     });
-    root.querySelector('#xwGuideBtn').addEventListener('click', function () {
-      root.querySelector('#xwGuide').classList.toggle('hidden');
-    });
+
+    // Game settings are password-gated: the panel only opens once the
+    // shared settings password is entered, same convention as every other
+    // tool's "✎ Edit" button in this codebase.
     root.querySelector('#xwSettingsBtn').addEventListener('click', function () {
-      root.querySelector('#xwSettings').classList.toggle('hidden');
+      if (settingsPanel.classList.contains('hidden')) {
+        if (!settingsUnlocked && !TM.Leaderboard.checkPassword('Enter the settings password to unlock game settings:')) return;
+        settingsUnlocked = true;
+        settingsPanel.classList.remove('hidden');
+      } else {
+        settingsPanel.classList.add('hidden');
+      }
     });
     root.querySelectorAll('.xw-diff-btn').forEach(function (btn) {
       btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);
       btn.addEventListener('click', function () {
         difficulty = btn.getAttribute('data-diff');
-        try { localStorage.setItem(DIFFICULTY_KEY, difficulty); } catch (err) { /* ignore */ }
+        try { localStorage.setItem(DIFF_KEY, difficulty); } catch (err) { /* ignore */ }
         root.querySelectorAll('.xw-diff-btn').forEach(function (b) { b.classList.toggle('is-active', b === btn); });
       });
+    });
+    root.querySelector('#xwResetBestBtn').addEventListener('click', function () {
+      if (TM.Leaderboard.resetBest(gameId)) updateBestDisplay();
     });
 
     newPuzzle();
 
-    window.TM.toolModules['exam-crossword'].debugState = function () { return { puzzle: puzzle, inputs: inputs, currentTerm: currentTerm, difficulty: difficulty }; };
-
-    window.TM.toolModules['exam-crossword'].unmount = function () {
-      stopTimer();
+    return {
+      debugState: function () { return { puzzle: puzzle, inputs: inputs, difficulty: difficulty }; },
+      unmount: function () { stopTimer(); }
     };
   }
 
-  window.TM.registerTool('exam-crossword', { mount: mount });
+  window.TM.mountCrossword = mountCrossword;
 })();

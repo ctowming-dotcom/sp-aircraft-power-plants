@@ -186,6 +186,27 @@ main#app {
   margin-bottom: 1.25rem;
 }
 
+/* Shared "🎮 Game Mode" button — every study chapter links to its own
+   hidden Game Mode page (crossword + Match the Definition) with this
+   same pill, so it reads as one consistent feature across the site. */
+.game-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-decoration: none;
+  border-radius: var(--radius-pill);
+  padding: 0.55rem 1.1rem;
+  margin-top: 0.6rem;
+}
+
+.game-mode-btn:hover {
+  filter: brightness(1.05);
+}
+
 .site-footer {
   text-align: center;
   padding: 1.5rem;

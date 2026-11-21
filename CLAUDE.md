@@ -1196,6 +1196,191 @@ system"):
       pre-existing interactive "Try It" fire-panel button simulator is
       unaffected.
 
+### Shared leaderboard (`leaderboard.js`), per-chapter Game Mode pages, persistent MCQ gate, settings lock
+
+By request ("Place the cross word puzzle in each of the study chapters as
+well... Subsequently remove the cross word puzzle from the game section...
+For every game played. The overal best score must remain and safe in the
+system along the user name for the top player... Allow name of up to 10
+characters. No profanity words. I can choose to reset with a user
+password. Game sttings must also be locked but user password. For the
+study page add the word Game Mode [once] game mode is press it goes onto
+a new page for game play... Change the title from someone shooting to
+shooting. For that game there must be finished within a certain time and
+showing the clock on the screen. After losing one life, and answer the
+mcq. Do not let the screen disappear. User press cross to exit... There
+should be a top score for jump challenge based on timing to complete the
+stage.", plus a follow-up clarifying "Add a box called Game Mode. And
+when the game mode is pressed it will enter a new web page for all the
+game. And for the matching of words vs definition. Use a max of 3 words
+and 3 definition. Use random combination."):
+
+- **`leaderboard.js`** (shared chrome at the repo root, loaded once in
+  `index.html` like `app.js`/`tools.js`): a site-wide "forever" top-score
+  record per game, `window.TM.Leaderboard`. Still per-browser
+  `localStorage` only (`tm.leaderboard.<gameId>`, `{name, score}`) — this
+  site has a hard no-backend/vanilla-only constraint (see top of this
+  file), so a genuinely shared-across-every-device leaderboard isn't
+  possible without real infrastructure; confirmed with the user, who
+  chose this over adding a backend. `submitScore(gameId, score, {
+  higherIsBetter })` compares against the stored best (`higherIsBetter`
+  defaults `true`; pass `false` for a timing leaderboard where a lower
+  number wins) and, only when beaten, prompts via `window.prompt()` for a
+  name (prefilled with the last name used on this browser,
+  `tm.leaderboard.lastName`), trims it to 10 characters, and rejects it
+  (re-prompting) if it matches a short hardcoded profanity blocklist —
+  plain `window.prompt`/`window.alert` rather than a custom modal, by
+  deliberate choice, matching this codebase's existing low-fi
+  `window.prompt()`-based password gates rather than inventing new UI
+  chrome for something this casual. `resetBest(gameId)` and
+  `checkPassword(message)` both gate on the same shared settings
+  password, `'APP'` — reusing the arcade games' existing
+  `MCQ_EDIT_PASSWORD` value (confirmed with the user) rather than adding
+  a second password to remember. `formatTime(seconds)` and
+  `bestLabel(gameId, formatScore)` (→ "🏆 Name — 420" or "--") are the
+  two small shared formatting helpers every caller uses.
+
+- **Game Mode pages — one per study chapter** (virtual-physical-lab,
+  turbofan-engine, oil-system-overview, fuel-system-overview, air-system,
+  starting-system, apu-system, fire-system): each study tool's header
+  gained a `<a class="game-mode-btn">🎮 Game Mode</a>` link (shared
+  `.game-mode-btn` pill style added once to the root `styles.css`) to a
+  new hidden tool `<chapter>-game-mode` — hidden meaning it has a
+  `tools.js` entry with `hidden: true` (skipped by `app.js`'s catalog
+  render loop) and is reachable only by that link, never a catalog card.
+  Each Game Mode page is a thin per-chapter wrapper
+  (`tools/<chapter>/<chapter>-game-mode.js`) that calls
+  `TM.mountGameModeHub(root, { title, backHash, backLabel, games: [...] })`
+  — a shared hub (`tools/game-mode-hub/`) that tab-switches between that
+  chapter's own mini-games, each mounted by a shared engine:
+  - **`tools/crossword-engine/`**: the auto-layout crossword algorithm
+    and UI from the now-removed standalone Crossword Challenge game (see
+    below), generalized into `TM.mountCrossword(root, { gameId, title,
+    intro, words })` — one word bank per call instead of the old game's
+    Term 1/Term 2 tabs, since each chapter already *is* one term. Still
+    has the Easy/Normal/Hard reveal-density picker, now gated behind
+    `TM.Leaderboard.checkPassword()` the first time its settings panel
+    is opened (satisfying "Game settings must also be locked"), and a
+    "Reset top score…" button wired to `TM.Leaderboard.resetBest()`. Its
+    "Best" stat is now the shared leaderboard's named `bestLabel()`
+    instead of a bare anonymous number.
+  - **`tools/match-game-engine/`**: a new, smaller shared engine,
+    `TM.mountMatchGame(root, { gameId, title, intro, pairs })`,
+    replacing each chapter's own previously-duplicated inline "Match the
+    Definition" implementation (added last session, one copy per tool).
+    Capped at a max of **3 terms and 3 definitions per round** (down
+    from "a random 3-or-more subset" — tightened by the user's explicit
+    follow-up), still a fresh random pick every round. No masking logic
+    exists here at all (unlike the old inline version, which had to hide
+    the chapter's own reference list and hover tooltips while a round
+    ran) — since Game Mode is now a *separate page* with no live diagram
+    on screen, there is nothing on the current page that could leak the
+    answer, so the whole masking mechanism from last session's rollout
+    was deliberately dropped rather than ported over.
+  - Every chapter's `<chapter>-game-mode.js` supplies its own `WORDS`
+    (crossword, single uppercase token + clue) and `PAIRS` (match game,
+    full term + definition) as plain data arrays, duplicated from that
+    chapter's own real content (component names/descriptions already
+    used elsewhere in that tool) rather than imported from the study
+    tool's own closures — Game Mode is a separate page/mount with no
+    access to the study tool's private variables, and duplicating a
+    small, curated content list per chapter matches this codebase's
+    standing "no shared code between tools, only shared chrome"
+    convention (the three engines above are the shared chrome; the
+    content is each chapter's own, same as everywhere else in this site).
+  - **Removed from every one of the 8 study tools**: the entire inline
+    "Match the Definition" panel added last session (HTML block, JS
+    implementation, debug hooks, and any mutual-exclusion check it had
+    against that tool's own edit mode or other game) — moved to its
+    chapter's Game Mode page instead, per the user's explicit follow-up
+    ("it will enter a new web page for all the game"). Oil System and
+    Fuel System's own separate drag-and-drop "Label the Bearings"/"Label
+    the Fuel System" game was **not** moved — it stays on the study page
+    unchanged, since relocating it would mean rebuilding it without the
+    live diagram it drags labels onto, which Game Mode's separate page
+    doesn't have; only Match the Definition (which never depended on the
+    diagram, just a word list) made sense to relocate.
+
+- **Standalone "Crossword Challenge" removed from the games section**
+  (`tools/exam-crossword/` deleted, its `tools.js` entry and
+  `index.html` script/link tags removed) — its Term 1/Term 2 word banks
+  and auto-layout algorithm live on as the shared `crossword-engine.js`
+  described above, now called once per chapter instead of once globally
+  with two hardcoded terms.
+
+- **Persistent MCQ gate — a ✕ button, not a timeout, dismisses it** (all
+  6 arcade games: Engine Emergency, Jump Challenge, Maze Muncher, Super
+  Bomberman, Shooting, Barrel Climb): every `showMcqGate(onCorrect)`
+  previously auto-hid the overlay and resumed play 500ms after a correct
+  answer (`setTimeout(() => { overlay.hide(); onCorrect(); }, 500)`) —
+  by request ("Do not let the screen disappear. User press cross to
+  exit"), that timeout is gone. A correct answer now disables every
+  choice button (so a lucky second click can't re-trigger anything) and
+  reveals a small `✕` button (new, `position: absolute` top-right of the
+  MCQ card) that was hidden until that moment; only clicking it hides
+  the overlay and invokes the stored `onCorrect` callback. A wrong
+  answer is unchanged — flash, stays open, unlimited retries. Each
+  game's own `showMcqGate` now holds the pending callback in a local
+  `pendingOnCorrect`-style variable for the ✕ handler (registered once,
+  outside `showMcqGate`) to read.
+
+- **Game settings password-locked** (Engine Emergency, Maze Muncher,
+  Super Bomberman, Shooting, Barrel Climb — the 5 of the 6 MCQ-gated
+  games that still have a difficulty picker; Jump Challenge's own
+  picker was removed in an earlier session once lives became unlimited
+  and had nothing left to tune, so there is no settings panel there to
+  lock): each settings-panel toggle button now calls
+  `TM.Leaderboard.checkPassword()` the first time it is about to open
+  the (until-then-hidden) panel, remembered via a local
+  `settingsUnlocked` flag for the rest of that page view so it only
+  prompts once per visit, not on every toggle.
+
+- **Named leaderboard wired into all 6 arcade games** (`engineEmergency`,
+  `examPlatformer.<stageId>`, `pacmanArcade`, `bombermanArcade`,
+  `westernSaloon`, `barrelClimb` leaderboard ids): each keeps its
+  existing plain per-browser numeric "High score" stat untouched (cheap,
+  immediate, no name prompt) and gains a second "Top score" stat driven
+  by `TM.Leaderboard.bestLabel()`. Submission timing differs by whether
+  the game has a natural stopping point: Maze Muncher/Super
+  Bomberman/Shooting/Barrel Climb submit at their own
+  `levelClear()`/`stageClear()`-equivalent win moment; Engine Emergency
+  has no win condition (endless survival, by design, unchanged) so it
+  instead gained a manual "🏆 Save my score" HUD button the student
+  clicks whenever they want to bank their current score without ending
+  the run. Each also gained a password-gated "Reset top score…" control
+  (inside its settings panel) calling `TM.Leaderboard.resetBest()`.
+
+- **Shooting** (`western-saloon`, catalog display name changed from
+  "Saloon Shootout" to "Shooting" by request — id/folder/internal
+  `ws-*` class prefixes unchanged): gained a 60-second round timer with
+  a visible on-screen clock (ticks down once a second, paused for the
+  exact duration the MCQ gate is open so a slow quiz answer never eats
+  into play time — the same pause/resume plumbing the MCQ gate already
+  used). Reaching 0 pauses the game, shows a "⏰ Time's up!" result
+  overlay with the final score (and "— new top score!" when beaten), and
+  a "Play Again" button that starts a fresh timed round — this is also
+  this game's new natural "run end" checkpoint for the leaderboard
+  submission above, something it never had before (previously endless
+  survival, like Engine Emergency still is).
+
+- **Jump Challenge per-stage completion-TIME leaderboard** (separate
+  from, and in addition to, the "Top score" points-based one every other
+  arcade game just got above — `exam-platformer` has no point score at
+  all, so its leaderboard is pure timing): `TM.Leaderboard.submitScore(
+  'examPlatformer.' + stage.id, elapsedSeconds, { higherIsBetter: false
+  })`, one leaderboard entry per stage id, lower time wins. Timing starts
+  when a stage opens (`stageStartTime`) and stops at `completeStage()`;
+  every death-and-respawn within that same attempt stays inside the
+  timed window (unlimited lives already meant the student just keeps
+  playing the same stage after a death, so a "re-live" costs real time
+  exactly like it would in person) — but the time spent on the MCQ gate
+  itself is subtracted back out (`mcqPausedMs`, accumulated every time
+  the gate opens and closes) so a slow quiz answer never counts against
+  the student's stage time, matching the request precisely ("timing
+  include all the re-live but not inclusive of quiz time"). The
+  stage-complete overlay shows both the student's own time and the
+  current best ("🏆 Name — m:ss" or "No record yet").
+
 ### Phase 2 — Scaffolded topics, content pending
 
 No tools remain as placeholders — every catalog entry now has real

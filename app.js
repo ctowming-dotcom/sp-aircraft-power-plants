@@ -38,6 +38,7 @@
       catalogGrid.innerHTML = '';
       gamesGrid.innerHTML = '';
       TM.tools.forEach(function (tool) {
+        if (tool.hidden) return;
         var grid = tool.category === 'game' ? gamesGrid : catalogGrid;
         grid.appendChild(buildCard(tool));
       });
