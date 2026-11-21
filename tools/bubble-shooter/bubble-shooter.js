@@ -137,7 +137,7 @@
     { q: 'What does EGT stand for?', choices: ['Exhaust Gas Temperature', 'Engine Ground Test', 'Electrical Generator Trip', 'Emergency Glide Thrust'], answer: 0 },
   ];
   var MCQ_KEY = 'tm.bubbleShooter.mcqs';
-  var MCQ_EDIT_PASSWORD = 'APP';
+  var MCQ_EDIT_PASSWORD = 'APP888';
 
   function loadMcqs() {
     try {

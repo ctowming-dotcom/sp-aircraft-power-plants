@@ -106,7 +106,7 @@
     { q: 'What does a sensor do in an aircraft system?', choices: ['Detects a condition like temperature or pressure and reports it', 'Produces thrust', 'Stores fuel', 'Cools the cabin'], answer: 0 },
   ];
   var MCQ_KEY = 'tm.bombermanArcade.mcqs';
-  var MCQ_EDIT_PASSWORD = 'APP';
+  var MCQ_EDIT_PASSWORD = 'APP888';
 
   function loadMcqs() {
     try {
@@ -160,13 +160,8 @@
       '<div class="bm-stat"><span class="bm-stat-label">Time</span><span class="bm-stat-value" id="bmTime">0</span></div>' +
       '<div class="bm-stat"><span class="bm-stat-label">Misses</span><span class="bm-stat-value" id="bmLives">0</span></div>' +
       '<button type="button" class="bm-mute-btn" id="bmMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
-      '<button type="button" class="bm-mute-btn" id="bmGuideBtn" aria-label="Exam guide">📘</button>' +
       '<button type="button" class="bm-mute-btn" id="bmSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '<button type="button" class="bm-mute-btn" id="bmEditBtn" aria-label="Edit questions">✎</button>' +
-      '</div>' +
-      '<div class="bm-guide hidden" id="bmGuide">' +
-      '<h2>📘 Exam Guide</h2>' +
-      '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
       '</div>' +
       '<div class="bm-guide hidden" id="bmSettings">' +
       '<h2>⚙️ Game Settings</h2>' +
@@ -747,9 +742,6 @@
       try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch (err) { /* ignore */ }
       e.target.textContent = soundOn ? '🔊' : '🔇';
       if (soundOn) ensureAudio();
-    });
-    root.querySelector('#bmGuideBtn').addEventListener('click', function () {
-      root.querySelector('#bmGuide').classList.toggle('hidden');
     });
     root.querySelector('#bmSettingsBtn').addEventListener('click', function () {
       var panel = root.querySelector('#bmSettings');

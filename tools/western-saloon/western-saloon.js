@@ -116,7 +116,7 @@
     { q: 'What does igniter cooling air prevent?', choices: ['Overheating of the igniter plug', 'Fuel leaks', 'Oil contamination', 'Cabin depressurization'], answer: 0 },
   ];
   var MCQ_KEY = 'tm.westernSaloon.mcqs';
-  var MCQ_EDIT_PASSWORD = 'APP';
+  var MCQ_EDIT_PASSWORD = 'APP888';
 
   function loadMcqs() {
     try {
@@ -149,13 +149,8 @@
       '<div class="ws-stat"><span class="ws-stat-label">Top score</span><span class="ws-stat-value" id="wsTop">--</span></div>' +
       '<div class="ws-stat"><span class="ws-stat-label">Misses</span><span class="ws-stat-value" id="wsLives">0</span></div>' +
       '<button type="button" class="ws-mute-btn" id="wsMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
-      '<button type="button" class="ws-mute-btn" id="wsGuideBtn" aria-label="Exam guide">📘</button>' +
       '<button type="button" class="ws-mute-btn" id="wsSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '<button type="button" class="ws-mute-btn" id="wsEditBtn" aria-label="Edit questions">✎</button>' +
-      '</div>' +
-      '<div class="ws-guide hidden" id="wsGuide">' +
-      '<h2>📘 Exam Guide</h2>' +
-      '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
       '</div>' +
       '<div class="ws-guide hidden" id="wsSettings">' +
       '<h2>⚙️ Game Settings</h2>' +
@@ -678,9 +673,6 @@
       try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch (err) { /* ignore */ }
       e.target.textContent = soundOn ? '🔊' : '🔇';
       if (soundOn) ensureAudio();
-    });
-    root.querySelector('#wsGuideBtn').addEventListener('click', function () {
-      root.querySelector('#wsGuide').classList.toggle('hidden');
     });
     root.querySelector('#wsSettingsBtn').addEventListener('click', function () {
       var panel = root.querySelector('#wsSettings');

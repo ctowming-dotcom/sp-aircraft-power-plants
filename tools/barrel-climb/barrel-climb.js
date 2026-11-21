@@ -131,7 +131,7 @@
     { q: "What's the benefit of a twin-spool vs single-spool design?", choices: ['Each spool can run at its own optimal speed for efficiency', "It's lighter with fewer parts", 'It needs no oil system', "It can't use bleed air"], answer: 0 },
   ];
   var MCQ_KEY = 'tm.barrelClimb.mcqs';
-  var MCQ_EDIT_PASSWORD = 'APP';
+  var MCQ_EDIT_PASSWORD = 'APP888';
 
   function loadMcqs() {
     try {
@@ -163,13 +163,8 @@
       '<div class="bc-stat"><span class="bc-stat-label">Top score</span><span class="bc-stat-value" id="bcTop">--</span></div>' +
       '<div class="bc-stat"><span class="bc-stat-label">Misses</span><span class="bc-stat-value" id="bcLives">0</span></div>' +
       '<button type="button" class="bc-mute-btn" id="bcMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
-      '<button type="button" class="bc-mute-btn" id="bcGuideBtn" aria-label="Exam guide">📘</button>' +
       '<button type="button" class="bc-mute-btn" id="bcSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '<button type="button" class="bc-mute-btn" id="bcEditBtn" aria-label="Edit questions">✎</button>' +
-      '</div>' +
-      '<div class="bc-guide hidden" id="bcGuide">' +
-      '<h2>📘 Exam Guide</h2>' +
-      '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
       '</div>' +
       '<div class="bc-guide hidden" id="bcSettings">' +
       '<h2>⚙️ Game Settings</h2>' +
@@ -679,9 +674,6 @@
       try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch (err) { /* ignore */ }
       e.target.textContent = soundOn ? '🔊' : '🔇';
       if (soundOn) ensureAudio();
-    });
-    root.querySelector('#bcGuideBtn').addEventListener('click', function () {
-      root.querySelector('#bcGuide').classList.toggle('hidden');
     });
     root.querySelector('#bcSettingsBtn').addEventListener('click', function () {
       var panel = root.querySelector('#bcSettings');

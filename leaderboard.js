@@ -13,7 +13,7 @@
   // and unlocking any game's settings/difficulty picker — the same password
   // already used by every arcade game's MCQ editor (MCQ_EDIT_PASSWORD).
 
-  var SETTINGS_PASSWORD = 'APP';
+  var SETTINGS_PASSWORD = 'APP888';
   // Bumped to v2 when every "ends by clearing the stage" game's scoring
   // formula changed to include a time bonus and a per-revive penalty —
   // old scores were computed under a different formula and are no

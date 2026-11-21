@@ -172,7 +172,7 @@
     { q: 'What does N1 usually represent on a twin-spool engine?', choices: ['The low-pressure (fan) spool speed, as a percentage', 'The high-pressure spool speed', 'Oil temperature', 'EGT'], answer: 0 },
   ];
   var MCQ_KEY = 'tm.tankBattle.mcqs';
-  var MCQ_EDIT_PASSWORD = 'APP';
+  var MCQ_EDIT_PASSWORD = 'APP888';
 
   function loadMcqs() {
     try {

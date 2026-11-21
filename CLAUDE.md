@@ -1504,6 +1504,42 @@ every live revive. Reset scores for all game."):
   own `stageClear()`/`levelClear()`-equivalent for the eventual exact
   formula once this lands.
 
+### Shared password changed to "APP888"; "📘 Exam Guide" stub removed everywhere; Maze Muncher's scoring updated
+
+By request ("change password to APP888") — every settings/leaderboard-
+reset password check in `leaderboard.js` (`SETTINGS_PASSWORD`) and every
+arcade game's own `MCQ_EDIT_PASSWORD`/`EDIT_PASSWORD` constant (Barrel
+Climb, Super Bomberman, Bubble Shooter, Engine Emergency, Jump
+Challenge, Maze Muncher, Tank Battle, Shooting) changed from `'APP'` to
+`'APP888'`. The separate `'APP2'` password used by the diagram/marker
+editors (Air System, APU System, Fire System, Turbofan Engine, Virtual
+Lab) is untouched — a different password for a different purpose, never
+part of this request.
+
+By request ("remove all element on giving exam tips") — the "📘 Exam
+guide" button + its placeholder panel ("This section is empty for now
+— exam tips for this game will be added here by January 2027.") was
+removed from all 6 games that had it (Barrel Climb, Super Bomberman,
+Engine Emergency, Jump Challenge, Maze Muncher, Shooting) — button,
+panel markup, and its click handler, all gone; Jump Challenge's
+`.ep-guide` CSS (used by nothing else) was deleted outright, while the
+other 5 games' shared `.xx-guide` CSS class stays since their Settings
+panel reuses the same class for its own styling. Tank Battle and Bubble
+Shooter never had this stub to begin with (built after it would have
+been added), so nothing to remove there.
+
+Maze Muncher (`pacman-arcade`) also got the first of the per-game
+"time bonus + revive penalty" scoring changes described in the section
+above: `PAR_SECONDS = 45`, `POINTS_PER_SECOND = 5`, `MISS_PENALTY =
+150` (tuned to this maze's size and its own scoring scale — a 150-point
+penalty is roughly one eaten ghost's worth), tracked via
+`levelStartTime`/`missesThisLevel` reset at the start of every maze (not
+just a new game, since mazes repeat). The maze-clear overlay message now
+shows the full arithmetic, e.g. "Score: 0 + 221 time bonus − 150 for 1
+revive = 71", so a leaderboard result that differs from the raw on-
+screen score is never a silent surprise. Super Bomberman, Barrel Climb,
+Tank Battle, and Bubble Shooter are getting the same treatment next.
+
 ### Phase 2 — Scaffolded topics, content pending
 
 No tools remain as placeholders — every catalog entry now has real

@@ -117,7 +117,7 @@
     { q: "What's the purpose of a throttle lever?", choices: ['Commands engine thrust', 'Controls cabin temperature', 'Opens the fire bottle', 'Starts the igniters'], answer: 0 },
   ];
   var MCQ_KEY = 'tm.engineEmergency.mcqs';
-  var MCQ_EDIT_PASSWORD = 'APP';
+  var MCQ_EDIT_PASSWORD = 'APP888';
 
   function loadMcqs() {
     try {
@@ -187,13 +187,8 @@
       '<div class="ee-stat ee-stat-top"><span class="ee-stat-label">Top score</span><span class="ee-stat-value" id="eeTopScore">--</span></div>' +
       '<button type="button" class="ee-btn ee-btn-ghost" id="eeSaveScoreBtn">🏆 Save my score</button>' +
       '<button type="button" class="ee-mute-btn" id="eeMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
-      '<button type="button" class="ee-mute-btn" id="eeGuideBtn" aria-label="Exam guide">📘</button>' +
       '<button type="button" class="ee-mute-btn" id="eeSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '<button type="button" class="ee-mute-btn" id="eeEditBtn" aria-label="Edit questions">✎</button>' +
-      '</div>' +
-      '<div class="ee-card ee-guide hidden" id="eeGuide">' +
-      '<h2>📘 Exam Guide</h2>' +
-      '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
       '</div>' +
       '<div class="ee-card ee-guide hidden" id="eeSettings">' +
       '<h2>⚙️ Game Settings</h2>' +
@@ -487,9 +482,6 @@
       try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch (err) { /* ignore */ }
       e.target.textContent = soundOn ? '🔊' : '🔇';
       if (soundOn) ensureAudio();
-    });
-    root.querySelector('#eeGuideBtn').addEventListener('click', function () {
-      root.querySelector('#eeGuide').classList.toggle('hidden');
     });
     var settingsUnlocked = false;
     root.querySelector('#eeSettingsBtn').addEventListener('click', function () {

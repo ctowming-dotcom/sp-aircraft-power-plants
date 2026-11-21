@@ -137,7 +137,7 @@
     { q: "What's the shaft's job?", choices: ['Connects a turbine stage to its compressor', 'Stores fuel', 'Detects pressure', 'Cools the cabin'], answer: 0 },
   ];
   var MCQ_KEY = 'tm.pacmanArcade.mcqs';
-  var MCQ_EDIT_PASSWORD = 'APP';
+  var MCQ_EDIT_PASSWORD = 'APP888';
 
   function loadMcqs() {
     try {
@@ -186,13 +186,8 @@
       '<div class="pac-stat pac-stat-top"><span class="pac-stat-label">Top score</span><span class="pac-stat-value" id="pacTopScore">--</span></div>' +
       '<div class="pac-stat"><span class="pac-stat-label">Misses</span><span class="pac-stat-value" id="pacLives">0</span></div>' +
       '<button type="button" class="pac-mute-btn" id="pacMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
-      '<button type="button" class="pac-mute-btn" id="pacGuideBtn" aria-label="Exam guide">📘</button>' +
       '<button type="button" class="pac-mute-btn" id="pacSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '<button type="button" class="pac-mute-btn" id="pacEditBtn" aria-label="Edit questions">✎</button>' +
-      '</div>' +
-      '<div class="pac-guide hidden" id="pacGuide">' +
-      '<h2>📘 Exam Guide</h2>' +
-      '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
       '</div>' +
       '<div class="pac-guide hidden" id="pacSettings">' +
       '<h2>⚙️ Game Settings</h2>' +
@@ -303,6 +298,20 @@
       });
     }
 
+    // Leaderboard scoring adds a time bonus (faster maze clear = more
+    // points) and subtracts a flat penalty per life lost during the
+    // attempt — tracked per maze, not cumulatively across mazes, and
+    // reset every time a fresh maze starts. PAR_SECONDS/POINTS_PER_SECOND
+    // are tuned to this maze's own size (19x21, ~150-200 dots): a clean
+    // clear in well under a minute is realistic, so the bonus decays to
+    // 0 by 45s; MISS_PENALTY (150) is pitched around one eaten-ghost's
+    // worth of points, enough to matter without swamping a full clear.
+    var PAR_SECONDS = 45;
+    var POINTS_PER_SECOND = 5;
+    var MISS_PENALTY = 150;
+    var levelStartTime = 0;
+    var missesThisLevel = 0;
+
     function startLevel() {
       buildDots();
       resetPositions();
@@ -310,6 +319,8 @@
       modeTimer = performance.now() + SCATTER_MS;
       frightenedUntil = 0;
       eatMultiplier = 1;
+      levelStartTime = performance.now();
+      missesThisLevel = 0;
     }
 
     function startGame() {
@@ -505,6 +516,7 @@
 
     function loseLife() {
       misses += 1;
+      missesThisLevel += 1;
       playLoseLife();
       updateHud();
       running = false;
@@ -611,9 +623,22 @@
       playClear();
       var beat = score > highScore;
       if (beat) { highScore = score; try { localStorage.setItem(HIGH_SCORE_KEY, String(highScore)); } catch (err) {} highEl.textContent = highScore; }
-      TM.Leaderboard.submitScore('pacmanArcade', score, { higherIsBetter: true });
+
+      var elapsedSeconds = (performance.now() - levelStartTime) / 1000;
+      var timeBonus = Math.max(0, Math.round((PAR_SECONDS - elapsedSeconds) * POINTS_PER_SECOND));
+      var penalty = missesThisLevel * MISS_PENALTY;
+      var finalScore = Math.max(0, score + timeBonus - penalty);
+      var result = TM.Leaderboard.submitScore('pacmanArcade', finalScore, { higherIsBetter: true });
       updateTopScoreDisplay();
-      showOverlay('Maze clear! 🎉', 'Score: ' + score + (beat ? ' — new high score!' : ''), 'Next maze', function () {
+
+      var parts = ['Score: ' + score];
+      if (timeBonus) parts.push('+ ' + timeBonus + ' time bonus');
+      if (penalty) parts.push('− ' + penalty + ' for ' + missesThisLevel + ' revive' + (missesThisLevel === 1 ? '' : 's'));
+      var msg = parts.join(' ');
+      if (timeBonus || penalty) msg += ' = ' + finalScore;
+      msg += (beat ? ' — new high score!' : '') + (result.submitted ? ' 🏆 new top score!' : '');
+
+      showOverlay('Maze clear! 🎉', msg, 'Next maze', function () {
         startLevel();
         updateHud();
         overlay.classList.add('hidden');
@@ -748,9 +773,6 @@
       e.target.textContent = soundOn ? '🔊' : '🔇';
       if (soundOn) ensureAudio();
     });
-    root.querySelector('#pacGuideBtn').addEventListener('click', function () {
-      root.querySelector('#pacGuide').classList.toggle('hidden');
-    });
     root.querySelector('#pacSettingsBtn').addEventListener('click', function () {
       var panel = root.querySelector('#pacSettings');
       if (panel.classList.contains('hidden')) {
@@ -807,6 +829,7 @@
       return { player: player, ghosts: ghosts, dots: dots, misses: misses, mcqGateOpen: !mcqOverlay.classList.contains('hidden') };
     };
     window.TM.toolModules['pacman-arcade'].debugForceLoseLife = function () { loseLife(); };
+    window.TM.toolModules['pacman-arcade'].debugForceClear = function () { levelClear(); };
     window.TM.toolModules['pacman-arcade'].debugAnswerMcq = function (correct) {
       var btns = mcqChoicesEl.querySelectorAll('.pac-mcq-choice');
       for (var k = 0; k < btns.length; k++) {
