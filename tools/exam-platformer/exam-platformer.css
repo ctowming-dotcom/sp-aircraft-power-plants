@@ -92,6 +92,13 @@
   margin: 0 0 0.6rem;
 }
 
+.ep-stage-best {
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin: 0 0 0.6rem;
+}
+
 .ep-stage-clue {
   background: rgba(74, 222, 128, 0.12);
   border: 1px solid rgba(74, 222, 128, 0.4);

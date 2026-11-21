@@ -285,11 +285,14 @@
       stagePicker.innerHTML = '';
       STAGES.forEach(function (stage) {
         var done = completed.indexOf(stage.id) !== -1;
+        var best = TM.Leaderboard.getBest('examPlatformer.' + stage.id);
+        var bestLine = best ? ('🏆 ' + best.name + ' — ' + TM.Leaderboard.formatTime(best.score)) : 'No record yet';
         var card = document.createElement('div');
         card.className = 'ep-stage-card' + (done ? ' is-done' : '');
         card.innerHTML =
           '<h3>' + stage.name + '</h3>' +
           '<p class="ep-stage-status">' + (done ? '✅ Completed — clue unlocked' : 'Not completed yet') + '</p>' +
+          '<p class="ep-stage-best">' + window.TM.escapeHtml(bestLine) + '</p>' +
           (done ? '<p class="ep-stage-clue">' + window.TM.escapeHtml(clues[stage.id]) + '</p>' : '') +
           '<button type="button" class="ep-btn ep-btn-primary ep-play-btn" data-stage="' + stage.id + '">' +
           (done ? 'Replay' : 'Play') + '</button>';
