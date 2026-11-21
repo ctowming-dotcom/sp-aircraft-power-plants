@@ -1268,9 +1268,11 @@ and 3 definition. Use random combination."):
     `TM.mountMatchGame(root, { gameId, title, intro, pairs })`,
     replacing each chapter's own previously-duplicated inline "Match the
     Definition" implementation (added last session, one copy per tool).
-    Capped at a max of **3 terms and 3 definitions per round** (down
-    from "a random 3-or-more subset" — tightened by the user's explicit
-    follow-up), still a fresh random pick every round. No masking logic
+    Capped at a max of **5 terms and 5 definitions per round**
+    (`ROUND_SIZE` in `match-game-engine.js` — first tightened from "a
+    random 3-or-more subset" down to 3 by one follow-up request, then
+    raised back up to 5 by a later one), still a fresh random pick every
+    round. No masking logic
     exists here at all (unlike the old inline version, which had to hide
     the chapter's own reference list and hover tooltips while a round
     ran) — since Game Mode is now a *separate page* with no live diagram

@@ -8,8 +8,9 @@
   // TM.mountMatchGame(root, config). This is "shared chrome", like the
   // crossword engine, not a tool of its own.
   //
-  // Each round uses at most 3 pairs (or fewer if the chapter's own pool is
-  // smaller), chosen at random every time, by request.
+  // Each round uses at most 5 pairs (or fewer if the chapter's own pool is
+  // smaller), chosen at random every time, by request (raised from an
+  // initial cap of 3).
   //
   // config:
   //   gameId   - unique id for leaderboard storage, e.g. 'oilSystemMatch'
@@ -18,7 +19,7 @@
   //   pairs    - [{ term: '...', definition: '...' }, ...]
   //   backHash / backLabel - link back to the chapter's Game Mode hub
 
-  var ROUND_SIZE = 3;
+  var ROUND_SIZE = 5;
   var SECONDS_PER_ITEM = 14;
 
   function shuffled(arr) {

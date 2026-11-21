@@ -65,7 +65,7 @@
             return TM.mountMatchGame(container, {
               gameId: 'fuelSystemMatch',
               title: 'Fuel System — Match the Definition',
-              intro: 'Click a part name, then its matching description (or the other way round). Each round is a random 3-of-' + PAIRS.length + ' mix.',
+              intro: 'Click a part name, then its matching description (or the other way round). Each round is a random 5-of-' + PAIRS.length + ' mix.',
               pairs: PAIRS
             });
           }
