@@ -13,17 +13,6 @@
   var GROUND_Y = 340; // top of ground-level solids; player stands with its
                       // feet at this y when on a ground segment
 
-  // Difficulty only changes lives per attempt — the jump physics and
-  // stage layouts stay the same at every level so they stay fair.
-  var DIFFICULTY_KEY = 'tm.examPlatformer.difficulty';
-  var DIFFICULTY_SETTINGS = { easy: { lives: 5 }, normal: { lives: 3 }, hard: { lives: 2 } };
-  var difficulty = 'normal';
-  try {
-    var savedDiff = localStorage.getItem(DIFFICULTY_KEY);
-    if (DIFFICULTY_SETTINGS[savedDiff]) difficulty = savedDiff;
-  } catch (err) { /* ignore */ }
-  function diffCfg() { return DIFFICULTY_SETTINGS[difficulty]; }
-
   // Every stage is a flat list of "solids" (things you can stand on — both
   // ground segments and floating platforms are the same shape to the
   // collision code) plus a separate list of hazard "spikes", and a goalX
@@ -111,6 +100,43 @@
   var PROGRESS_KEY = 'tm.examPlatformer.completed';
   var EDIT_PASSWORD = 'APP';
 
+  // Every death (spike or fall) is gated behind one of these 10 aircraft-
+  // power-plant MCQs — unlimited retries on the same question until the
+  // student gets it right, then play resumes. Editable from the same
+  // password-gated edit panel as the exam clues above.
+  var DEFAULT_MCQS = [
+    { q: 'The oil system has three circuits. Which of these is one of them?', choices: ['Scavenge', 'Bypass', 'Ignition', 'Bleed'], answer: 0 },
+    { q: 'In a twin-spool engine, what is the HP spool called?', choices: ['N2', 'N1', 'N3', 'N0'], answer: 0 },
+    { q: 'What does "bypass ratio" describe?', choices: ['The ratio of air that goes around the core vs through it', 'The ratio of fuel to oil', 'The number of compressor stages', "The engine's weight"], answer: 0 },
+    { q: 'What is a nacelle?', choices: ['The streamlined housing covering an engine', 'A type of fuel', 'The cockpit instrument panel', 'A fire extinguisher'], answer: 0 },
+    { q: 'What do stators do?', choices: ['Redirect airflow between rotating compressor/turbine stages', 'Spin to generate thrust directly', 'Store fuel', 'Detect fire'], answer: 0 },
+    { q: "What is the combustor's job?", choices: ['Burn the fuel-air mixture continuously', 'Compress incoming air', 'Cool the exhaust', 'Store oil'], answer: 0 },
+    { q: 'What does a chip detector in the oil system catch?', choices: ['Small metal fragments from wear', 'Fuel vapor', 'Excess air', 'Ice'], answer: 0 },
+    { q: "What's the role of a diffuser before the combustor?", choices: ['Slows and spreads airflow to raise its pressure', 'Increases airflow speed', 'Cools the turbine', 'Adds fuel'], answer: 0 },
+    { q: 'Which component extracts energy from hot gas to drive the compressor?', choices: ['Turbine', 'Nozzle', 'Pylon', 'Cowling'], answer: 0 },
+    { q: 'What connects an engine to the wing structurally?', choices: ['Pylon', 'Nacelle', 'Spool', 'Stator'], answer: 0 },
+  ];
+  var MCQ_KEY = 'tm.examPlatformer.mcqs';
+
+  function loadMcqs() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(MCQ_KEY) || 'null');
+      if (Array.isArray(saved) && saved.length === DEFAULT_MCQS.length) return saved;
+    } catch (err) { /* ignore */ }
+    return DEFAULT_MCQS.map(function (q) { return { q: q.q, choices: q.choices.slice(), answer: q.answer }; });
+  }
+  function saveMcqs(list) {
+    try { localStorage.setItem(MCQ_KEY, JSON.stringify(list)); } catch (err) { /* ignore */ }
+  }
+  function formatMcqs(list) {
+    var lines = ['  var DEFAULT_MCQS = ['];
+    list.forEach(function (q) {
+      lines.push('    { q: ' + JSON.stringify(q.q) + ', choices: ' + JSON.stringify(q.choices) + ', answer: ' + q.answer + ' },');
+    });
+    lines.push('  ];');
+    return lines.join('\n');
+  }
+
   function loadClues() {
     try {
       var saved = JSON.parse(localStorage.getItem(CLUES_KEY) || '{}');
@@ -178,6 +204,8 @@
   function playJump() { beep(520, 0.1, 'square', 0.12); }
   function playDeath() { beep(300, 0.12, 'sawtooth', 0.18); beep(180, 0.22, 'sawtooth', 0.16, 0.1); }
   function playClear() { beep(523, 0.1, 'square', 0.18); beep(659, 0.1, 'square', 0.18, 0.1); beep(784, 0.1, 'square', 0.18, 0.2); beep(1046, 0.22, 'square', 0.2, 0.3); }
+  function playMcqRight() { beep(523, 0.09, 'square', 0.18); beep(784, 0.14, 'square', 0.18, 0.09); }
+  function playMcqWrong() { beep(180, 0.18, 'sawtooth', 0.18); }
 
   function mount(root) {
     var clues = loadClues();
@@ -187,23 +215,13 @@
     root.innerHTML =
       '<div class="ep-wrap">' +
       '<h1>🏁 Jump Challenge</h1>' +
-      '<p class="ep-intro">Clear a stage to reveal one exam clue. Arrow keys / A-D to move, Space or Up to jump — touching a spike or falling in a gap costs a life.</p>' +
+      '<p class="ep-intro">Clear a stage to reveal one exam clue. Arrow keys / A-D to move, Space or Up to jump — touching a spike or falling in a gap means a quick knowledge-check question before you can carry on. Lives are unlimited.</p>' +
       '<div class="ep-toolbar"><button type="button" class="ep-btn ep-btn-ghost" id="epMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="ep-btn ep-btn-ghost" id="epGuideBtn">📘 Exam guide</button>' +
-      '<button type="button" class="ep-btn ep-btn-ghost" id="epSettingsBtn">⚙️ Settings</button>' +
-      '<button type="button" class="ep-btn ep-btn-ghost" id="epEditBtn">✎ Edit clues</button></div>' +
+      '<button type="button" class="ep-btn ep-btn-ghost" id="epEditBtn">✎ Edit clues &amp; questions</button></div>' +
       '<div class="ep-guide hidden" id="epGuideStage">' +
       '<h2>📘 Exam Guide</h2>' +
       '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
-      '</div>' +
-      '<div class="ep-guide hidden" id="epSettings">' +
-      '<h2>⚙️ Game Settings</h2>' +
-      '<p>Easy gives you 5 lives per attempt, Normal 3, Hard 2. Takes effect on your next stage attempt.</p>' +
-      '<div class="ep-row">' +
-      '<button type="button" class="ep-btn ep-btn-ghost ep-diff-btn" data-diff="easy">Easy</button>' +
-      '<button type="button" class="ep-btn ep-btn-ghost ep-diff-btn" data-diff="normal">Normal</button>' +
-      '<button type="button" class="ep-btn ep-btn-ghost ep-diff-btn" data-diff="hard">Hard</button>' +
-      '</div>' +
       '</div>' +
       '<div class="ep-stagepicker" id="epStagePicker"></div>' +
       '<div class="ep-gameview hidden" id="epGameView">' +
@@ -211,7 +229,7 @@
       '<button type="button" class="ep-btn ep-btn-ghost" id="epBackBtn">← Stages</button>' +
       '<span class="ep-hud-name" id="epStageName"></span>' +
       '<button type="button" class="ep-btn ep-btn-ghost" id="epMuteBtn2" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
-      '<span class="ep-hud-lives" id="epLives"></span>' +
+      '<span class="ep-hud-lives">Misses: <span id="epLives">0</span></span>' +
       '</div>' +
       '<canvas id="epCanvas" width="' + W + '" height="' + H + '"></canvas>' +
       '<div class="ep-touch">' +
@@ -229,6 +247,15 @@
       '</div>' +
       '</div>' +
       '</div>' +
+      '<div class="ep-mcq-overlay hidden" id="epMcqOverlay">' +
+      '<div class="ep-mcq-card">' +
+      '<h2>📝 Quick Check</h2>' +
+      '<p class="ep-mcq-note">Answer correctly to get back in — try as many times as you need.</p>' +
+      '<p class="ep-mcq-question" id="epMcqQuestion"></p>' +
+      '<div class="ep-mcq-choices" id="epMcqChoices"></div>' +
+      '<p class="ep-mcq-feedback" id="epMcqFeedback"></p>' +
+      '</div>' +
+      '</div>' +
       '</div>' +
       '<div class="ep-edit-panel hidden" id="epEditPanel"></div>' +
       '</div>';
@@ -244,6 +271,11 @@
     var overlayBody = root.querySelector('#epOverlayBody');
     var overlayPrimary = root.querySelector('#epOverlayPrimary');
     var editPanel = root.querySelector('#epEditPanel');
+    var mcqOverlay = root.querySelector('#epMcqOverlay');
+    var mcqQuestionEl = root.querySelector('#epMcqQuestion');
+    var mcqChoicesEl = root.querySelector('#epMcqChoices');
+    var mcqFeedbackEl = root.querySelector('#epMcqFeedback');
+    var mcqs = loadMcqs();
 
     function renderStagePicker() {
       stagePicker.innerHTML = '';
@@ -271,12 +303,26 @@
         return '<div class="ep-edit-field"><label>' + s.name + ' clue</label>' +
           '<textarea data-clue="' + s.id + '">' + window.TM.escapeHtml(clues[s.id]) + '</textarea></div>';
       }).join('');
+      var mcqFieldsHtml = mcqs.map(function (q, qi) {
+        var choicesHtml = q.choices.map(function (c, ci) {
+          return '<div class="ep-edit-choice-row"><input type="radio" name="epMcqCorrect' + qi + '" data-mcq-answer="' + qi + '" value="' + ci + '"' + (q.answer === ci ? ' checked' : '') + '>' +
+            '<input type="text" class="ep-edit-mcq-choice" data-mcq="' + qi + '" data-choice="' + ci + '" value="' + window.TM.escapeHtml(c) + '"></div>';
+        }).join('');
+        return '<div class="ep-edit-field"><label>Question ' + (qi + 1) + '</label>' +
+          '<input type="text" class="ep-edit-mcq-q" data-mcq-q="' + qi + '" value="' + window.TM.escapeHtml(q.q) + '">' +
+          choicesHtml + '</div>';
+      }).join('');
       editPanel.innerHTML =
         '<h3>Edit exam clues</h3>' +
         fieldsHtml +
         '<div class="ep-row"><button type="button" class="ep-btn ep-btn-primary" id="epSaveClues">Save</button>' +
         '<button type="button" class="ep-btn ep-btn-ghost" id="epResetProgress">Reset all progress</button></div>' +
-        '<p class="ep-edit-note">Saved to this browser only. To make a change the new default for every visitor, copy it into DEFAULT_CLUES in exam-platformer.js.</p>';
+        '<p class="ep-edit-note">Saved to this browser only. To make a change the new default for every visitor, copy it into DEFAULT_CLUES in exam-platformer.js.</p>' +
+        '<h3>Edit knowledge-check questions</h3>' +
+        mcqFieldsHtml +
+        '<div class="ep-row"><button type="button" class="ep-btn ep-btn-primary" id="epSaveMcqs">Save questions</button></div>' +
+        '<p class="ep-edit-note">Copy-paste source — paste into DEFAULT_MCQS in exam-platformer.js to make it the default for everyone:</p>' +
+        '<textarea class="ep-edit-copy" id="epMcqCopy" readonly rows="8"></textarea>';
       editPanel.querySelector('#epSaveClues').addEventListener('click', function () {
         editPanel.querySelectorAll('textarea[data-clue]').forEach(function (ta) {
           clues[ta.getAttribute('data-clue')] = ta.value.trim() || DEFAULT_CLUES[ta.getAttribute('data-clue')];
@@ -288,6 +334,24 @@
         completed = [];
         saveProgress(completed);
         renderStagePicker();
+      });
+      editPanel.querySelectorAll('.ep-edit-mcq-q').forEach(function (input) {
+        input.addEventListener('input', function () { mcqs[Number(input.getAttribute('data-mcq-q'))].q = input.value; });
+      });
+      editPanel.querySelectorAll('.ep-edit-mcq-choice').forEach(function (input) {
+        input.addEventListener('input', function () {
+          mcqs[Number(input.getAttribute('data-mcq'))].choices[Number(input.getAttribute('data-choice'))] = input.value;
+        });
+      });
+      editPanel.querySelectorAll('input[data-mcq-answer]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+          if (radio.checked) mcqs[Number(radio.getAttribute('data-mcq-answer'))].answer = Number(radio.value);
+        });
+      });
+      editPanel.querySelector('#epMcqCopy').value = formatMcqs(mcqs);
+      editPanel.querySelector('#epSaveMcqs').addEventListener('click', function () {
+        saveMcqs(mcqs);
+        editPanel.querySelector('#epMcqCopy').value = formatMcqs(mcqs);
       });
     }
 
@@ -307,18 +371,6 @@
     root.querySelector('#epGuideBtn').addEventListener('click', function () {
       root.querySelector('#epGuideStage').classList.toggle('hidden');
     });
-    root.querySelector('#epSettingsBtn').addEventListener('click', function () {
-      root.querySelector('#epSettings').classList.toggle('hidden');
-    });
-    root.querySelectorAll('.ep-diff-btn').forEach(function (btn) {
-      btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);
-      btn.addEventListener('click', function () {
-        difficulty = btn.getAttribute('data-diff');
-        try { localStorage.setItem(DIFFICULTY_KEY, difficulty); } catch (err) { /* ignore */ }
-        root.querySelectorAll('.ep-diff-btn').forEach(function (b) { b.classList.toggle('is-active', b === btn); });
-      });
-    });
-
     root.querySelector('#epEditBtn').addEventListener('click', function () {
       if (editUnlocked) { editUnlocked = false; renderEditPanel(); return; }
       var pw = window.prompt('Edit password:');
@@ -329,7 +381,7 @@
     // ---- game state (reset per openStage) ----
     var stage = null;
     var player = null;
-    var lives = diffCfg().lives;
+    var misses = 0;
     var cameraX = 0;
     var running = false;
     var rafId = null;
@@ -339,7 +391,7 @@
 
     function openStage(stageId) {
       stage = STAGES.filter(function (s) { return s.id === stageId; })[0];
-      lives = diffCfg().lives;
+      misses = 0;
       resetPlayer();
       stageNameEl.textContent = stage.name;
       updateLivesHud();
@@ -367,26 +419,63 @@
     }
 
     function updateLivesHud() {
-      livesEl.textContent = new Array(Math.max(lives, 0) + 1).join('❤');
+      livesEl.textContent = misses;
     }
 
     function died() {
-      lives -= 1;
+      misses += 1;
       playDeath();
       updateLivesHud();
-      if (lives <= 0) {
-        running = false;
-        showOverlay('Stage failed', 'Out of lives. Give it another go.', 'Retry stage', function () {
-          lives = diffCfg().lives;
-          updateLivesHud();
-          resetPlayer();
-          running = true;
-          lastTime = performance.now();
-          overlay.classList.add('hidden');
-        });
-      } else {
+      running = false;
+      showMcqGate(function () {
         resetPlayer();
+        running = true;
+        lastTime = performance.now();
+        if (rafId == null) rafId = requestAnimationFrame(loop);
+      });
+    }
+
+    // --- MCQ gate -----------------------------------------------------
+    // Shown on every death (spike or fall). Picks a random question from
+    // the (possibly teacher-edited) bank, shuffles the displayed choice
+    // order so the correct answer's on-screen position never gives it
+    // away, and lets the student retry the SAME question as many times
+    // as needed — no penalty, no limit, just a short pause gate.
+    function showMcqGate(onCorrect) {
+      var q = mcqs[Math.floor(Math.random() * mcqs.length)];
+      var order = q.choices.map(function (text, i) { return { text: text, correct: i === q.answer }; });
+      for (var i = order.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
       }
+      mcqQuestionEl.textContent = q.q;
+      mcqFeedbackEl.textContent = '';
+      mcqFeedbackEl.className = 'ep-mcq-feedback';
+      mcqChoicesEl.innerHTML = '';
+      order.forEach(function (opt) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ep-mcq-choice';
+        btn.textContent = opt.text;
+        btn.dataset.correct = opt.correct ? '1' : '0';
+        btn.addEventListener('click', function () {
+          if (opt.correct) {
+            mcqFeedbackEl.textContent = '✅ Correct!';
+            mcqFeedbackEl.className = 'ep-mcq-feedback is-correct';
+            playMcqRight();
+            setTimeout(function () {
+              mcqOverlay.classList.add('hidden');
+              if (onCorrect) onCorrect();
+            }, 500);
+          } else {
+            mcqFeedbackEl.textContent = '❌ Not quite — try again.';
+            mcqFeedbackEl.className = 'ep-mcq-feedback is-wrong';
+            playMcqWrong();
+          }
+        });
+        mcqChoicesEl.appendChild(btn);
+      });
+      mcqOverlay.classList.remove('hidden');
     }
 
     function completeStage() {
@@ -526,6 +615,18 @@
     // test/debug hooks only — read-only, no effect on gameplay
     window.TM.toolModules['exam-platformer'].debugPlayer = function () { return player; };
     window.TM.toolModules['exam-platformer'].debugStages = function () { return STAGES; };
+    window.TM.toolModules['exam-platformer'].debugState = function () {
+      return { misses: misses, mcqGateOpen: !mcqOverlay.classList.contains('hidden') };
+    };
+    window.TM.toolModules['exam-platformer'].debugForceDeath = function () { died(); };
+    window.TM.toolModules['exam-platformer'].debugAnswerMcq = function (correct) {
+      var btns = mcqChoicesEl.querySelectorAll('.ep-mcq-choice');
+      for (var k = 0; k < btns.length; k++) {
+        var isRight = btns[k].dataset.correct === '1';
+        if (isRight === !!correct) { btns[k].click(); return true; }
+      }
+      return false;
+    };
 
     window.TM.toolModules['exam-platformer'].unmount = function () {
       running = false;

@@ -82,13 +82,13 @@
 
   var HIGH_SCORE_KEY = 'tm.engineEmergency.highScore';
 
-  // Difficulty: more lives, more generous time floor and a slower
-  // speed-up ramp on Easy; the opposite on Hard.
+  // Difficulty only tunes the time pressure now — lives are unlimited on
+  // every tier (a miss is handled by the MCQ gate below instead).
   var DIFFICULTY_KEY = 'tm.engineEmergency.difficulty';
   var DIFFICULTY_SETTINGS = {
-    easy: { lives: 4, minTimeFraction: 0.7, msPerRoundCleared: 100 },
-    normal: { lives: 3, minTimeFraction: 0.55, msPerRoundCleared: 150 },
-    hard: { lives: 2, minTimeFraction: 0.4, msPerRoundCleared: 220 },
+    easy: { minTimeFraction: 0.7, msPerRoundCleared: 100 },
+    normal: { minTimeFraction: 0.55, msPerRoundCleared: 150 },
+    hard: { minTimeFraction: 0.4, msPerRoundCleared: 220 },
   };
   var difficulty = 'normal';
   try {
@@ -96,6 +96,47 @@
     if (DIFFICULTY_SETTINGS[savedDiff]) difficulty = savedDiff;
   } catch (err) { /* ignore */ }
   function diffCfg() { return DIFFICULTY_SETTINGS[difficulty]; }
+
+  // Every miss (wrong switch or timeout) is gated behind one of these 10
+  // aircraft-power-plant MCQs — unlimited retries on the same question
+  // until the student gets it right, then play resumes. Editable in-browser
+  // via the password-gated "✎ Edit questions" panel below (password APP,
+  // same casual click-guard as every other tool's edit mode); edits persist
+  // to localStorage for that browser and the Copy-changes panel gives
+  // paste-ready source to make an edit the permanent default for everyone.
+  var DEFAULT_MCQS = [
+    { q: 'What does the fire extinguisher "Agent" bottle contain?', choices: ['A fire-suppressing chemical', 'Compressed air', 'Engine oil', 'Hydraulic fluid'], answer: 0 },
+    { q: "What is the purpose of the oil system's scavenge pumps?", choices: ['Pull used oil back out of the bearing chambers', 'Pump fuel to the combustor', 'Cool the cabin', 'Start the engine'], answer: 0 },
+    { q: 'What happens at "starter cut-out" during engine start?', choices: ['The starter automatically disengages once the engine is self-sustaining', 'The engine shuts down', 'The igniters turn on', 'The fuel valve opens'], answer: 0 },
+    { q: 'Bleed air is tapped from where?', choices: ["The engine's compressor", 'The fuel tank', 'The exhaust nozzle', 'The oil reservoir'], answer: 0 },
+    { q: 'What does a "hung start" mean?', choices: ['N2 stuck below idle with EGT climbing fast', 'Normal engine shutdown', 'Full thrust achieved', 'Successful start'], answer: 0 },
+    { q: 'What triggers a fire warning light in the cockpit?', choices: ['A fire detection loop sensing high temperature', 'Low oil pressure', 'Low fuel', 'High altitude'], answer: 0 },
+    { q: "What does the APU's accessory gearbox do?", choices: ['Transmits shaft power to driven accessories like pumps and generators', 'Burns fuel', 'Cools the cabin', 'Detects fire'], answer: 0 },
+    { q: 'Why are there two fire-detection loops (A and B)?', choices: ['Redundancy — so one damaged loop still leaves a fault, not total loss of detection', 'To detect two different types of fire', 'One is for day use, one for night', 'To save weight'], answer: 0 },
+    { q: 'What does "ENG MASTER OFF" do during an oil-pressure-low emergency?', choices: ['Shuts down the affected engine to prevent damage', 'Starts the engine', 'Increases oil pressure', 'Resets the fire loop'], answer: 0 },
+    { q: "What's the purpose of a throttle lever?", choices: ['Commands engine thrust', 'Controls cabin temperature', 'Opens the fire bottle', 'Starts the igniters'], answer: 0 },
+  ];
+  var MCQ_KEY = 'tm.engineEmergency.mcqs';
+  var MCQ_EDIT_PASSWORD = 'APP';
+
+  function loadMcqs() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(MCQ_KEY) || 'null');
+      if (Array.isArray(saved) && saved.length === DEFAULT_MCQS.length) return saved;
+    } catch (err) { /* ignore */ }
+    return DEFAULT_MCQS.map(function (q) { return { q: q.q, choices: q.choices.slice(), answer: q.answer }; });
+  }
+  function saveMcqs(list) {
+    try { localStorage.setItem(MCQ_KEY, JSON.stringify(list)); } catch (err) { /* ignore */ }
+  }
+  function formatMcqs(list) {
+    var lines = ['  var DEFAULT_MCQS = ['];
+    list.forEach(function (q) {
+      lines.push('    { q: ' + JSON.stringify(q.q) + ', choices: ' + JSON.stringify(q.choices) + ', answer: ' + q.answer + ' },');
+    });
+    lines.push('  ];');
+    return lines.join('\n');
+  }
 
   // Tiny self-contained Web Audio sound effects — no audio files, just
   // oscillator beeps, so the site stays build-step-free. The AudioContext
@@ -131,20 +172,22 @@
   function playCorrectStep() { beep(660, 0.08, 'square', 0.15); }
   function playSuccess() { beep(523, 0.09, 'square', 0.18); beep(784, 0.11, 'square', 0.18, 0.09); beep(1046, 0.16, 'square', 0.18, 0.18); }
   function playFail() { beep(220, 0.22, 'sawtooth', 0.2); beep(160, 0.26, 'sawtooth', 0.18, 0.08); }
-  function playGameOver() { beep(392, 0.18, 'square', 0.18); beep(330, 0.18, 'square', 0.18, 0.16); beep(220, 0.32, 'square', 0.18, 0.32); }
+  function playMcqRight() { beep(523, 0.09, 'square', 0.18); beep(784, 0.14, 'square', 0.18, 0.09); }
+  function playMcqWrong() { beep(180, 0.18, 'sawtooth', 0.18); }
 
   function mount(root) {
     root.innerHTML =
       '<div class="ee-wrap">' +
       '<h1>⚠ Engine Emergency</h1>' +
-      '<p class="ee-intro">Random in-flight emergencies fire with a countdown. Click the right switches on the panel below — in the right order — before time runs out. Gets faster the longer you survive. Simplified for this game, not an actual aircraft procedure.</p>' +
+      '<p class="ee-intro">Random in-flight emergencies fire with a countdown. Click the right switches on the panel below — in the right order — before time runs out. Gets faster the longer you survive. Every miss means one quick knowledge check before you can carry on. Simplified for this game, not an actual aircraft procedure.</p>' +
       '<div class="ee-hud">' +
       '<div class="ee-stat"><span class="ee-stat-label">Score</span><span class="ee-stat-value" id="eeScore">0</span></div>' +
       '<div class="ee-stat"><span class="ee-stat-label">High score</span><span class="ee-stat-value" id="eeHigh">0</span></div>' +
-      '<div class="ee-stat"><span class="ee-stat-label">Lives</span><span class="ee-stat-value" id="eeLives">❤❤❤</span></div>' +
+      '<div class="ee-stat"><span class="ee-stat-label">Misses</span><span class="ee-stat-value" id="eeMisses">0</span></div>' +
       '<button type="button" class="ee-mute-btn" id="eeMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="ee-mute-btn" id="eeGuideBtn" aria-label="Exam guide">📘</button>' +
       '<button type="button" class="ee-mute-btn" id="eeSettingsBtn" aria-label="Game settings">⚙️</button>' +
+      '<button type="button" class="ee-mute-btn" id="eeEditBtn" aria-label="Edit questions">✎</button>' +
       '</div>' +
       '<div class="ee-card ee-guide hidden" id="eeGuide">' +
       '<h2>📘 Exam Guide</h2>' +
@@ -152,7 +195,7 @@
       '</div>' +
       '<div class="ee-card ee-guide hidden" id="eeSettings">' +
       '<h2>⚙️ Game Settings</h2>' +
-      '<p>Easy gives more lives, more time and a slower speed-up; Hard gives fewer lives, less time and a faster speed-up. Takes effect on your next shift.</p>' +
+      '<p>Easy gives more time and a slower speed-up; Hard gives less time and a faster speed-up. Lives are unlimited on every setting — a miss just means answering one question before you continue. Takes effect on your next shift.</p>' +
       '<div class="ee-row">' +
       '<button type="button" class="ee-btn ee-btn-ghost ee-diff-btn" data-diff="easy">Easy</button>' +
       '<button type="button" class="ee-btn ee-btn-ghost ee-diff-btn" data-diff="normal">Normal</button>' +
@@ -161,7 +204,7 @@
       '</div>' +
       '<div class="ee-card ee-start" id="eeStart">' +
       '<h2>Ready for your shift?</h2>' +
-      '<p>3 lives. One wrong switch or a timeout costs a life. Scenarios speed up as your score climbs.</p>' +
+      '<p>Unlimited lives. One wrong switch or a timeout means a quick knowledge-check question before you carry on. Scenarios speed up as your score climbs.</p>' +
       '<button type="button" class="ee-btn ee-btn-primary" id="eeStartBtn">Start shift</button>' +
       '</div>' +
       '<div class="ee-card ee-game hidden" id="eeGame">' +
@@ -169,30 +212,48 @@
       '<div class="ee-timerbar-track"><div class="ee-timerbar-fill" id="eeTimerBar"></div></div>' +
       '<div class="ee-panel" id="eePanel"></div>' +
       '</div>' +
-      '<div class="ee-card ee-over hidden" id="eeOver">' +
-      '<h2>Shift over</h2>' +
-      '<p id="eeOverMsg"></p>' +
-      '<button type="button" class="ee-btn ee-btn-primary" id="eeRestartBtn">Play again</button>' +
+      '<div class="ee-mcq-overlay hidden" id="eeMcqOverlay">' +
+      '<div class="ee-mcq-card">' +
+      '<h2>📝 Quick Check</h2>' +
+      '<p class="ee-mcq-note">Answer correctly to get back to the panel — try as many times as you need.</p>' +
+      '<p class="ee-mcq-question" id="eeMcqQuestion"></p>' +
+      '<div class="ee-mcq-choices" id="eeMcqChoices"></div>' +
+      '<p class="ee-mcq-feedback" id="eeMcqFeedback"></p>' +
+      '</div>' +
+      '</div>' +
+      '<div class="ee-card ee-guide hidden" id="eeMcqEdit">' +
+      '<h2>✎ Edit questions</h2>' +
+      '<p>Change any question, its 4 choices, or which one is correct. Saved to this browser only — paste the box below into engine-emergency.js to make it the default for everyone.</p>' +
+      '<div id="eeMcqEditList"></div>' +
+      '<div class="ee-row">' +
+      '<button type="button" class="ee-btn ee-btn-primary" id="eeMcqSaveBtn">Save changes</button>' +
+      '</div>' +
+      '<p class="ee-mcq-note">Copy-paste source:</p>' +
+      '<textarea class="ee-mcq-copy" id="eeMcqCopy" readonly rows="8"></textarea>' +
       '</div>' +
       '</div>';
 
     var scoreEl = root.querySelector('#eeScore');
     var highEl = root.querySelector('#eeHigh');
-    var livesEl = root.querySelector('#eeLives');
+    var missesEl = root.querySelector('#eeMisses');
     var startCard = root.querySelector('#eeStart');
     var gameCard = root.querySelector('#eeGame');
-    var overCard = root.querySelector('#eeOver');
-    var overMsg = root.querySelector('#eeOverMsg');
     var bannerEl = root.querySelector('#eeBanner');
     var timerBar = root.querySelector('#eeTimerBar');
     var panelEl = root.querySelector('#eePanel');
+    var mcqOverlay = root.querySelector('#eeMcqOverlay');
+    var mcqQuestionEl = root.querySelector('#eeMcqQuestion');
+    var mcqChoicesEl = root.querySelector('#eeMcqChoices');
+    var mcqFeedbackEl = root.querySelector('#eeMcqFeedback');
 
     var highScore = 0;
     try { highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0; } catch (err) { highScore = 0; }
     highEl.textContent = highScore;
 
+    var mcqs = loadMcqs();
+
     var score = 0;
-    var lives = diffCfg().lives;
+    var misses = 0;
     var roundsCleared = 0;
     var lastScenarioId = null;
     var scenario = null;
@@ -219,7 +280,12 @@
 
     function updateHud() {
       scoreEl.textContent = score;
-      livesEl.textContent = new Array(Math.max(lives, 0) + 1).join('❤');
+      missesEl.textContent = misses;
+      if (score > highScore) {
+        highScore = score;
+        try { localStorage.setItem(HIGH_SCORE_KEY, String(highScore)); } catch (err) { /* ignore */ }
+        highEl.textContent = highScore;
+      }
     }
 
     function pickScenario() {
@@ -287,47 +353,112 @@
 
     function fail() {
       clearTimers();
-      lives -= 1;
+      misses += 1;
+      scenario = null;
       panelEl.classList.add('is-fail');
-      bannerEl.textContent = '❌ ' + (scenario ? scenario.symptom.replace(/^\S+\s/, '') : '') + ' — not handled in time!';
+      bannerEl.textContent = '❌ Not handled in time — answer a quick question to continue.';
       playFail();
       updateHud();
-      if (lives <= 0) {
-        gameOver();
-      } else {
-        nextTimer = setTimeout(startRound, 1100);
-      }
+      showMcqGate(function () {
+        nextTimer = setTimeout(startRound, 400);
+      });
     }
 
-    function gameOver() {
-      clearTimers();
-      scenario = null;
-      gameCard.classList.add('hidden');
-      overCard.classList.remove('hidden');
-      playGameOver();
-      var beat = score > highScore;
-      if (beat) {
-        highScore = score;
-        try { localStorage.setItem(HIGH_SCORE_KEY, String(highScore)); } catch (err) { /* ignore */ }
-        highEl.textContent = highScore;
+    // --- MCQ gate ---------------------------------------------------
+    // Shown on every miss. Picks a random question from the (possibly
+    // teacher-edited) bank, shuffles the displayed choice order so the
+    // correct answer's on-screen position never gives it away, and lets
+    // the student retry the SAME question as many times as needed —
+    // there is no penalty and no limit, only a short pause gate.
+    function showMcqGate(onCorrect) {
+      var q = mcqs[Math.floor(Math.random() * mcqs.length)];
+      var order = q.choices.map(function (text, i) { return { text: text, correct: i === q.answer }; });
+      for (var i = order.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
       }
-      overMsg.textContent = 'Final score: ' + score + (beat ? ' — new high score!' : ' · High score: ' + highScore);
+      mcqQuestionEl.textContent = q.q;
+      mcqFeedbackEl.textContent = '';
+      mcqFeedbackEl.className = 'ee-mcq-feedback';
+      mcqChoicesEl.innerHTML = '';
+      order.forEach(function (opt) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ee-mcq-choice';
+        btn.textContent = opt.text;
+        btn.dataset.correct = opt.correct ? '1' : '0';
+        btn.addEventListener('click', function () {
+          if (opt.correct) {
+            mcqFeedbackEl.textContent = '✅ Correct!';
+            mcqFeedbackEl.className = 'ee-mcq-feedback is-correct';
+            playMcqRight();
+            setTimeout(function () {
+              mcqOverlay.classList.add('hidden');
+              if (onCorrect) onCorrect();
+            }, 500);
+          } else {
+            mcqFeedbackEl.textContent = '❌ Not quite — try again.';
+            mcqFeedbackEl.className = 'ee-mcq-feedback is-wrong';
+            playMcqWrong();
+          }
+        });
+        mcqChoicesEl.appendChild(btn);
+      });
+      mcqOverlay.classList.remove('hidden');
     }
 
     function startGame() {
       score = 0;
-      lives = diffCfg().lives;
+      misses = 0;
       roundsCleared = 0;
       lastScenarioId = null;
       updateHud();
       startCard.classList.add('hidden');
-      overCard.classList.add('hidden');
       gameCard.classList.remove('hidden');
       startRound();
     }
 
+    // --- MCQ editor ---------------------------------------------------
+    var mcqEditUnlocked = false;
+    function renderMcqEditList() {
+      var listEl = root.querySelector('#eeMcqEditList');
+      listEl.innerHTML = '';
+      mcqs.forEach(function (q, qi) {
+        var block = document.createElement('div');
+        block.className = 'ee-mcq-edit-block';
+        var qLabel = document.createElement('label');
+        qLabel.textContent = 'Question ' + (qi + 1);
+        var qInput = document.createElement('input');
+        qInput.type = 'text';
+        qInput.className = 'ee-mcq-edit-q';
+        qInput.value = q.q;
+        qInput.addEventListener('input', function () { q.q = qInput.value; });
+        block.appendChild(qLabel);
+        block.appendChild(qInput);
+        q.choices.forEach(function (choiceText, ci) {
+          var row = document.createElement('div');
+          row.className = 'ee-mcq-edit-choice-row';
+          var radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = 'eeMcqCorrect' + qi;
+          radio.checked = q.answer === ci;
+          radio.addEventListener('change', function () { if (radio.checked) q.answer = ci; });
+          var cInput = document.createElement('input');
+          cInput.type = 'text';
+          cInput.value = choiceText;
+          cInput.addEventListener('input', function () { q.choices[ci] = cInput.value; });
+          row.appendChild(radio);
+          row.appendChild(cInput);
+          block.appendChild(row);
+        });
+        listEl.appendChild(block);
+      });
+    }
+    function refreshMcqCopy() {
+      root.querySelector('#eeMcqCopy').value = formatMcqs(mcqs);
+    }
+
     root.querySelector('#eeStartBtn').addEventListener('click', startGame);
-    root.querySelector('#eeRestartBtn').addEventListener('click', startGame);
     root.querySelector('#eeMuteBtn').addEventListener('click', function (e) {
       soundOn = !soundOn;
       try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch (err) { /* ignore */ }
@@ -340,6 +471,25 @@
     root.querySelector('#eeSettingsBtn').addEventListener('click', function () {
       root.querySelector('#eeSettings').classList.toggle('hidden');
     });
+    root.querySelector('#eeEditBtn').addEventListener('click', function () {
+      var editCard = root.querySelector('#eeMcqEdit');
+      if (editCard.classList.contains('hidden')) {
+        if (!mcqEditUnlocked) {
+          var entered = window.prompt('Enter the edit password:');
+          if (entered !== MCQ_EDIT_PASSWORD) return;
+          mcqEditUnlocked = true;
+        }
+        renderMcqEditList();
+        refreshMcqCopy();
+        editCard.classList.remove('hidden');
+      } else {
+        editCard.classList.add('hidden');
+      }
+    });
+    root.querySelector('#eeMcqSaveBtn').addEventListener('click', function () {
+      saveMcqs(mcqs);
+      refreshMcqCopy();
+    });
     root.querySelectorAll('.ee-diff-btn').forEach(function (btn) {
       btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);
       btn.addEventListener('click', function () {
@@ -350,6 +500,19 @@
     });
 
     updateHud();
+
+    window.TM.toolModules['engine-emergency'].debugState = function () {
+      return { score: score, misses: misses, mcqGateOpen: !mcqOverlay.classList.contains('hidden') };
+    };
+    window.TM.toolModules['engine-emergency'].debugForceFail = function () { fail(); };
+    window.TM.toolModules['engine-emergency'].debugAnswerMcq = function (correct) {
+      var btns = mcqChoicesEl.querySelectorAll('.ee-mcq-choice');
+      for (var k = 0; k < btns.length; k++) {
+        var isRight = btns[k].dataset.correct === '1';
+        if (isRight === !!correct) { btns[k].click(); return true; }
+      }
+      return false;
+    };
 
     window.TM.toolModules['engine-emergency'].unmount = function () {
       clearTimers();

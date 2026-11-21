@@ -14,13 +14,14 @@
   var HIGH_SCORE_KEY = 'tm.bombermanArcade.highScore';
   var INVULN_MS = 2000;
 
-  // Difficulty: more lives, more starting time and fewer enemies per
-  // stage on Easy; the opposite on Hard.
+  // Difficulty: more starting time and fewer enemies per stage on Easy;
+  // the opposite on Hard. Lives are unlimited on every tier — a hit means
+  // one MCQ gate, not a limit.
   var DIFFICULTY_KEY = 'tm.bombermanArcade.difficulty';
   var DIFFICULTY_SETTINGS = {
-    easy: { lives: 4, stageTimeStart: 190, enemyBase: 2, enemyCap: 7 },
-    normal: { lives: 3, stageTimeStart: 150, enemyBase: 3, enemyCap: 9 },
-    hard: { lives: 2, stageTimeStart: 120, enemyBase: 4, enemyCap: 11 },
+    easy: { stageTimeStart: 190, enemyBase: 2, enemyCap: 7 },
+    normal: { stageTimeStart: 150, enemyBase: 3, enemyCap: 9 },
+    hard: { stageTimeStart: 120, enemyBase: 4, enemyCap: 11 },
   };
   var difficulty = 'normal';
   try {
@@ -83,7 +84,48 @@
   function playPickup() { beep(660, 0.07, 'square', 0.16); beep(880, 0.09, 'square', 0.18, 0.07); }
   function playHurt() { beep(260, 0.14, 'sawtooth', 0.18); beep(160, 0.2, 'sawtooth', 0.16, 0.1); }
   function playClear() { beep(523, 0.1, 'square', 0.18); beep(659, 0.1, 'square', 0.18, 0.1); beep(784, 0.1, 'square', 0.18, 0.2); beep(1046, 0.22, 'square', 0.2, 0.3); }
-  function playGameOver() { beep(392, 0.18, 'square', 0.18); beep(330, 0.18, 'square', 0.18, 0.16); beep(220, 0.32, 'square', 0.18, 0.32); }
+  function playMcqRight() { beep(523, 0.09, 'square', 0.18); beep(784, 0.14, 'square', 0.18, 0.09); }
+  function playMcqWrong() { beep(180, 0.18, 'sawtooth', 0.18); }
+
+  // Every hit (enemy touch, bomb blast, or time running out) is gated
+  // behind one of these 10 aircraft-power-plant MCQs — unlimited retries
+  // on the same question until the student gets it right, then play
+  // resumes. Editable in-browser via the password-gated "✎" edit panel
+  // (password APP, same casual click-guard as every other tool's edit
+  // mode).
+  var DEFAULT_MCQS = [
+    { q: 'What is an APU primarily used for?', choices: ['Providing electrical/pneumatic power on the ground or as backup', 'Main flight thrust', 'Cooling the cabin only', 'Fire detection'], answer: 0 },
+    { q: 'What does a fuel manifold do?', choices: ['Distributes fuel to several outlets', 'Compresses air', 'Detects fire', 'Starts the engine'], answer: 0 },
+    { q: 'What is a fuel filter for?', choices: ['Traps debris before fuel/oil recirculates', 'Increases fuel temperature', 'Detects pressure', 'Starts ignition'], answer: 0 },
+    { q: 'What does a valve do in a fuel or air system?', choices: ['Opens or closes to control a flow', 'Generates electricity', 'Measures thrust', 'Detects fire'], answer: 0 },
+    { q: 'What is a generator driven by?', choices: ['The accessory gearbox', 'The fire bottle', 'The fuel filter', 'The cockpit switch'], answer: 0 },
+    { q: 'What does a pressure gauge on an oil/bleed system measure?', choices: ['Pressure', 'Temperature only', 'Fuel quantity', 'Altitude'], answer: 0 },
+    { q: "What is the APU's load compressor for?", choices: ['Supplying compressed air for aircraft systems', 'Igniting the engine', 'Detecting fire', 'Cooling oil'], answer: 0 },
+    { q: "What's a surge control valve on an APU for?", choices: ['Preventing compressor surge by managing airflow', 'Starting the APU', 'Detecting fire', 'Filtering fuel'], answer: 0 },
+    { q: 'What does "accessory" refer to in an engine context?', choices: ['Pumps, generators and starters driven off the engine', 'The cockpit seat', 'The fire bottle', 'The wing'], answer: 0 },
+    { q: 'What does a sensor do in an aircraft system?', choices: ['Detects a condition like temperature or pressure and reports it', 'Produces thrust', 'Stores fuel', 'Cools the cabin'], answer: 0 },
+  ];
+  var MCQ_KEY = 'tm.bombermanArcade.mcqs';
+  var MCQ_EDIT_PASSWORD = 'APP';
+
+  function loadMcqs() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(MCQ_KEY) || 'null');
+      if (Array.isArray(saved) && saved.length === DEFAULT_MCQS.length) return saved;
+    } catch (err) { /* ignore */ }
+    return DEFAULT_MCQS.map(function (q) { return { q: q.q, choices: q.choices.slice(), answer: q.answer }; });
+  }
+  function saveMcqs(list) {
+    try { localStorage.setItem(MCQ_KEY, JSON.stringify(list)); } catch (err) { /* ignore */ }
+  }
+  function formatMcqs(list) {
+    var lines = ['  var DEFAULT_MCQS = ['];
+    list.forEach(function (q) {
+      lines.push('    { q: ' + JSON.stringify(q.q) + ', choices: ' + JSON.stringify(q.choices) + ', answer: ' + q.answer + ' },');
+    });
+    lines.push('  ];');
+    return lines.join('\n');
+  }
 
   var DIRS = {
     up: { dr: -1, dc: 0 },
@@ -115,10 +157,11 @@
       '<div class="bm-stat"><span class="bm-stat-label">Score</span><span class="bm-stat-value" id="bmScore">0</span></div>' +
       '<div class="bm-stat"><span class="bm-stat-label">High score</span><span class="bm-stat-value" id="bmHigh">0</span></div>' +
       '<div class="bm-stat"><span class="bm-stat-label">Time</span><span class="bm-stat-value" id="bmTime">0</span></div>' +
-      '<div class="bm-stat"><span class="bm-stat-label">Lives</span><span class="bm-stat-value" id="bmLives">●●●</span></div>' +
+      '<div class="bm-stat"><span class="bm-stat-label">Misses</span><span class="bm-stat-value" id="bmLives">0</span></div>' +
       '<button type="button" class="bm-mute-btn" id="bmMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="bm-mute-btn" id="bmGuideBtn" aria-label="Exam guide">📘</button>' +
       '<button type="button" class="bm-mute-btn" id="bmSettingsBtn" aria-label="Game settings">⚙️</button>' +
+      '<button type="button" class="bm-mute-btn" id="bmEditBtn" aria-label="Edit questions">✎</button>' +
       '</div>' +
       '<div class="bm-guide hidden" id="bmGuide">' +
       '<h2>📘 Exam Guide</h2>' +
@@ -126,7 +169,7 @@
       '</div>' +
       '<div class="bm-guide hidden" id="bmSettings">' +
       '<h2>⚙️ Game Settings</h2>' +
-      '<p>Easy gives more lives, more time per stage and fewer enemies; Hard gives the opposite. Takes effect on your next game.</p>' +
+      '<p>Easy gives more time per stage and fewer enemies; Hard gives the opposite. Lives are unlimited on every setting — a hit just means answering one question before you continue. Takes effect on your next game.</p>' +
       '<div class="bm-diff-row">' +
       '<button type="button" class="bm-tab bm-diff-btn" data-diff="easy">Easy</button>' +
       '<button type="button" class="bm-tab bm-diff-btn" data-diff="normal">Normal</button>' +
@@ -150,6 +193,25 @@
       '<button type="button" class="bm-touch-btn" id="bmRightBtn">▶</button>' +
       '<div></div><button type="button" class="bm-touch-btn" id="bmDownBtn">▼</button><div></div>' +
       '</div>' +
+      '<div class="bm-mcq-overlay hidden" id="bmMcqOverlay">' +
+      '<div class="bm-mcq-card">' +
+      '<h2>📝 Quick Check</h2>' +
+      '<p class="bm-mcq-note">Answer correctly to get back in — try as many times as you need.</p>' +
+      '<p class="bm-mcq-question" id="bmMcqQuestion"></p>' +
+      '<div class="bm-mcq-choices" id="bmMcqChoices"></div>' +
+      '<p class="bm-mcq-feedback" id="bmMcqFeedback"></p>' +
+      '</div>' +
+      '</div>' +
+      '<div class="bm-guide hidden" id="bmMcqEdit">' +
+      '<h2>✎ Edit questions</h2>' +
+      '<p>Change any question, its 4 choices, or which one is correct. Saved to this browser only — paste the box below into bomberman-arcade.js to make it the default for everyone.</p>' +
+      '<div id="bmMcqEditList"></div>' +
+      '<div class="bm-diff-row">' +
+      '<button type="button" class="bm-btn bm-btn-primary" id="bmMcqSaveBtn">Save changes</button>' +
+      '</div>' +
+      '<p class="bm-mcq-note">Copy-paste source:</p>' +
+      '<textarea class="bm-mcq-copy" id="bmMcqCopy" readonly rows="8"></textarea>' +
+      '</div>' +
       '</div>';
 
     var canvas = root.querySelector('#bmCanvas');
@@ -162,12 +224,18 @@
     var overlayTitle = root.querySelector('#bmOverlayTitle');
     var overlayMsg = root.querySelector('#bmOverlayMsg');
     var overlayBtn = root.querySelector('#bmOverlayBtn');
+    var mcqOverlay = root.querySelector('#bmMcqOverlay');
+    var mcqQuestionEl = root.querySelector('#bmMcqQuestion');
+    var mcqChoicesEl = root.querySelector('#bmMcqChoices');
+    var mcqFeedbackEl = root.querySelector('#bmMcqFeedback');
+    var mcqs = loadMcqs();
+    var mcqEditUnlocked = false;
 
     var highScore = 0;
     try { highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0; } catch (err) { highScore = 0; }
     highEl.textContent = highScore;
 
-    var soft, powerUnder, items, bombs, explosions, enemies, player, score, lives, timeLeft, stage, running, rafId, lastTime;
+    var soft, powerUnder, items, bombs, explosions, enemies, player, score, misses, timeLeft, stage, running, rafId, lastTime;
 
     function buildStage() {
       soft = [];
@@ -223,7 +291,7 @@
 
     function newGame() {
       score = 0;
-      lives = diffCfg().lives;
+      misses = 0;
       stage = 1;
       player = { x: 0, y: 0, dir: null, want: null, maxBombs: 1, range: 1, speed: BASE_SPEED, invulnerableUntil: 0 };
       startStage();
@@ -240,7 +308,12 @@
     function updateHud() {
       scoreEl.textContent = score;
       timeEl.textContent = Math.ceil(timeLeft);
-      livesEl.textContent = new Array(Math.max(lives, 0) + 1).join('●');
+      livesEl.textContent = misses;
+      if (score > highScore) {
+        highScore = score;
+        try { localStorage.setItem(HIGH_SCORE_KEY, String(highScore)); } catch (err) { /* ignore */ }
+        highEl.textContent = highScore;
+      }
     }
 
     function showOverlay(title, msg, btnLabel, action) {
@@ -379,25 +452,100 @@
     }
 
     function hurtPlayer(now) {
-      lives -= 1;
+      if (!mcqOverlay.classList.contains('hidden')) return; // already mid-gate from a chained hit
+      misses += 1;
       playHurt();
       updateHud();
-      if (lives <= 0) {
-        gameOver();
-      } else {
+      running = false;
+      showMcqGate(function () {
         resetPlayer();
-      }
+        running = true;
+        lastTime = performance.now();
+        if (rafId == null) rafId = requestAnimationFrame(loop);
+      });
     }
 
-    function gameOver() {
-      running = false;
-      playGameOver();
-      var beat = score > highScore;
-      if (beat) { highScore = score; try { localStorage.setItem(HIGH_SCORE_KEY, String(highScore)); } catch (err) {} highEl.textContent = highScore; }
-      showOverlay('Game over', 'Final score: ' + score + (beat ? ' — new high score!' : ' · High score: ' + highScore), 'Play again', function () {
-        newGame();
-        startRunning();
+    // --- MCQ gate -----------------------------------------------------
+    // Shown on every hit (enemy touch, blast, or time-out). Picks a random
+    // question from the (possibly teacher-edited) bank, shuffles the
+    // displayed choice order so the correct answer's on-screen position
+    // never gives it away, and lets the student retry the SAME question
+    // as many times as needed — no penalty, no limit, just a short pause
+    // gate.
+    function showMcqGate(onCorrect) {
+      var q = mcqs[Math.floor(Math.random() * mcqs.length)];
+      var order = q.choices.map(function (text, i) { return { text: text, correct: i === q.answer }; });
+      for (var i = order.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+      }
+      mcqQuestionEl.textContent = q.q;
+      mcqFeedbackEl.textContent = '';
+      mcqFeedbackEl.className = 'bm-mcq-feedback';
+      mcqChoicesEl.innerHTML = '';
+      order.forEach(function (opt) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'bm-mcq-choice';
+        btn.textContent = opt.text;
+        btn.dataset.correct = opt.correct ? '1' : '0';
+        btn.addEventListener('click', function () {
+          if (opt.correct) {
+            mcqFeedbackEl.textContent = '✅ Correct!';
+            mcqFeedbackEl.className = 'bm-mcq-feedback is-correct';
+            playMcqRight();
+            setTimeout(function () {
+              mcqOverlay.classList.add('hidden');
+              if (onCorrect) onCorrect();
+            }, 500);
+          } else {
+            mcqFeedbackEl.textContent = '❌ Not quite — try again.';
+            mcqFeedbackEl.className = 'bm-mcq-feedback is-wrong';
+            playMcqWrong();
+          }
+        });
+        mcqChoicesEl.appendChild(btn);
       });
+      mcqOverlay.classList.remove('hidden');
+    }
+
+    // --- MCQ editor -----------------------------------------------------
+    function renderMcqEditList() {
+      var listEl = root.querySelector('#bmMcqEditList');
+      listEl.innerHTML = '';
+      mcqs.forEach(function (q, qi) {
+        var block = document.createElement('div');
+        block.className = 'bm-mcq-edit-block';
+        var qLabel = document.createElement('label');
+        qLabel.textContent = 'Question ' + (qi + 1);
+        var qInput = document.createElement('input');
+        qInput.type = 'text';
+        qInput.className = 'bm-mcq-edit-q';
+        qInput.value = q.q;
+        qInput.addEventListener('input', function () { q.q = qInput.value; });
+        block.appendChild(qLabel);
+        block.appendChild(qInput);
+        q.choices.forEach(function (choiceText, ci) {
+          var row = document.createElement('div');
+          row.className = 'bm-mcq-edit-choice-row';
+          var radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = 'bmMcqCorrect' + qi;
+          radio.checked = q.answer === ci;
+          radio.addEventListener('change', function () { if (radio.checked) q.answer = ci; });
+          var cInput = document.createElement('input');
+          cInput.type = 'text';
+          cInput.value = choiceText;
+          cInput.addEventListener('input', function () { q.choices[ci] = cInput.value; });
+          row.appendChild(radio);
+          row.appendChild(cInput);
+          block.appendChild(row);
+        });
+        listEl.appendChild(block);
+      });
+    }
+    function refreshMcqCopy() {
+      root.querySelector('#bmMcqCopy').value = formatMcqs(mcqs);
     }
 
     function stageClear() {
@@ -425,9 +573,8 @@
     function checkTimer(dt, now) {
       timeLeft -= dt * (16.6667 / 1000);
       if (timeLeft <= 0) {
-        timeLeft = 0;
+        timeLeft = Math.max(70, diffCfg().stageTimeStart - (stage - 1) * 8);
         hurtPlayer(now);
-        if (running) timeLeft = Math.max(70, diffCfg().stageTimeStart - (stage - 1) * 8);
       }
       updateHud();
     }
@@ -594,6 +741,25 @@
         root.querySelectorAll('.bm-diff-btn').forEach(function (b) { b.classList.toggle('is-active', b === btn); });
       });
     });
+    root.querySelector('#bmEditBtn').addEventListener('click', function () {
+      var editCard = root.querySelector('#bmMcqEdit');
+      if (editCard.classList.contains('hidden')) {
+        if (!mcqEditUnlocked) {
+          var entered = window.prompt('Enter the edit password:');
+          if (entered !== MCQ_EDIT_PASSWORD) return;
+          mcqEditUnlocked = true;
+        }
+        renderMcqEditList();
+        refreshMcqCopy();
+        editCard.classList.remove('hidden');
+      } else {
+        editCard.classList.add('hidden');
+      }
+    });
+    root.querySelector('#bmMcqSaveBtn').addEventListener('click', function () {
+      saveMcqs(mcqs);
+      refreshMcqCopy();
+    });
 
     bindTouch(root.querySelector('#bmUpBtn'), function () { if (player) player.want = 'up'; });
     bindTouch(root.querySelector('#bmDownBtn'), function () { if (player) player.want = 'down'; });
@@ -608,7 +774,16 @@
     });
 
     window.TM.toolModules['bomberman-arcade'].debugState = function () {
-      return { player: player, enemies: enemies, bombs: bombs, soft: soft, items: items, score: score, lives: lives, timeLeft: timeLeft };
+      return { player: player, enemies: enemies, bombs: bombs, soft: soft, items: items, score: score, misses: misses, timeLeft: timeLeft, mcqGateOpen: !mcqOverlay.classList.contains('hidden') };
+    };
+    window.TM.toolModules['bomberman-arcade'].debugForceHurt = function () { hurtPlayer(performance.now()); };
+    window.TM.toolModules['bomberman-arcade'].debugAnswerMcq = function (correct) {
+      var btns = mcqChoicesEl.querySelectorAll('.bm-mcq-choice');
+      for (var k = 0; k < btns.length; k++) {
+        var isRight = btns[k].dataset.correct === '1';
+        if (isRight === !!correct) { btns[k].click(); return true; }
+      }
+      return false;
     };
 
     window.TM.toolModules['bomberman-arcade'].unmount = function () {

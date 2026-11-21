@@ -26,13 +26,14 @@
   var HIGH_SCORE_KEY = 'tm.westernSaloon.highScore';
   var POP_IN_MS = 140;
 
-  // Difficulty: more lives, slower/longer-lived targets and fewer
-  // bystanders mixed in on Easy; the opposite on Hard.
+  // Difficulty: slower/longer-lived targets and fewer bystanders mixed in
+  // on Easy; the opposite on Hard. Lives are unlimited on every tier — a
+  // bystander hit means one MCQ gate, not a limit.
   var DIFFICULTY_KEY = 'tm.westernSaloon.difficulty';
   var DIFFICULTY_SETTINGS = {
-    easy: { lives: 4, baseSpawnMs: 1150, minSpawnMs: 550, baseLifespanMs: 1900, minLifespanMs: 950, maxCivilianChance: 0.32 },
-    normal: { lives: 3, baseSpawnMs: 900, minSpawnMs: 420, baseLifespanMs: 1500, minLifespanMs: 700, maxCivilianChance: 0.48 },
-    hard: { lives: 2, baseSpawnMs: 650, minSpawnMs: 300, baseLifespanMs: 1100, minLifespanMs: 500, maxCivilianChance: 0.6 },
+    easy: { baseSpawnMs: 1150, minSpawnMs: 550, baseLifespanMs: 1900, minLifespanMs: 950, maxCivilianChance: 0.32 },
+    normal: { baseSpawnMs: 900, minSpawnMs: 420, baseLifespanMs: 1500, minLifespanMs: 700, maxCivilianChance: 0.48 },
+    hard: { baseSpawnMs: 650, minSpawnMs: 300, baseLifespanMs: 1100, minLifespanMs: 500, maxCivilianChance: 0.6 },
   };
   var difficulty = 'normal';
   try {
@@ -92,9 +93,49 @@
   function playReload() { beep(220, 0.05, 'square', 0.1); beep(320, 0.05, 'square', 0.12, 0.12); }
   function playHitOutlaw() { beep(660, 0.07, 'square', 0.18); beep(880, 0.09, 'square', 0.18, 0.06); }
   function playHitCivilian() { beep(260, 0.16, 'sawtooth', 0.2); beep(160, 0.22, 'sawtooth', 0.18, 0.1); }
-  function playGameOver() { beep(392, 0.18, 'square', 0.18); beep(330, 0.18, 'square', 0.18, 0.16); beep(220, 0.32, 'square', 0.18, 0.32); }
+  function playMcqRight() { beep(523, 0.09, 'square', 0.18); beep(784, 0.14, 'square', 0.18, 0.09); }
+  function playMcqWrong() { beep(180, 0.18, 'sawtooth', 0.18); }
 
   function rand(min, max) { return min + Math.random() * (max - min); }
+
+  // Every bystander hit is gated behind one of these 10 aircraft-power-
+  // plant MCQs — unlimited retries on the same question until the student
+  // gets it right, then play resumes. Editable in-browser via the
+  // password-gated "✎" edit panel (password APP, same casual click-guard
+  // as every other tool's edit mode).
+  var DEFAULT_MCQS = [
+    { q: 'What is bleed air used for?', choices: ['Cabin pressurization, anti-ice and pneumatic systems', 'Only cockpit lighting', 'Fuel storage', 'Fire detection'], answer: 0 },
+    { q: 'What does a labyrinth seal do?', choices: ['Keeps oil from migrating along a rotating shaft', 'Starts the engine', 'Detects fire', 'Stores fuel'], answer: 0 },
+    { q: 'What is anti-icing bleed air used for?', choices: ['Preventing ice buildup on surfaces like the nacelle/wing', 'Cooling the cabin', 'Starting the APU', 'Detecting fire'], answer: 0 },
+    { q: 'What does customer bleed typically supply?', choices: ['Cabin air conditioning and pressurization', 'Fuel to the combustor', 'Oil to the bearings', 'Power to the radio'], answer: 0 },
+    { q: "What's a thrust bearing's job?", choices: ['Handles axial load from the rotating shaft', 'Detects fire', 'Stores fuel', 'Starts ignition'], answer: 0 },
+    { q: 'What internal air system function cools the turbine blades?', choices: ['Turbine blade cooling air tapped from the compressor', 'Fuel spray', 'Oil circulation', 'Cabin air'], answer: 0 },
+    { q: 'What is nacelle ventilation for?', choices: ['Cooling the engine compartment', 'Starting the engine', 'Detecting fire', 'Filtering fuel'], answer: 0 },
+    { q: 'What does the generator cooling air system do?', choices: ['Cools the electrical generator using bleed air', 'Starts the APU', 'Detects fire', 'Filters oil'], answer: 0 },
+    { q: "What's the purpose of turbine case cooling (ACC)?", choices: ['Controls turbine case clearance for efficiency', 'Starts the engine', 'Stores fuel', 'Detects fire'], answer: 0 },
+    { q: 'What does igniter cooling air prevent?', choices: ['Overheating of the igniter plug', 'Fuel leaks', 'Oil contamination', 'Cabin depressurization'], answer: 0 },
+  ];
+  var MCQ_KEY = 'tm.westernSaloon.mcqs';
+  var MCQ_EDIT_PASSWORD = 'APP';
+
+  function loadMcqs() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(MCQ_KEY) || 'null');
+      if (Array.isArray(saved) && saved.length === DEFAULT_MCQS.length) return saved;
+    } catch (err) { /* ignore */ }
+    return DEFAULT_MCQS.map(function (q) { return { q: q.q, choices: q.choices.slice(), answer: q.answer }; });
+  }
+  function saveMcqs(list) {
+    try { localStorage.setItem(MCQ_KEY, JSON.stringify(list)); } catch (err) { /* ignore */ }
+  }
+  function formatMcqs(list) {
+    var lines = ['  var DEFAULT_MCQS = ['];
+    list.forEach(function (q) {
+      lines.push('    { q: ' + JSON.stringify(q.q) + ', choices: ' + JSON.stringify(q.choices) + ', answer: ' + q.answer + ' },');
+    });
+    lines.push('  ];');
+    return lines.join('\n');
+  }
 
   function mount(root) {
     root.innerHTML =
@@ -104,10 +145,11 @@
       '<div class="ws-hud">' +
       '<div class="ws-stat"><span class="ws-stat-label">Score</span><span class="ws-stat-value" id="wsScore">0</span></div>' +
       '<div class="ws-stat"><span class="ws-stat-label">High score</span><span class="ws-stat-value" id="wsHigh">0</span></div>' +
-      '<div class="ws-stat"><span class="ws-stat-label">Lives</span><span class="ws-stat-value" id="wsLives">❤❤❤</span></div>' +
+      '<div class="ws-stat"><span class="ws-stat-label">Misses</span><span class="ws-stat-value" id="wsLives">0</span></div>' +
       '<button type="button" class="ws-mute-btn" id="wsMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="ws-mute-btn" id="wsGuideBtn" aria-label="Exam guide">📘</button>' +
       '<button type="button" class="ws-mute-btn" id="wsSettingsBtn" aria-label="Game settings">⚙️</button>' +
+      '<button type="button" class="ws-mute-btn" id="wsEditBtn" aria-label="Edit questions">✎</button>' +
       '</div>' +
       '<div class="ws-guide hidden" id="wsGuide">' +
       '<h2>📘 Exam Guide</h2>' +
@@ -115,7 +157,7 @@
       '</div>' +
       '<div class="ws-guide hidden" id="wsSettings">' +
       '<h2>⚙️ Game Settings</h2>' +
-      '<p>Easy gives more lives, slower/longer-lived targets and fewer bystanders; Hard gives the opposite. Takes effect on your next shift.</p>' +
+      '<p>Easy gives slower/longer-lived targets and fewer bystanders; Hard gives the opposite. Lives are unlimited on every setting — hitting a bystander just means answering one question before you continue. Takes effect on your next shift.</p>' +
       '<div class="ws-diff-row">' +
       '<button type="button" class="ws-tab ws-diff-btn" data-diff="easy">Easy</button>' +
       '<button type="button" class="ws-tab ws-diff-btn" data-diff="normal">Normal</button>' +
@@ -136,6 +178,25 @@
       '<div class="ws-ammo" id="wsAmmo"></div>' +
       '<button type="button" class="ws-btn ws-btn-reload" id="wsReloadBtn">🔄 Reload</button>' +
       '</div>' +
+      '<div class="ws-mcq-overlay hidden" id="wsMcqOverlay">' +
+      '<div class="ws-mcq-card">' +
+      '<h2>📝 Quick Check</h2>' +
+      '<p class="ws-mcq-note">Answer correctly to get back in — try as many times as you need.</p>' +
+      '<p class="ws-mcq-question" id="wsMcqQuestion"></p>' +
+      '<div class="ws-mcq-choices" id="wsMcqChoices"></div>' +
+      '<p class="ws-mcq-feedback" id="wsMcqFeedback"></p>' +
+      '</div>' +
+      '</div>' +
+      '<div class="ws-guide hidden" id="wsMcqEdit">' +
+      '<h2>✎ Edit questions</h2>' +
+      '<p>Change any question, its 4 choices, or which one is correct. Saved to this browser only — paste the box below into western-saloon.js to make it the default for everyone.</p>' +
+      '<div id="wsMcqEditList"></div>' +
+      '<div class="ws-diff-row">' +
+      '<button type="button" class="ws-btn ws-btn-primary" id="wsMcqSaveBtn">Save changes</button>' +
+      '</div>' +
+      '<p class="ws-mcq-note">Copy-paste source:</p>' +
+      '<textarea class="ws-mcq-copy" id="wsMcqCopy" readonly rows="8"></textarea>' +
+      '</div>' +
       '</div>';
 
     var canvas = root.querySelector('#wsCanvas');
@@ -148,19 +209,30 @@
     var overlayTitle = root.querySelector('#wsOverlayTitle');
     var overlayMsg = root.querySelector('#wsOverlayMsg');
     var overlayBtn = root.querySelector('#wsOverlayBtn');
+    var mcqOverlay = root.querySelector('#wsMcqOverlay');
+    var mcqQuestionEl = root.querySelector('#wsMcqQuestion');
+    var mcqChoicesEl = root.querySelector('#wsMcqChoices');
+    var mcqFeedbackEl = root.querySelector('#wsMcqFeedback');
+    var mcqs = loadMcqs();
+    var mcqEditUnlocked = false;
 
     var highScore = 0;
     try { highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0; } catch (err) { highScore = 0; }
     highEl.textContent = highScore;
 
-    var score, lives, ammo, reloading, reloadUntil, hitsCleared, targets, nextSpawnAt, running, rafId, lastTime;
+    var score, misses, ammo, reloading, reloadUntil, hitsCleared, targets, nextSpawnAt, running, rafId, lastTime;
     var crosshair = { x: W / 2, y: H / 2 };
     var flashUntil = 0;
     var screenFlash = 0; // 0 = none, >0 = red tint strength, decays
 
     function updateHud() {
       scoreEl.textContent = score;
-      livesEl.textContent = new Array(Math.max(lives, 0) + 1).join('❤');
+      livesEl.textContent = misses;
+      if (score > highScore) {
+        highScore = score;
+        try { localStorage.setItem(HIGH_SCORE_KEY, String(highScore)); } catch (err) { /* ignore */ }
+        highEl.textContent = highScore;
+      }
       ammoEl.innerHTML = '';
       for (var i = 0; i < AMMO_MAX; i++) {
         var dot = document.createElement('span');
@@ -240,14 +312,104 @@
           hitsCleared += 1;
           playHitOutlaw();
         } else {
-          lives -= 1;
+          misses += 1;
           playHitCivilian();
           screenFlash = 1;
-          if (lives <= 0) { removeTarget(target); updateHud(); gameOver(); return; }
+          removeTarget(target);
+          updateHud();
+          running = false;
+          showMcqGate(function () {
+            running = true;
+            lastTime = performance.now();
+            if (rafId == null) rafId = requestAnimationFrame(loop);
+          });
+          return;
         }
         removeTarget(target);
       }
       updateHud();
+    }
+
+    // --- MCQ gate -----------------------------------------------------
+    // Shown on every bystander hit. Picks a random question from the
+    // (possibly teacher-edited) bank, shuffles the displayed choice order
+    // so the correct answer's on-screen position never gives it away, and
+    // lets the student retry the SAME question as many times as needed —
+    // no penalty, no limit, just a short pause gate.
+    function showMcqGate(onCorrect) {
+      var q = mcqs[Math.floor(Math.random() * mcqs.length)];
+      var order = q.choices.map(function (text, i) { return { text: text, correct: i === q.answer }; });
+      for (var i = order.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+      }
+      mcqQuestionEl.textContent = q.q;
+      mcqFeedbackEl.textContent = '';
+      mcqFeedbackEl.className = 'ws-mcq-feedback';
+      mcqChoicesEl.innerHTML = '';
+      order.forEach(function (opt) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ws-mcq-choice';
+        btn.textContent = opt.text;
+        btn.dataset.correct = opt.correct ? '1' : '0';
+        btn.addEventListener('click', function () {
+          if (opt.correct) {
+            mcqFeedbackEl.textContent = '✅ Correct!';
+            mcqFeedbackEl.className = 'ws-mcq-feedback is-correct';
+            playMcqRight();
+            setTimeout(function () {
+              mcqOverlay.classList.add('hidden');
+              if (onCorrect) onCorrect();
+            }, 500);
+          } else {
+            mcqFeedbackEl.textContent = '❌ Not quite — try again.';
+            mcqFeedbackEl.className = 'ws-mcq-feedback is-wrong';
+            playMcqWrong();
+          }
+        });
+        mcqChoicesEl.appendChild(btn);
+      });
+      mcqOverlay.classList.remove('hidden');
+    }
+
+    // --- MCQ editor -----------------------------------------------------
+    function renderMcqEditList() {
+      var listEl = root.querySelector('#wsMcqEditList');
+      listEl.innerHTML = '';
+      mcqs.forEach(function (q, qi) {
+        var block = document.createElement('div');
+        block.className = 'ws-mcq-edit-block';
+        var qLabel = document.createElement('label');
+        qLabel.textContent = 'Question ' + (qi + 1);
+        var qInput = document.createElement('input');
+        qInput.type = 'text';
+        qInput.className = 'ws-mcq-edit-q';
+        qInput.value = q.q;
+        qInput.addEventListener('input', function () { q.q = qInput.value; });
+        block.appendChild(qLabel);
+        block.appendChild(qInput);
+        q.choices.forEach(function (choiceText, ci) {
+          var row = document.createElement('div');
+          row.className = 'ws-mcq-edit-choice-row';
+          var radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = 'wsMcqCorrect' + qi;
+          radio.checked = q.answer === ci;
+          radio.addEventListener('change', function () { if (radio.checked) q.answer = ci; });
+          var cInput = document.createElement('input');
+          cInput.type = 'text';
+          cInput.value = choiceText;
+          cInput.addEventListener('input', function () { q.choices[ci] = cInput.value; });
+          row.appendChild(radio);
+          row.appendChild(cInput);
+          block.appendChild(row);
+        });
+        listEl.appendChild(block);
+      });
+    }
+    function refreshMcqCopy() {
+      root.querySelector('#wsMcqCopy').value = formatMcqs(mcqs);
     }
 
     function startReload() {
@@ -257,17 +419,9 @@
       playReload();
     }
 
-    function gameOver() {
-      running = false;
-      playGameOver();
-      var beat = score > highScore;
-      if (beat) { highScore = score; try { localStorage.setItem(HIGH_SCORE_KEY, String(highScore)); } catch (err) {} highEl.textContent = highScore; }
-      showOverlay('Game over', 'Final score: ' + score + (beat ? ' — new high score!' : ' · High score: ' + highScore), 'Play again', startGame);
-    }
-
     function startGame() {
       score = 0;
-      lives = diffCfg().lives;
+      misses = 0;
       ammo = AMMO_MAX;
       reloading = false;
       reloadUntil = 0;
@@ -476,16 +630,53 @@
         root.querySelectorAll('.ws-diff-btn').forEach(function (b) { b.classList.toggle('is-active', b === btn); });
       });
     });
+    root.querySelector('#wsEditBtn').addEventListener('click', function () {
+      var editCard = root.querySelector('#wsMcqEdit');
+      if (editCard.classList.contains('hidden')) {
+        if (!mcqEditUnlocked) {
+          var entered = window.prompt('Enter the edit password:');
+          if (entered !== MCQ_EDIT_PASSWORD) return;
+          mcqEditUnlocked = true;
+        }
+        renderMcqEditList();
+        refreshMcqCopy();
+        editCard.classList.remove('hidden');
+      } else {
+        editCard.classList.add('hidden');
+      }
+    });
+    root.querySelector('#wsMcqSaveBtn').addEventListener('click', function () {
+      saveMcqs(mcqs);
+      refreshMcqCopy();
+    });
 
-    score = 0; lives = diffCfg().lives; ammo = AMMO_MAX; reloading = false; hitsCleared = 0; targets = [];
+    score = 0; misses = 0; ammo = AMMO_MAX; reloading = false; hitsCleared = 0; targets = [];
     updateHud();
     render(performance.now());
-    showOverlay('Ready?', 'Shoot the outlaws, spare the bartender and the regulars. 3 lives, 6 shots per cylinder.', 'Start', startGame);
+    showOverlay('Ready?', 'Shoot the outlaws, spare the bartender and the regulars. Unlimited lives — 6 shots per cylinder.', 'Start', startGame);
 
     window.TM.toolModules['western-saloon'].debugState = function () {
-      return { targets: targets, slots: SLOTS, score: score, lives: lives, ammo: ammo, reloading: reloading };
+      return { targets: targets, slots: SLOTS, score: score, misses: misses, ammo: ammo, reloading: reloading, mcqGateOpen: !mcqOverlay.classList.contains('hidden') };
     };
     window.TM.toolModules['western-saloon'].debugFire = function (x, y) { fire(x, y); };
+    window.TM.toolModules['western-saloon'].debugForceCivilianHit = function () {
+      misses += 1;
+      updateHud();
+      running = false;
+      showMcqGate(function () {
+        running = true;
+        lastTime = performance.now();
+        if (rafId == null) rafId = requestAnimationFrame(loop);
+      });
+    };
+    window.TM.toolModules['western-saloon'].debugAnswerMcq = function (correct) {
+      var btns = mcqChoicesEl.querySelectorAll('.ws-mcq-choice');
+      for (var k = 0; k < btns.length; k++) {
+        var isRight = btns[k].dataset.correct === '1';
+        if (isRight === !!correct) { btns[k].click(); return true; }
+      }
+      return false;
+    };
 
     window.TM.toolModules['western-saloon'].unmount = function () {
       running = false;

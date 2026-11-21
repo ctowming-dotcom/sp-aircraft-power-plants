@@ -950,6 +950,137 @@ automatically or by hand:
     free-form button interaction above it rather than gating the button
     clicks to this order.
 
+### MCQ gate on life loss (6 games), unlimited lives (all stages)
+
+By request ("In all games I want to add for every 1 live gone. Student
+need to answer 1 mcq question relating to air power plants module in
+order to continue. There will be unlimited lives for all game on all
+stage. Student can have unlimited try on the same mcq until they got it
+right. There should be 10 mcq for each game. For editor mode I can
+change the questions and the answer.") — applied to the 6 games that had
+a "lives"/game-over concept: Engine Emergency, Jump Challenge (`exam-
+platformer`), Maze Muncher (`pacman-arcade`), Super Bomberman, Saloon
+Shootout, Barrel Climb. **Crossword Challenge is out of scope** — it has
+no lives/life-loss mechanic (a timed puzzle with Check/Reveal, not an
+arcade life), so nothing changed there.
+
+- **Unlimited lives, no Game Over from running out of lives**: each
+  game's life-loss handler (`fail()`/`died()`/`loseLife()`/
+  `hurtPlayer()`, or the civilian-hit branch inside Saloon Shootout's
+  `fire()`) no longer checks a remaining-lives count to decide whether
+  to end the game — that branch, the `gameOver()` function itself (now
+  unreachable), and the "Game Over"/"Stage failed" overlay screens it
+  used to show were removed outright from all 6 files (not just left
+  dead), along with the `lives` field in each game's `DIFFICULTY_SETTINGS`
+  (now functionless once lives are unlimited on every tier). The HUD's
+  "Lives" hearts/dots stat was replaced with a plain "Misses" counter
+  (`misses`, increments forever, no cap, no game-ending threshold) in
+  every one of the 6 games, so the display can't be misread as "you're
+  about to lose" — a jump/exam/jump challenge still only has a "Stage
+  complete"/"Maze clear"/"Stage clear"/"Rescue complete" win condition
+  where one existed before; Engine Emergency and Saloon Shootout had no
+  win condition even before this change (endless survival) and still
+  don't — they just no longer terminate on lives either, so they run
+  indefinitely. High-score saving, previously done only inside
+  `gameOver()`, was moved into each game's `updateHud()` (already called
+  after every score change) so it keeps being captured correctly now
+  that `gameOver()` never fires; the pre-existing `stageClear()`/
+  `levelClear()` high-score saves were left in place too, redundant but
+  harmless. Jump Challenge's difficulty picker (Settings panel/Easy-
+  Normal-Hard) was removed entirely rather than left as a no-op — its
+  *only* tunable effect in `DIFFICULTY_SETTINGS` had been the lives
+  count ("the jump physics and stage layouts stay the same at every
+  level so they stay fair"), so once lives became unlimited it had
+  nothing left to do; every other game's difficulty picker still tunes
+  something else (speed, spawn rate, time budget) and was kept, just
+  with its `lives` key dropped.
+- **MCQ gate**: every life-loss event (ghost/barrel/enemy touch, bomb
+  blast, time-out, civilian hit, spike/fall) now calls a per-game
+  `showMcqGate(onCorrect)` instead of immediately respawning — it pauses
+  the game (reusing each game's own existing `running`/`rafId`/
+  `lastTime` pause-and-resume plumbing, the same one `gameOver()` used
+  to use; safe to flip `running` mid-frame from inside an `update()`-
+  called handler since every `loop(now)` already only checks `running`
+  once at the very top, a pattern already proven elsewhere in this
+  codebase), shows a full-screen overlay (new `.xx-mcq-overlay`/
+  `.xx-mcq-card`, one per game, `position: fixed` so it covers the whole
+  viewport the same way the Virtual Lab/Air System tooltips do) with one
+  random question from that game's own 10-question bank, 4 answer
+  buttons in a freshly **shuffled display order** (so the correct
+  answer's on-screen position never gives it away even on a repeat
+  question), and a feedback line. A wrong answer flashes "❌ Not quite —
+  try again." and leaves the same question up for another attempt — no
+  limit, no penalty, matching "unlimited try on the same mcq until they
+  got it right" exactly. A correct answer flashes "✅ Correct!", plays a
+  short two-note success beep (`playMcqRight`, reusing each game's
+  existing oscillator-beep sound helper, no new audio tech), waits
+  500ms, hides the overlay, and invokes the `onCorrect` callback — which
+  is each game's own pre-existing respawn/continue logic (`resetPlayer()`
+  / `resetPositions()` / resuming `startRound()`), so the exact "what
+  happens when you get to keep going" behavior is unchanged from before
+  this feature, just gated behind a correct answer first. Super Bomberman
+  needed one extra guard `hurtPlayer()` didn't need elsewhere: its
+  `explode()` can recursively re-trigger `hurtPlayer()` for a chained
+  bomb blast within the same synchronous call, before the player's
+  `invulnerableUntil` is refreshed (that only happens in `resetPlayer()`,
+  which now runs much later, after the MCQ is answered) — so `hurtPlayer()`
+  first checks whether the MCQ overlay is already open and no-ops if so,
+  rather than incrementing `misses` and re-rendering a second gate on
+  top of itself. Bomberman's time-out path in `checkTimer()` also needed
+  its stage-time reset moved to happen *before* calling `hurtPlayer()`
+  rather than after (gated on `if (running)`, which used to be true in
+  the common case but is now always false the instant `hurtPlayer()`
+  pauses the game) — otherwise `timeLeft` would stay stuck at 0 and
+  re-trigger `hurtPlayer()` every frame once the gate closed.
+- **10 questions per game, aircraft-power-plant subject matter**: each
+  of the 6 games got its own distinct `DEFAULT_MCQS` array (`{ q,
+  choices: [4 strings], answer: <index> }`), themed loosely to fit
+  variety across the site rather than to each game's own visual genre —
+  Engine Emergency: fire/emergency systems; Jump Challenge: oil/fuel/
+  general engine fundamentals; Maze Muncher: turbofan basics (spool,
+  intake, thrust, blade, shaft); Super Bomberman: fuel/APU systems;
+  Saloon Shootout: air system (bleed, anti-ice, cooling); Barrel Climb:
+  starting-system/spool fundamentals. 60 questions total, none shared
+  between games.
+- **Editor mode**: reuses the established password-gated convention
+  (`MCQ_EDIT_PASSWORD`/`EDIT_PASSWORD = 'APP'`, the same casual click-
+  guard every other tool's edit mode uses) rather than inventing a new
+  one. Jump Challenge folds its MCQ editor into the *same* existing
+  password-gated panel its exam-clue editor already used (one unlock,
+  both sections) since that tool already had an edit button; the other
+  5 games — which had no edit mode before this feature — gained a new
+  "✎" HUD button that unlocks a dedicated `#xxMcqEdit` panel. Each
+  question renders as one text input (the question) plus 4 text inputs
+  (the choices) with a radio-button group marking which one is correct
+  — editing any field updates the in-memory `mcqs` array directly via
+  its own `input`/`change` listener (no separate "apply" step beyond
+  that), a Save button persists the whole array to `localStorage`
+  (`tm.<game>.mcqs`, merged-over-defaults the same way `loadClues()`
+  already did for Jump Challenge's clues: a saved array is only used if
+  its length matches `DEFAULT_MCQS.length`, otherwise the hardcoded
+  defaults are used untouched), and a read-only textarea shows live,
+  paste-ready `DEFAULT_MCQS` source (`formatMcqs()`) so an edit made in
+  one browser can be copied into that game's own `.js` file to become
+  the default for every visitor — same one-browser-only caveat as every
+  other editable-content feature in this codebase (Air System's items,
+  APU System's components, Virtual Lab's parts/waypoints, Jump
+  Challenge's own clues).
+- Verified per-game with Playwright: a `debugForce*()` hook
+  (`debugForceFail`/`debugForceDeath`/`debugForceLoseLife`/
+  `debugForceHurt`/`debugForceCivilianHit`, matching each game's own
+  death-function name) triggers a life-loss event without needing to
+  actually play; `debugState()` reports `misses` and `mcqGateOpen`; a
+  `debugAnswerMcq(correct)` hook finds the rendered choice button whose
+  `data-correct` attribute (set from the shuffled `opt.correct` flag at
+  render time, read-only — not a gameplay change) matches the requested
+  outcome and clicks it. Confirmed for every game: a miss always opens
+  the gate; a wrong answer leaves it open for retry; a correct answer
+  closes it and resumes play exactly where it left off; no game ever
+  reaches a Game Over state no matter how many times it's forced to
+  fail in a row; Bomberman's chained-hit guard holds `misses` at +1
+  (not +2) when `hurtPlayer()` is called twice back-to-back while the
+  gate is already open.
+
 ### Phase 2 — Scaffolded topics, content pending
 
 No tools remain as placeholders — every catalog entry now has real

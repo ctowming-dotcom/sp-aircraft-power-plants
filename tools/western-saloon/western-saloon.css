@@ -218,3 +218,125 @@
     flex-wrap: wrap;
   }
 }
+
+.ws-mcq-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 10, 18, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 1rem;
+}
+
+.ws-mcq-overlay.hidden {
+  display: none;
+}
+
+.ws-mcq-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.6rem;
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+}
+
+.ws-mcq-card h2 {
+  font-family: var(--font-display);
+  margin: 0 0 0.4rem;
+}
+
+.ws-mcq-note {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0 0 0.8rem;
+}
+
+.ws-mcq-question {
+  font-weight: 600;
+  margin: 0 0 1rem;
+}
+
+.ws-mcq-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+}
+
+.ws-mcq-choice {
+  font: inherit;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 0.65rem 0.9rem;
+  cursor: pointer;
+}
+
+.ws-mcq-choice:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ws-mcq-feedback {
+  min-height: 1.4em;
+  font-weight: 600;
+  margin: 0;
+}
+
+.ws-mcq-feedback.is-correct {
+  color: var(--success);
+}
+
+.ws-mcq-feedback.is-wrong {
+  color: var(--error);
+}
+
+.ws-mcq-edit-block {
+  border-top: 1px solid var(--border);
+  padding: 0.8rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.ws-mcq-edit-block:first-child {
+  border-top: 0;
+}
+
+.ws-mcq-edit-block label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.ws-mcq-edit-q,
+.ws-mcq-edit-choice-row input[type="text"] {
+  font: inherit;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 0.5rem 0.7rem;
+  width: 100%;
+}
+
+.ws-mcq-edit-choice-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.ws-mcq-copy {
+  width: 100%;
+  font-family: monospace;
+  font-size: 0.78rem;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem;
+}

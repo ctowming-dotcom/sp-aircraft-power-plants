@@ -15,13 +15,14 @@
   var HIGH_SCORE_KEY = 'tm.barrelClimb.highScore';
   var RESPAWN_INVULN_MS = 1500;
 
-  // Difficulty: more lives, slower/less frequent barrels and fewer
-  // flames on Easy; the opposite on Hard.
+  // Difficulty: slower/less frequent barrels and fewer flames on Easy;
+  // the opposite on Hard. Lives are unlimited on every tier — a hit means
+  // one MCQ gate, not a limit.
   var DIFFICULTY_KEY = 'tm.barrelClimb.difficulty';
   var DIFFICULTY_SETTINGS = {
-    easy: { lives: 4, barrelIntervalBase: 3400, barrelIntervalMin: 1300, barrelIntervalStep: 180, fireballCap: 1 },
-    normal: { lives: 3, barrelIntervalBase: 2600, barrelIntervalMin: 900, barrelIntervalStep: 220, fireballCap: 2 },
-    hard: { lives: 2, barrelIntervalBase: 1900, barrelIntervalMin: 650, barrelIntervalStep: 260, fireballCap: 3 },
+    easy: { barrelIntervalBase: 3400, barrelIntervalMin: 1300, barrelIntervalStep: 180, fireballCap: 1 },
+    normal: { barrelIntervalBase: 2600, barrelIntervalMin: 900, barrelIntervalStep: 220, fireballCap: 2 },
+    hard: { barrelIntervalBase: 1900, barrelIntervalMin: 650, barrelIntervalStep: 260, fireballCap: 3 },
   };
   var difficulty = 'normal';
   try {
@@ -109,7 +110,47 @@
   function playHop() { beep(740, 0.06, 'square', 0.14); beep(980, 0.07, 'square', 0.14, 0.05); }
   function playHurt() { beep(260, 0.16, 'sawtooth', 0.2); beep(160, 0.22, 'sawtooth', 0.18, 0.1); }
   function playClear() { beep(523, 0.1, 'square', 0.18); beep(659, 0.1, 'square', 0.18, 0.1); beep(784, 0.1, 'square', 0.18, 0.2); beep(1046, 0.22, 'square', 0.2, 0.3); }
-  function playGameOver() { beep(392, 0.18, 'square', 0.18); beep(330, 0.18, 'square', 0.18, 0.16); beep(220, 0.32, 'square', 0.18, 0.32); }
+  function playMcqRight() { beep(523, 0.09, 'square', 0.18); beep(784, 0.14, 'square', 0.18, 0.09); }
+  function playMcqWrong() { beep(180, 0.18, 'sawtooth', 0.18); }
+
+  // Every hit (barrel or flame) is gated behind one of these 10 aircraft-
+  // power-plant MCQs — unlimited retries on the same question until the
+  // student gets it right, then play resumes. Editable in-browser via the
+  // password-gated "✎" edit panel (password APP, same casual click-guard
+  // as every other tool's edit mode).
+  var DEFAULT_MCQS = [
+    { q: "What's the correct order: during start, what happens right after the starter motor spins the engine?", choices: ['Fuel and ignition are introduced to begin combustion', 'The aircraft takes off', 'The fire bottle discharges', 'The APU shuts down'], answer: 0 },
+    { q: 'What does the starter control valve do?', choices: ['Controls pneumatic air flow to the starter motor', 'Starts the fire loop', 'Filters fuel', 'Cools oil'], answer: 0 },
+    { q: 'What is EGT?', choices: ['Exhaust Gas Temperature', 'Engine Gear Train', 'Electrical Ground Test', 'Engine Glide Time'], answer: 0 },
+    { q: 'What does the EEC do during engine start?', choices: ['Electronically controls engine start/ignition sequencing', 'Extinguishes fires', 'Filters oil', 'Stores fuel'], answer: 0 },
+    { q: 'Why must the starter disengage ("cut-out") once the engine is running?', choices: ['To avoid over-speeding/damaging the starter', 'To save fuel only', 'To start the APU', 'To detect fire'], answer: 0 },
+    { q: 'What is N2 in a start sequence typically tracking?', choices: ['The rotational speed of the HP spool as a percentage', 'Fuel temperature', 'Cabin pressure', 'Oil quantity'], answer: 0 },
+    { q: 'What does the igniter unit do during start?', choices: ['Supplies sparking energy to the igniter plugs', 'Pumps fuel', 'Detects fire', 'Starts the APU'], answer: 0 },
+    { q: "What's the purpose of a pylon on an engine?", choices: ['Structurally attaches the engine to the wing', 'Cools the oil', 'Detects fire', 'Starts ignition'], answer: 0 },
+    { q: 'What does "N1" typically refer to in a triple-spool engine?', choices: ['The low-pressure (fan) spool speed', 'The high-pressure spool speed', 'Oil pressure', 'Fuel flow'], answer: 0 },
+    { q: "What's the benefit of a twin-spool vs single-spool design?", choices: ['Each spool can run at its own optimal speed for efficiency', "It's lighter with fewer parts", 'It needs no oil system', "It can't use bleed air"], answer: 0 },
+  ];
+  var MCQ_KEY = 'tm.barrelClimb.mcqs';
+  var MCQ_EDIT_PASSWORD = 'APP';
+
+  function loadMcqs() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(MCQ_KEY) || 'null');
+      if (Array.isArray(saved) && saved.length === DEFAULT_MCQS.length) return saved;
+    } catch (err) { /* ignore */ }
+    return DEFAULT_MCQS.map(function (q) { return { q: q.q, choices: q.choices.slice(), answer: q.answer }; });
+  }
+  function saveMcqs(list) {
+    try { localStorage.setItem(MCQ_KEY, JSON.stringify(list)); } catch (err) { /* ignore */ }
+  }
+  function formatMcqs(list) {
+    var lines = ['  var DEFAULT_MCQS = ['];
+    list.forEach(function (q) {
+      lines.push('    { q: ' + JSON.stringify(q.q) + ', choices: ' + JSON.stringify(q.choices) + ', answer: ' + q.answer + ' },');
+    });
+    lines.push('  ];');
+    return lines.join('\n');
+  }
 
   function mount(root) {
     root.innerHTML =
@@ -119,10 +160,11 @@
       '<div class="bc-hud">' +
       '<div class="bc-stat"><span class="bc-stat-label">Score</span><span class="bc-stat-value" id="bcScore">0</span></div>' +
       '<div class="bc-stat"><span class="bc-stat-label">High score</span><span class="bc-stat-value" id="bcHigh">0</span></div>' +
-      '<div class="bc-stat"><span class="bc-stat-label">Lives</span><span class="bc-stat-value" id="bcLives">❤❤❤</span></div>' +
+      '<div class="bc-stat"><span class="bc-stat-label">Misses</span><span class="bc-stat-value" id="bcLives">0</span></div>' +
       '<button type="button" class="bc-mute-btn" id="bcMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="bc-mute-btn" id="bcGuideBtn" aria-label="Exam guide">📘</button>' +
       '<button type="button" class="bc-mute-btn" id="bcSettingsBtn" aria-label="Game settings">⚙️</button>' +
+      '<button type="button" class="bc-mute-btn" id="bcEditBtn" aria-label="Edit questions">✎</button>' +
       '</div>' +
       '<div class="bc-guide hidden" id="bcGuide">' +
       '<h2>📘 Exam Guide</h2>' +
@@ -130,7 +172,7 @@
       '</div>' +
       '<div class="bc-guide hidden" id="bcSettings">' +
       '<h2>⚙️ Game Settings</h2>' +
-      '<p>Easy gives more lives, slower/less frequent barrels and fewer flames; Hard gives the opposite. Takes effect on your next game.</p>' +
+      '<p>Easy gives slower/less frequent barrels and fewer flames; Hard gives the opposite. Lives are unlimited on every setting — a hit just means answering one question before you continue. Takes effect on your next game.</p>' +
       '<div class="bc-diff-row">' +
       '<button type="button" class="bc-tab bc-diff-btn" data-diff="easy">Easy</button>' +
       '<button type="button" class="bc-tab bc-diff-btn" data-diff="normal">Normal</button>' +
@@ -154,6 +196,25 @@
       '<button type="button" class="bc-touch-btn" id="bcRightBtn">▶</button>' +
       '<div></div><button type="button" class="bc-touch-btn" id="bcDownBtn">▼</button><div></div>' +
       '</div>' +
+      '<div class="bc-mcq-overlay hidden" id="bcMcqOverlay">' +
+      '<div class="bc-mcq-card">' +
+      '<h2>📝 Quick Check</h2>' +
+      '<p class="bc-mcq-note">Answer correctly to get back in — try as many times as you need.</p>' +
+      '<p class="bc-mcq-question" id="bcMcqQuestion"></p>' +
+      '<div class="bc-mcq-choices" id="bcMcqChoices"></div>' +
+      '<p class="bc-mcq-feedback" id="bcMcqFeedback"></p>' +
+      '</div>' +
+      '</div>' +
+      '<div class="bc-guide hidden" id="bcMcqEdit">' +
+      '<h2>✎ Edit questions</h2>' +
+      '<p>Change any question, its 4 choices, or which one is correct. Saved to this browser only — paste the box below into barrel-climb.js to make it the default for everyone.</p>' +
+      '<div id="bcMcqEditList"></div>' +
+      '<div class="bc-diff-row">' +
+      '<button type="button" class="bc-btn bc-btn-primary" id="bcMcqSaveBtn">Save changes</button>' +
+      '</div>' +
+      '<p class="bc-mcq-note">Copy-paste source:</p>' +
+      '<textarea class="bc-mcq-copy" id="bcMcqCopy" readonly rows="8"></textarea>' +
+      '</div>' +
       '</div>';
 
     var canvas = root.querySelector('#bcCanvas');
@@ -165,18 +226,29 @@
     var overlayTitle = root.querySelector('#bcOverlayTitle');
     var overlayMsg = root.querySelector('#bcOverlayMsg');
     var overlayBtn = root.querySelector('#bcOverlayBtn');
+    var mcqOverlay = root.querySelector('#bcMcqOverlay');
+    var mcqQuestionEl = root.querySelector('#bcMcqQuestion');
+    var mcqChoicesEl = root.querySelector('#bcMcqChoices');
+    var mcqFeedbackEl = root.querySelector('#bcMcqFeedback');
+    var mcqs = loadMcqs();
+    var mcqEditUnlocked = false;
 
     var highScore = 0;
     try { highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0; } catch (err) { highScore = 0; }
     highEl.textContent = highScore;
 
-    var score, lives, stage, player, barrels, fireballs, barrelSpawnAt, running, rafId, lastTime;
+    var score, misses, stage, player, barrels, fireballs, barrelSpawnAt, running, rafId, lastTime;
     var keys = { left: false, right: false, up: false, down: false };
     var jumpRequested = false;
 
     function updateHud() {
       scoreEl.textContent = score;
-      livesEl.textContent = new Array(Math.max(lives, 0) + 1).join('❤');
+      livesEl.textContent = misses;
+      if (score > highScore) {
+        highScore = score;
+        try { localStorage.setItem(HIGH_SCORE_KEY, String(highScore)); } catch (err) { /* ignore */ }
+        highEl.textContent = highScore;
+      }
     }
     function showOverlay(title, msg, btnLabel, action) {
       overlayTitle.textContent = title;
@@ -221,7 +293,7 @@
 
     function newGame() {
       score = 0;
-      lives = diffCfg().lives;
+      misses = 0;
       stage = 1;
       player = {};
       startStage();
@@ -357,29 +429,106 @@
     }
 
     function loseLife(now) {
-      lives -= 1;
+      misses += 1;
       playHurt();
       updateHud();
-      if (lives <= 0) { gameOver(); } else { resetPlayer(); }
+      running = false;
+      showMcqGate(function () {
+        resetPlayer();
+        running = true;
+        lastTime = performance.now();
+        if (rafId == null) rafId = requestAnimationFrame(loop);
+      });
     }
 
-    function gameOver() {
-      running = false;
-      playGameOver();
-      var beat = score > highScore;
-      if (beat) { highScore = score; try { localStorage.setItem(HIGH_SCORE_KEY, String(highScore)); } catch (err) {} highEl.textContent = highScore; }
-      showOverlay('Game over', 'Final score: ' + score + (beat ? ' — new high score!' : ' · High score: ' + highScore), 'Play again', function () {
-        newGame(); startRunning();
+    // --- MCQ gate -----------------------------------------------------
+    // Shown on every hit (barrel or flame). Picks a random question from
+    // the (possibly teacher-edited) bank, shuffles the displayed choice
+    // order so the correct answer's on-screen position never gives it
+    // away, and lets the student retry the SAME question as many times
+    // as needed — no penalty, no limit, just a short pause gate.
+    function showMcqGate(onCorrect) {
+      var q = mcqs[Math.floor(Math.random() * mcqs.length)];
+      var order = q.choices.map(function (text, i) { return { text: text, correct: i === q.answer }; });
+      for (var i = order.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+      }
+      mcqQuestionEl.textContent = q.q;
+      mcqFeedbackEl.textContent = '';
+      mcqFeedbackEl.className = 'bc-mcq-feedback';
+      mcqChoicesEl.innerHTML = '';
+      order.forEach(function (opt) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'bc-mcq-choice';
+        btn.textContent = opt.text;
+        btn.dataset.correct = opt.correct ? '1' : '0';
+        btn.addEventListener('click', function () {
+          if (opt.correct) {
+            mcqFeedbackEl.textContent = '✅ Correct!';
+            mcqFeedbackEl.className = 'bc-mcq-feedback is-correct';
+            playMcqRight();
+            setTimeout(function () {
+              mcqOverlay.classList.add('hidden');
+              if (onCorrect) onCorrect();
+            }, 500);
+          } else {
+            mcqFeedbackEl.textContent = '❌ Not quite — try again.';
+            mcqFeedbackEl.className = 'bc-mcq-feedback is-wrong';
+            playMcqWrong();
+          }
+        });
+        mcqChoicesEl.appendChild(btn);
       });
+      mcqOverlay.classList.remove('hidden');
+    }
+
+    // --- MCQ editor -----------------------------------------------------
+    function renderMcqEditList() {
+      var listEl = root.querySelector('#bcMcqEditList');
+      listEl.innerHTML = '';
+      mcqs.forEach(function (q, qi) {
+        var block = document.createElement('div');
+        block.className = 'bc-mcq-edit-block';
+        var qLabel = document.createElement('label');
+        qLabel.textContent = 'Question ' + (qi + 1);
+        var qInput = document.createElement('input');
+        qInput.type = 'text';
+        qInput.className = 'bc-mcq-edit-q';
+        qInput.value = q.q;
+        qInput.addEventListener('input', function () { q.q = qInput.value; });
+        block.appendChild(qLabel);
+        block.appendChild(qInput);
+        q.choices.forEach(function (choiceText, ci) {
+          var row = document.createElement('div');
+          row.className = 'bc-mcq-edit-choice-row';
+          var radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = 'bcMcqCorrect' + qi;
+          radio.checked = q.answer === ci;
+          radio.addEventListener('change', function () { if (radio.checked) q.answer = ci; });
+          var cInput = document.createElement('input');
+          cInput.type = 'text';
+          cInput.value = choiceText;
+          cInput.addEventListener('input', function () { q.choices[ci] = cInput.value; });
+          row.appendChild(radio);
+          row.appendChild(cInput);
+          block.appendChild(row);
+        });
+        listEl.appendChild(block);
+      });
+    }
+    function refreshMcqCopy() {
+      root.querySelector('#bcMcqCopy').value = formatMcqs(mcqs);
     }
 
     function stageClear() {
       running = false;
       score += 500;
       playClear();
-      updateHud();
       var beat = score > highScore;
-      if (beat) { highScore = score; try { localStorage.setItem(HIGH_SCORE_KEY, String(highScore)); } catch (err) {} highEl.textContent = highScore; }
+      updateHud();
       showOverlay('Rescue complete! 🎉', 'Stage ' + stage + ' cleared — score ' + score + (beat ? ' — new high score!' : ''), 'Next stage', function () {
         stage += 1; startStage(); updateHud(); startRunning();
       });
@@ -521,6 +670,25 @@
         root.querySelectorAll('.bc-diff-btn').forEach(function (b) { b.classList.toggle('is-active', b === btn); });
       });
     });
+    root.querySelector('#bcEditBtn').addEventListener('click', function () {
+      var editCard = root.querySelector('#bcMcqEdit');
+      if (editCard.classList.contains('hidden')) {
+        if (!mcqEditUnlocked) {
+          var entered = window.prompt('Enter the edit password:');
+          if (entered !== MCQ_EDIT_PASSWORD) return;
+          mcqEditUnlocked = true;
+        }
+        renderMcqEditList();
+        refreshMcqCopy();
+        editCard.classList.remove('hidden');
+      } else {
+        editCard.classList.add('hidden');
+      }
+    });
+    root.querySelector('#bcMcqSaveBtn').addEventListener('click', function () {
+      saveMcqs(mcqs);
+      refreshMcqCopy();
+    });
 
     newGame();
     render();
@@ -529,10 +697,19 @@
     });
 
     window.TM.toolModules['barrel-climb'].debugState = function () {
-      return { player: player, barrels: barrels, fireballs: fireballs, rows: ROWS, ladders: LADDERS, score: score, lives: lives, goal: GOAL_POS, topRow: TOP_ROW };
+      return { player: player, barrels: barrels, fireballs: fireballs, rows: ROWS, ladders: LADDERS, score: score, misses: misses, goal: GOAL_POS, topRow: TOP_ROW, mcqGateOpen: !mcqOverlay.classList.contains('hidden') };
     };
     window.TM.toolModules['barrel-climb'].debugKeys = keys;
     window.TM.toolModules['barrel-climb'].debugJump = function () { jumpRequested = true; };
+    window.TM.toolModules['barrel-climb'].debugForceLoseLife = function () { loseLife(performance.now()); };
+    window.TM.toolModules['barrel-climb'].debugAnswerMcq = function (correct) {
+      var btns = mcqChoicesEl.querySelectorAll('.bc-mcq-choice');
+      for (var k = 0; k < btns.length; k++) {
+        var isRight = btns[k].dataset.correct === '1';
+        if (isRight === !!correct) { btns[k].click(); return true; }
+      }
+      return false;
+    };
 
     window.TM.toolModules['barrel-climb'].unmount = function () {
       running = false;

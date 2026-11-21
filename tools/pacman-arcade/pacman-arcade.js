@@ -65,12 +65,13 @@
   var HIGH_SCORE_KEY = 'tm.pacmanArcade.highScore';
 
   // Difficulty: slower/later ghosts and a longer power-pellet window on
-  // Easy; faster/sooner ghosts and a shorter window on Hard.
+  // Easy; faster/sooner ghosts and a shorter window on Hard. Lives are
+  // unlimited on every tier — a catch means one MCQ gate, not a limit.
   var DIFFICULTY_KEY = 'tm.pacmanArcade.difficulty';
   var DIFFICULTY_SETTINGS = {
-    easy: { lives: 4, ghostSpeed: 1.4, frightenedSpeed: 0.9, eyesSpeed: 3.2, frightenedMs: 9000, releaseIntervalMs: 12000 },
-    normal: { lives: 3, ghostSpeed: 1.7, frightenedSpeed: 1.0, eyesSpeed: 3.4, frightenedMs: 7000, releaseIntervalMs: 8000 },
-    hard: { lives: 2, ghostSpeed: 2.0, frightenedSpeed: 1.1, eyesSpeed: 3.6, frightenedMs: 5000, releaseIntervalMs: 5000 },
+    easy: { ghostSpeed: 1.4, frightenedSpeed: 0.9, eyesSpeed: 3.2, frightenedMs: 9000, releaseIntervalMs: 12000 },
+    normal: { ghostSpeed: 1.7, frightenedSpeed: 1.0, eyesSpeed: 3.4, frightenedMs: 7000, releaseIntervalMs: 8000 },
+    hard: { ghostSpeed: 2.0, frightenedSpeed: 1.1, eyesSpeed: 3.6, frightenedMs: 5000, releaseIntervalMs: 5000 },
   };
   var difficulty = 'normal';
   try {
@@ -115,6 +116,47 @@
   function playGhostEat() { beep(440, 0.07, 'square', 0.16); beep(660, 0.07, 'square', 0.16, 0.07); beep(880, 0.1, 'square', 0.18, 0.14); }
   function playLoseLife() { beep(280, 0.14, 'sawtooth', 0.18); beep(200, 0.16, 'sawtooth', 0.16, 0.1); beep(120, 0.22, 'sawtooth', 0.16, 0.22); }
   function playClear() { beep(523, 0.1, 'square', 0.18); beep(659, 0.1, 'square', 0.18, 0.1); beep(784, 0.1, 'square', 0.18, 0.2); beep(1046, 0.22, 'square', 0.2, 0.3); }
+  function playMcqRight() { beep(523, 0.09, 'square', 0.18); beep(784, 0.14, 'square', 0.18, 0.09); }
+  function playMcqWrong() { beep(180, 0.18, 'sawtooth', 0.18); }
+
+  // Every ghost catch is gated behind one of these 10 aircraft-power-plant
+  // MCQs — unlimited retries on the same question until the student gets
+  // it right, then the maze resumes. Editable in-browser via the
+  // password-gated "✎" edit panel (password APP, same casual click-guard
+  // as every other tool's edit mode).
+  var DEFAULT_MCQS = [
+    { q: 'What is a "spool" in a turbofan engine?', choices: ['A shaft plus its compressor and turbine stages spinning together', 'A type of fuel line', 'An oil filter', 'A cockpit gauge'], answer: 0 },
+    { q: 'What does the intake do?', choices: ['Lets air first enter the engine', 'Burns fuel', 'Cools oil', 'Detects fire'], answer: 0 },
+    { q: 'What produces thrust?', choices: ['Accelerating air rearward', 'The fire extinguisher', 'The starter motor', 'The oil pump'], answer: 0 },
+    { q: 'What is a rotor?', choices: ['The rotating set of blades on a compressor/turbine stage', 'A fixed vane', 'A fuel tank', 'A warning light'], answer: 0 },
+    { q: 'Where does exhaust gas exit?', choices: ['Through the nozzle', 'Through the intake', 'Through the oil filter', 'Through the fire loop'], answer: 0 },
+    { q: 'What is removable cowling for?', choices: ['Access and streamlining over the engine', 'Starting the engine', 'Detecting fire', 'Storing fuel'], answer: 0 },
+    { q: 'What\'s the "core" of a turbofan?', choices: ['Compressor, combustor and turbine together', 'Just the fan', 'The nacelle only', 'The fire bottle'], answer: 0 },
+    { q: 'What does an igniter do?', choices: ['Sparks to light the fuel-air mixture', 'Cools the turbine', 'Filters oil', 'Measures thrust'], answer: 0 },
+    { q: "What's a blade?", choices: ['A single airfoil-shaped component on a rotor/fan disc', 'A type of bolt', 'A fuel valve', 'A cockpit switch'], answer: 0 },
+    { q: "What's the shaft's job?", choices: ['Connects a turbine stage to its compressor', 'Stores fuel', 'Detects pressure', 'Cools the cabin'], answer: 0 },
+  ];
+  var MCQ_KEY = 'tm.pacmanArcade.mcqs';
+  var MCQ_EDIT_PASSWORD = 'APP';
+
+  function loadMcqs() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(MCQ_KEY) || 'null');
+      if (Array.isArray(saved) && saved.length === DEFAULT_MCQS.length) return saved;
+    } catch (err) { /* ignore */ }
+    return DEFAULT_MCQS.map(function (q) { return { q: q.q, choices: q.choices.slice(), answer: q.answer }; });
+  }
+  function saveMcqs(list) {
+    try { localStorage.setItem(MCQ_KEY, JSON.stringify(list)); } catch (err) { /* ignore */ }
+  }
+  function formatMcqs(list) {
+    var lines = ['  var DEFAULT_MCQS = ['];
+    list.forEach(function (q) {
+      lines.push('    { q: ' + JSON.stringify(q.q) + ', choices: ' + JSON.stringify(q.choices) + ', answer: ' + q.answer + ' },');
+    });
+    lines.push('  ];');
+    return lines.join('\n');
+  }
 
   var DIRS = {
     up: { dr: -1, dc: 0 },
@@ -137,14 +179,15 @@
     root.innerHTML =
       '<div class="pac-wrap">' +
       '<h1>👻 Maze Muncher</h1>' +
-      '<p class="pac-intro">Clear every dot while dodging the ghosts — one more ghost joins every so often, up to 5, so the longer a maze runs the hotter it gets. Grab a big pellet to turn the tables — chase them down for bonus points while they\'re blue. Arrow keys / WASD to move.</p>' +
+      '<p class="pac-intro">Clear every dot while dodging the ghosts — one more ghost joins every so often, up to 5, so the longer a maze runs the hotter it gets. Grab a big pellet to turn the tables — chase them down for bonus points while they\'re blue. Arrow keys / WASD to move. Lives are unlimited — getting caught means one quick knowledge-check question before you carry on.</p>' +
       '<div class="pac-hud">' +
       '<div class="pac-stat"><span class="pac-stat-label">Score</span><span class="pac-stat-value" id="pacScore">0</span></div>' +
       '<div class="pac-stat"><span class="pac-stat-label">High score</span><span class="pac-stat-value" id="pacHigh">0</span></div>' +
-      '<div class="pac-stat"><span class="pac-stat-label">Lives</span><span class="pac-stat-value" id="pacLives">●●●</span></div>' +
+      '<div class="pac-stat"><span class="pac-stat-label">Misses</span><span class="pac-stat-value" id="pacLives">0</span></div>' +
       '<button type="button" class="pac-mute-btn" id="pacMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="pac-mute-btn" id="pacGuideBtn" aria-label="Exam guide">📘</button>' +
       '<button type="button" class="pac-mute-btn" id="pacSettingsBtn" aria-label="Game settings">⚙️</button>' +
+      '<button type="button" class="pac-mute-btn" id="pacEditBtn" aria-label="Edit questions">✎</button>' +
       '</div>' +
       '<div class="pac-guide hidden" id="pacGuide">' +
       '<h2>📘 Exam Guide</h2>' +
@@ -176,6 +219,25 @@
       '<button type="button" class="pac-touch-btn" id="pacRightBtn">▶</button>' +
       '<div></div><button type="button" class="pac-touch-btn" id="pacDownBtn">▼</button><div></div>' +
       '</div>' +
+      '<div class="pac-mcq-overlay hidden" id="pacMcqOverlay">' +
+      '<div class="pac-mcq-card">' +
+      '<h2>📝 Quick Check</h2>' +
+      '<p class="pac-mcq-note">Answer correctly to get back in — try as many times as you need.</p>' +
+      '<p class="pac-mcq-question" id="pacMcqQuestion"></p>' +
+      '<div class="pac-mcq-choices" id="pacMcqChoices"></div>' +
+      '<p class="pac-mcq-feedback" id="pacMcqFeedback"></p>' +
+      '</div>' +
+      '</div>' +
+      '<div class="pac-guide hidden" id="pacMcqEdit">' +
+      '<h2>✎ Edit questions</h2>' +
+      '<p>Change any question, its 4 choices, or which one is correct. Saved to this browser only — paste the box below into pacman-arcade.js to make it the default for everyone.</p>' +
+      '<div id="pacMcqEditList"></div>' +
+      '<div class="pac-diff-row">' +
+      '<button type="button" class="pac-btn pac-btn-primary" id="pacMcqSaveBtn">Save changes</button>' +
+      '</div>' +
+      '<p class="pac-mcq-note">Copy-paste source:</p>' +
+      '<textarea class="pac-mcq-copy" id="pacMcqCopy" readonly rows="8"></textarea>' +
+      '</div>' +
       '</div>';
 
     var canvas = root.querySelector('#pacCanvas');
@@ -187,12 +249,18 @@
     var overlayTitle = root.querySelector('#pacOverlayTitle');
     var overlayMsg = root.querySelector('#pacOverlayMsg');
     var overlayBtn = root.querySelector('#pacOverlayBtn');
+    var mcqOverlay = root.querySelector('#pacMcqOverlay');
+    var mcqQuestionEl = root.querySelector('#pacMcqQuestion');
+    var mcqChoicesEl = root.querySelector('#pacMcqChoices');
+    var mcqFeedbackEl = root.querySelector('#pacMcqFeedback');
+    var mcqs = loadMcqs();
+    var mcqEditUnlocked = false;
 
     var highScore = 0;
     try { highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0; } catch (err) { highScore = 0; }
     highEl.textContent = highScore;
 
-    var dots, pelletsLeft, score, lives, player, ghosts, mode, modeTimer, frightenedUntil, eatMultiplier, running, rafId, lastTime;
+    var dots, pelletsLeft, score, misses, player, ghosts, mode, modeTimer, frightenedUntil, eatMultiplier, running, rafId, lastTime;
 
     function tileCenter(r, c) { return { x: c * TILE + TILE / 2, y: r * TILE + TILE / 2 }; }
 
@@ -236,7 +304,7 @@
 
     function startGame() {
       score = 0;
-      lives = diffCfg().lives;
+      misses = 0;
       startLevel();
       updateHud();
       overlay.classList.add('hidden');
@@ -247,7 +315,12 @@
 
     function updateHud() {
       scoreEl.textContent = score;
-      livesEl.textContent = new Array(Math.max(lives, 0) + 1).join('●');
+      livesEl.textContent = misses;
+      if (score > highScore) {
+        highScore = score;
+        try { localStorage.setItem(HIGH_SCORE_KEY, String(highScore)); } catch (err) { /* ignore */ }
+        highEl.textContent = highScore;
+      }
     }
 
     function showOverlay(title, msg, btnLabel, action) {
@@ -411,17 +484,98 @@
     }
 
     function loseLife() {
-      lives -= 1;
+      misses += 1;
       playLoseLife();
       updateHud();
-      if (lives <= 0) {
-        running = false;
-        var beat = score > highScore;
-        if (beat) { highScore = score; try { localStorage.setItem(HIGH_SCORE_KEY, String(highScore)); } catch (err) {} highEl.textContent = highScore; }
-        showOverlay('Game over', 'Final score: ' + score + (beat ? ' — new high score!' : ' · High score: ' + highScore), 'Play again', startGame);
-      } else {
+      running = false;
+      showMcqGate(function () {
         resetPositions();
+        running = true;
+        lastTime = performance.now();
+        if (rafId == null) rafId = requestAnimationFrame(loop);
+      });
+    }
+
+    // --- MCQ gate -----------------------------------------------------
+    // Shown on every ghost catch. Picks a random question from the
+    // (possibly teacher-edited) bank, shuffles the displayed choice order
+    // so the correct answer's on-screen position never gives it away,
+    // and lets the student retry the SAME question as many times as
+    // needed — no penalty, no limit, just a short pause gate.
+    function showMcqGate(onCorrect) {
+      var q = mcqs[Math.floor(Math.random() * mcqs.length)];
+      var order = q.choices.map(function (text, i) { return { text: text, correct: i === q.answer }; });
+      for (var i = order.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = order[i]; order[i] = order[j]; order[j] = tmp;
       }
+      mcqQuestionEl.textContent = q.q;
+      mcqFeedbackEl.textContent = '';
+      mcqFeedbackEl.className = 'pac-mcq-feedback';
+      mcqChoicesEl.innerHTML = '';
+      order.forEach(function (opt) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'pac-mcq-choice';
+        btn.textContent = opt.text;
+        btn.dataset.correct = opt.correct ? '1' : '0';
+        btn.addEventListener('click', function () {
+          if (opt.correct) {
+            mcqFeedbackEl.textContent = '✅ Correct!';
+            mcqFeedbackEl.className = 'pac-mcq-feedback is-correct';
+            playMcqRight();
+            setTimeout(function () {
+              mcqOverlay.classList.add('hidden');
+              if (onCorrect) onCorrect();
+            }, 500);
+          } else {
+            mcqFeedbackEl.textContent = '❌ Not quite — try again.';
+            mcqFeedbackEl.className = 'pac-mcq-feedback is-wrong';
+            playMcqWrong();
+          }
+        });
+        mcqChoicesEl.appendChild(btn);
+      });
+      mcqOverlay.classList.remove('hidden');
+    }
+
+    // --- MCQ editor -----------------------------------------------------
+    function renderMcqEditList() {
+      var listEl = root.querySelector('#pacMcqEditList');
+      listEl.innerHTML = '';
+      mcqs.forEach(function (q, qi) {
+        var block = document.createElement('div');
+        block.className = 'pac-mcq-edit-block';
+        var qLabel = document.createElement('label');
+        qLabel.textContent = 'Question ' + (qi + 1);
+        var qInput = document.createElement('input');
+        qInput.type = 'text';
+        qInput.className = 'pac-mcq-edit-q';
+        qInput.value = q.q;
+        qInput.addEventListener('input', function () { q.q = qInput.value; });
+        block.appendChild(qLabel);
+        block.appendChild(qInput);
+        q.choices.forEach(function (choiceText, ci) {
+          var row = document.createElement('div');
+          row.className = 'pac-mcq-edit-choice-row';
+          var radio = document.createElement('input');
+          radio.type = 'radio';
+          radio.name = 'pacMcqCorrect' + qi;
+          radio.checked = q.answer === ci;
+          radio.addEventListener('change', function () { if (radio.checked) q.answer = ci; });
+          var cInput = document.createElement('input');
+          cInput.type = 'text';
+          cInput.value = choiceText;
+          cInput.addEventListener('input', function () { q.choices[ci] = cInput.value; });
+          row.appendChild(radio);
+          row.appendChild(cInput);
+          block.appendChild(row);
+        });
+        listEl.appendChild(block);
+      });
+    }
+    function refreshMcqCopy() {
+      root.querySelector('#pacMcqCopy').value = formatMcqs(mcqs);
     }
 
     function levelClear() {
@@ -578,6 +732,25 @@
         root.querySelectorAll('.pac-diff-btn').forEach(function (b) { b.classList.toggle('is-active', b === btn); });
       });
     });
+    root.querySelector('#pacEditBtn').addEventListener('click', function () {
+      var editCard = root.querySelector('#pacMcqEdit');
+      if (editCard.classList.contains('hidden')) {
+        if (!mcqEditUnlocked) {
+          var entered = window.prompt('Enter the edit password:');
+          if (entered !== MCQ_EDIT_PASSWORD) return;
+          mcqEditUnlocked = true;
+        }
+        renderMcqEditList();
+        refreshMcqCopy();
+        editCard.classList.remove('hidden');
+      } else {
+        editCard.classList.add('hidden');
+      }
+    });
+    root.querySelector('#pacMcqSaveBtn').addEventListener('click', function () {
+      saveMcqs(mcqs);
+      refreshMcqCopy();
+    });
 
     bindTouch(root.querySelector('#pacUpBtn'), 'up');
     bindTouch(root.querySelector('#pacDownBtn'), 'down');
@@ -590,7 +763,18 @@
     render(0);
     showOverlay('Ready?', 'Clear the maze, dodge the ghosts, chase them down when they turn blue.', 'Start', startGame);
 
-    window.TM.toolModules['pacman-arcade'].debugState = function () { return { player: player, ghosts: ghosts, dots: dots }; };
+    window.TM.toolModules['pacman-arcade'].debugState = function () {
+      return { player: player, ghosts: ghosts, dots: dots, misses: misses, mcqGateOpen: !mcqOverlay.classList.contains('hidden') };
+    };
+    window.TM.toolModules['pacman-arcade'].debugForceLoseLife = function () { loseLife(); };
+    window.TM.toolModules['pacman-arcade'].debugAnswerMcq = function (correct) {
+      var btns = mcqChoicesEl.querySelectorAll('.pac-mcq-choice');
+      for (var k = 0; k < btns.length; k++) {
+        var isRight = btns[k].dataset.correct === '1';
+        if (isRight === !!correct) { btns[k].click(); return true; }
+      }
+      return false;
+    };
 
     window.TM.toolModules['pacman-arcade'].unmount = function () {
       running = false;
