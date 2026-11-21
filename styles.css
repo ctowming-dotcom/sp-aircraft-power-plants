@@ -91,6 +91,26 @@ main#app {
   margin-top: 1.75rem;
 }
 
+.game-box {
+  margin-top: 2.5rem;
+  padding: 1.75rem;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.game-box-title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.5rem;
+  margin: 0;
+  color: var(--text);
+}
+
+.game-box .catalog-grid {
+  margin-top: 1.25rem;
+}
+
 .tool-card {
   display: flex;
   flex-direction: column;

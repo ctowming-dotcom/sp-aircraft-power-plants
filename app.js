@@ -17,22 +17,29 @@
     var toolView = document.getElementById('tool-view');
     var toolContainer = document.getElementById('tool-container');
     var catalogGrid = document.getElementById('catalog-grid');
+    var gamesGrid = document.getElementById('games-grid');
     var backButton = document.getElementById('back-to-tools');
 
     var activeModule = null;
 
+    function buildCard(tool) {
+      var card = document.createElement('a');
+      card.className = 'tool-card';
+      card.href = '#' + tool.id;
+      card.innerHTML =
+        '<span class="tool-card-icon">' + tool.icon + '</span>' +
+        '<h2>' + TM.escapeHtml(tool.name) + '</h2>' +
+        '<p>' + TM.escapeHtml(tool.description) + '</p>' +
+        '<span class="tool-card-cta">Open <span class="arrow">→</span></span>';
+      return card;
+    }
+
     function renderCatalog() {
       catalogGrid.innerHTML = '';
+      gamesGrid.innerHTML = '';
       TM.tools.forEach(function (tool) {
-        var card = document.createElement('a');
-        card.className = 'tool-card';
-        card.href = '#' + tool.id;
-        card.innerHTML =
-          '<span class="tool-card-icon">' + tool.icon + '</span>' +
-          '<h2>' + TM.escapeHtml(tool.name) + '</h2>' +
-          '<p>' + TM.escapeHtml(tool.description) + '</p>' +
-          '<span class="tool-card-cta">Open <span class="arrow">→</span></span>';
-        catalogGrid.appendChild(card);
+        var grid = tool.category === 'game' ? gamesGrid : catalogGrid;
+        grid.appendChild(buildCard(tool));
       });
     }
 
