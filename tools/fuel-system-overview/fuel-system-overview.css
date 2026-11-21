@@ -307,3 +307,174 @@
   line-height: 1.5;
   color: #1a2330;
 }
+
+/* --- "Label the Fuel System" timed challenge --- */
+
+.fuel-diagram .box.is-blanked .title-t {
+  opacity: 0;
+}
+
+.fuel-diagram .box.is-blanked rect,
+.fuel-diagram .box.is-blanked circle {
+  stroke-dasharray: 5 4;
+  stroke: #f2b134;
+}
+
+.fuel-diagram .box.is-solved-flash rect,
+.fuel-diagram .box.is-solved-flash circle {
+  fill: var(--green);
+  stroke: var(--green);
+  transition: fill 0.1s ease, stroke 0.1s ease;
+}
+
+.fuel-diagram .fd-list-item.is-masked {
+  opacity: 0.55;
+}
+
+.fuel-diagram .fd-list-item.is-masked .fd-list-name {
+  color: var(--muted);
+}
+
+.fd-game-panel {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--line);
+}
+
+.fd-game-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.fd-game-intro {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.fd-game-hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.fd-game-stat {
+  background: var(--page);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 14px;
+  text-align: center;
+  min-width: 90px;
+}
+
+.fd-game-stat-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.fd-game-stat-value {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.fd-game-btn {
+  font: inherit;
+  font-weight: 700;
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 18px;
+  cursor: pointer;
+  background: var(--ink);
+  color: var(--card);
+  margin-left: auto;
+}
+
+.fd-game-btn:hover {
+  background: #d7e8f5;
+}
+
+.fd-game-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.fd-game-result {
+  min-height: 1.4em;
+  margin: 0 0 10px;
+  font-weight: 700;
+  color: #f2b134;
+}
+
+.fd-game-bank {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 2.6em;
+}
+
+.fd-game-tile {
+  font-size: 13.5px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: #1d3e61;
+  border: 1px solid var(--box);
+  color: var(--ink);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.fd-game-tile.is-dragging-source {
+  opacity: 0.35;
+}
+
+.fd-game-tile.is-wrong-flash {
+  animation: fd-game-shake 0.4s ease;
+  border-color: var(--red);
+}
+
+.fd-game-tile-drag {
+  z-index: 999;
+  pointer-events: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+@keyframes fd-game-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+
+/* While a challenge is running, pin the HUD/bank to the bottom of the
+   viewport — same reasoning as the Oil System tool's copy of this. */
+.fd-game-panel.is-floating {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  margin: 0;
+  padding: 10px 24px 14px;
+  border-top: 2px solid #f2b134;
+  background: var(--page);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.45);
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.fd-game-panel.is-floating .fd-game-intro {
+  display: none;
+}

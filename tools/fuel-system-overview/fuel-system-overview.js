@@ -123,6 +123,19 @@
       '<h3 class="fd-ref-title">Component reference</h3>' +
       '<ul class="fd-list"></ul>' +
       '</div>' +
+      '<div class="fd-game-panel">' +
+      '<h3 class="fd-game-title">🎮 Label the Fuel System — Timed Challenge</h3>' +
+      '<p class="fd-game-intro">Drag each label below onto the matching box in the diagram above before time runs out — faster correct placements score more points. The reference list and hover tooltips are hidden for these parts while a challenge is running.</p>' +
+      '<div class="fd-game-hud">' +
+      '<div class="fd-game-stat"><span class="fd-game-stat-label">Score</span><span class="fd-game-stat-value" id="fdGameScore">0</span></div>' +
+      '<div class="fd-game-stat"><span class="fd-game-stat-label">Placed</span><span class="fd-game-stat-value" id="fdGamePlaced">0/0</span></div>' +
+      '<div class="fd-game-stat"><span class="fd-game-stat-label">Time</span><span class="fd-game-stat-value" id="fdGameTime">--</span></div>' +
+      '<div class="fd-game-stat"><span class="fd-game-stat-label">Best</span><span class="fd-game-stat-value" id="fdGameBest">--</span></div>' +
+      '<button type="button" class="fd-game-btn" id="fdGameStartBtn">▶ Start challenge</button>' +
+      '</div>' +
+      '<p class="fd-game-result" id="fdGameResult"></p>' +
+      '<div class="fd-game-bank" id="fdGameBank"></div>' +
+      '</div>' +
       '</div>';
 
     var root = container.querySelector('.fuel-diagram');
@@ -165,12 +178,24 @@
       tooltip.style.display = 'none';
     }
 
-    listEl.innerHTML = Object.keys(titles).map(function (key) {
-      return '<li class="fd-list-item" data-comp="' + key + '">' +
-        '<span class="fd-list-name">' + TM.escapeHtml(titles[key]) + '</span>' +
-        '<span class="fd-list-desc">' + TM.escapeHtml(descriptions[key]) + '</span>' +
-        '</li>';
-    }).join('');
+    // While the "Label the Fuel System" challenge below is running, the
+    // entries for its target components are masked out so the list can't
+    // be used to peek at the answer — see the game section further down.
+    var gameMaskedKeys = null; // null = no masking (game not running)
+    function renderList() {
+      listEl.innerHTML = Object.keys(titles).map(function (key) {
+        var masked = gameMaskedKeys && gameMaskedKeys[key];
+        var nameHtml = masked ? '🔒 ?????' : TM.escapeHtml(titles[key]);
+        var descHtml = masked
+          ? 'Hidden while the Label the Fuel System challenge is running — drag the correct tile onto the diagram instead.'
+          : TM.escapeHtml(descriptions[key]);
+        return '<li class="fd-list-item' + (masked ? ' is-masked' : '') + '" data-comp="' + key + '">' +
+          '<span class="fd-list-name">' + nameHtml + '</span>' +
+          '<span class="fd-list-desc">' + descHtml + '</span>' +
+          '</li>';
+      }).join('');
+    }
+    renderList();
 
     var lpsov = root.querySelector('#lpsov');
     var hpsov = root.querySelector('#hpsov');
@@ -200,16 +225,31 @@
 
     root.querySelectorAll('.box').forEach(function (box) {
       var key = box.getAttribute('data-comp');
-      box.addEventListener('mouseenter', function (e) { setActive(key, true); showExplain(key); showTip(e, key); });
+      box.addEventListener('mouseenter', function (e) {
+        if (gameMaskedKeys && gameMaskedKeys[key]) return; // don't spoil the challenge
+        setActive(key, true); showExplain(key); showTip(e, key);
+      });
       box.addEventListener('mousemove', positionTip);
-      box.addEventListener('mouseleave', function () { setActive(key, false); hideExplain(); hideTip(); });
+      box.addEventListener('mouseleave', function () {
+        if (gameMaskedKeys && gameMaskedKeys[key]) return;
+        setActive(key, false); hideExplain(); hideTip();
+      });
     });
 
-    root.querySelectorAll('.fd-list-item').forEach(function (li) {
+    // Delegated (rather than bound per-<li>) since renderList() rebuilds
+    // the list's innerHTML whenever the challenge below starts/ends.
+    listEl.addEventListener('mouseover', function (e) {
+      var li = e.target.closest('.fd-list-item');
+      if (!li || li.classList.contains('is-masked')) return;
       var key = li.getAttribute('data-comp');
-      li.addEventListener('mouseenter', function (e) { setActive(key, true); showExplain(key); showTip(e, key); });
-      li.addEventListener('mousemove', positionTip);
-      li.addEventListener('mouseleave', function () { setActive(key, false); hideExplain(); hideTip(); });
+      setActive(key, true); showExplain(key); showTip(e, key);
+    });
+    listEl.addEventListener('mousemove', positionTip);
+    listEl.addEventListener('mouseout', function (e) {
+      var li = e.target.closest('.fd-list-item');
+      if (!li || li.classList.contains('is-masked')) return;
+      var key = li.getAttribute('data-comp');
+      setActive(key, false); hideExplain(); hideTip();
     });
 
     function setBoxColor(el, color) {
@@ -288,6 +328,235 @@
     btnShutdown.addEventListener('click', function () { setState('shutdown'); });
 
     setState('start');
+
+    // --- "Label the Fuel System" timed drag-and-drop challenge ---------
+    // Every `.box` already carries a `data-comp` key, so it doubles as the
+    // game's own target id — no extra tagging needed, unlike the Oil
+    // System tool (where only a subset of boxes were targets). Reuses
+    // that tool's same pointer-based drag pattern (pointerdown clones the
+    // tile and follows the pointer; pointerup hit-tests via
+    // document.elementFromPoint) rather than HTML5 drag-and-drop, since
+    // that's unreliable on touch without a polyfill.
+    var GAME_SECONDS_PER_ITEM = 12;
+    var GAME_BEST_KEY = 'tm.fuelSystem.gameBest';
+    var gameBankEl = root.querySelector('#fdGameBank');
+    var gameScoreEl = root.querySelector('#fdGameScore');
+    var gamePlacedEl = root.querySelector('#fdGamePlaced');
+    var gameTimeEl = root.querySelector('#fdGameTime');
+    var gameBestEl = root.querySelector('#fdGameBest');
+    var gameResultEl = root.querySelector('#fdGameResult');
+    var gameStartBtn = root.querySelector('#fdGameStartBtn');
+    var gamePanelEl = root.querySelector('.fd-game-panel');
+
+    var gameActive = false;
+    var gameScore = 0, gamePlaced = 0, gameTotal = 0;
+    var gameDuration = 0, gameDeadline = 0, gameTimerId = null;
+    var dragState = null;
+    var gameKeys = Object.keys(titles);
+
+    function loadGameBest() {
+      try { return Number(localStorage.getItem(GAME_BEST_KEY)) || 0; } catch (err) { return 0; }
+    }
+    function saveGameBest(val) {
+      try { localStorage.setItem(GAME_BEST_KEY, String(val)); } catch (err) { /* ignore */ }
+    }
+    function updateGameBestDisplay() {
+      var best = loadGameBest();
+      gameBestEl.textContent = best > 0 ? best : '--';
+    }
+    function shuffled(arr) {
+      var a = arr.slice();
+      for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+      }
+      return a;
+    }
+
+    // Tiny self-contained Web Audio beeps — same no-audio-files pattern
+    // every other game in this portal uses.
+    var gameAudioCtx = null;
+    function ensureGameAudio() {
+      if (!gameAudioCtx) {
+        try { gameAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) { return null; }
+      }
+      if (gameAudioCtx.state === 'suspended') gameAudioCtx.resume();
+      return gameAudioCtx;
+    }
+    function gameBeep(freq, dur, type, vol, delay) {
+      var ctx = ensureGameAudio();
+      if (!ctx) return;
+      var t0 = ctx.currentTime + (delay || 0);
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = type || 'square';
+      osc.frequency.setValueAtTime(freq, t0);
+      gain.gain.setValueAtTime(0, t0);
+      gain.gain.linearRampToValueAtTime(vol == null ? 0.16 : vol, t0 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(t0); osc.stop(t0 + dur + 0.03);
+    }
+    function playGameRight() { gameBeep(660, 0.08, 'square', 0.15); }
+    function playGameWrong() { gameBeep(180, 0.16, 'sawtooth', 0.16); }
+    function playGameClear() { gameBeep(523, 0.09, 'square', 0.18); gameBeep(784, 0.11, 'square', 0.18, 0.09); gameBeep(1046, 0.16, 'square', 0.18, 0.18); }
+
+    function gameTargets() {
+      return Array.prototype.slice.call(root.querySelectorAll('.box'));
+    }
+
+    function buildBankTile(key) {
+      var tile = document.createElement('div');
+      tile.className = 'fd-game-tile';
+      tile.textContent = titles[key];
+      tile.dataset.targetId = key;
+      tile.addEventListener('pointerdown', onTilePointerDown);
+      return tile;
+    }
+
+    function onTilePointerDown(e) {
+      if (!gameActive || dragState) return;
+      e.preventDefault();
+      var tile = e.currentTarget;
+      var rect = tile.getBoundingClientRect();
+      var clone = tile.cloneNode(true);
+      clone.className = 'fd-game-tile fd-game-tile-drag';
+      clone.style.position = 'fixed';
+      clone.style.left = rect.left + 'px';
+      clone.style.top = rect.top + 'px';
+      clone.style.width = rect.width + 'px';
+      clone.style.height = rect.height + 'px';
+      document.body.appendChild(clone);
+      tile.classList.add('is-dragging-source');
+      dragState = { tile: tile, clone: clone, offsetX: e.clientX - rect.left, offsetY: e.clientY - rect.top };
+      document.addEventListener('pointermove', onDragPointerMove);
+      document.addEventListener('pointerup', onDragPointerUp);
+    }
+    function onDragPointerMove(e) {
+      if (!dragState) return;
+      dragState.clone.style.left = (e.clientX - dragState.offsetX) + 'px';
+      dragState.clone.style.top = (e.clientY - dragState.offsetY) + 'px';
+    }
+    function onDragPointerUp(e) {
+      if (!dragState) return;
+      document.removeEventListener('pointermove', onDragPointerMove);
+      document.removeEventListener('pointerup', onDragPointerUp);
+      var tile = dragState.tile, clone = dragState.clone;
+      clone.style.display = 'none'; // hide before hit-testing so it isn't picked up
+      var el = document.elementFromPoint(e.clientX, e.clientY);
+      clone.remove();
+      tile.classList.remove('is-dragging-source');
+      var targetGroup = el && el.closest ? el.closest('.box') : null;
+      dragState = null;
+      if (gameActive && targetGroup && targetGroup.classList.contains('is-blanked') && targetGroup.getAttribute('data-comp') === tile.dataset.targetId) {
+        handleCorrectPlacement(tile, targetGroup);
+      } else if (gameActive) {
+        tile.classList.add('is-wrong-flash');
+        setTimeout(function () { tile.classList.remove('is-wrong-flash'); }, 400);
+        playGameWrong();
+      }
+    }
+
+    function handleCorrectPlacement(tile, targetGroup) {
+      targetGroup.classList.remove('is-blanked');
+      targetGroup.classList.add('is-solved-flash');
+      setTimeout(function () { targetGroup.classList.remove('is-solved-flash'); }, 500);
+      tile.remove();
+      gamePlaced += 1;
+      var remainingFrac = Math.max(0, (gameDeadline - performance.now()) / gameDuration);
+      gameScore += Math.round(100 * (0.4 + 0.6 * remainingFrac));
+      playGameRight();
+      updateGameHud();
+      if (gamePlaced >= gameTotal) endGame('cleared');
+    }
+
+    function updateGameHud() {
+      gameScoreEl.textContent = gameScore;
+      gamePlacedEl.textContent = gamePlaced + '/' + gameTotal;
+      var remaining = Math.max(0, gameDeadline - performance.now());
+      gameTimeEl.textContent = gameActive ? Math.ceil(remaining / 1000) + 's' : '--';
+    }
+
+    function startGame() {
+      if (gameActive) return;
+      gameActive = true;
+      gameTotal = gameKeys.length;
+      gameScore = 0;
+      gamePlaced = 0;
+      gameResultEl.textContent = '';
+      gameStartBtn.disabled = true;
+      // Pinned to the bottom of the viewport while running — the Start
+      // button lives below the diagram and the full reference list, so
+      // without this the student would have to keep scrolling all the
+      // way back down to reach the word bank after scrolling up to the
+      // diagram.
+      gamePanelEl.classList.add('is-floating');
+
+      gameMaskedKeys = {};
+      gameKeys.forEach(function (k) { gameMaskedKeys[k] = true; });
+      renderList();
+
+      gameTargets().forEach(function (g) { g.classList.add('is-blanked'); });
+
+      gameBankEl.innerHTML = '';
+      shuffled(gameKeys).forEach(function (key) { gameBankEl.appendChild(buildBankTile(key)); });
+
+      gameDuration = GAME_SECONDS_PER_ITEM * 1000 * gameTotal;
+      gameDeadline = performance.now() + gameDuration;
+      updateGameHud();
+
+      if (gameTimerId != null) clearInterval(gameTimerId);
+      gameTimerId = setInterval(function () {
+        if (performance.now() >= gameDeadline) { endGame('timeup'); return; }
+        updateGameHud();
+      }, 200);
+    }
+
+    function endGame(reason) {
+      if (!gameActive) return;
+      gameActive = false;
+      if (gameTimerId != null) { clearInterval(gameTimerId); gameTimerId = null; }
+      gameTargets().forEach(function (g) { g.classList.remove('is-blanked'); });
+      gameMaskedKeys = null;
+      renderList();
+      gameBankEl.innerHTML = '';
+      gameStartBtn.disabled = false;
+      gamePanelEl.classList.remove('is-floating');
+      updateGameHud();
+
+      var best = loadGameBest();
+      var beat = gameScore > best;
+      if (beat) { saveGameBest(gameScore); updateGameBestDisplay(); }
+
+      if (reason === 'cleared') {
+        playGameClear();
+        gameResultEl.textContent = '🎉 All ' + gameTotal + ' labeled! Score: ' + gameScore + (beat ? ' — new best!' : '');
+      } else {
+        gameResultEl.textContent = '⏱ Time\'s up — placed ' + gamePlaced + '/' + gameTotal + '. Score: ' + gameScore + (beat ? ' — new best!' : '');
+      }
+    }
+
+    gameStartBtn.addEventListener('click', startGame);
+    updateGameBestDisplay();
+
+    // test/debug hooks only — read-only except debugForceTimeout, which
+    // only nudges the game's own deadline to let a test exercise the
+    // timeout path without a real multi-minute wait; no other gameplay
+    // effect.
+    window.TM.toolModules['fuel-system-overview'].debugGameState = function () {
+      return { gameActive: gameActive, gameScore: gameScore, gamePlaced: gamePlaced, gameTotal: gameTotal };
+    };
+    window.TM.toolModules['fuel-system-overview'].debugForceTimeout = function () {
+      gameDeadline = performance.now() - 1;
+    };
+
+    window.TM.toolModules['fuel-system-overview'].unmount = function () {
+      if (gameTimerId != null) { clearInterval(gameTimerId); gameTimerId = null; }
+      document.removeEventListener('pointermove', onDragPointerMove);
+      document.removeEventListener('pointerup', onDragPointerUp);
+      if (dragState && dragState.clone) dragState.clone.remove();
+      dragState = null;
+    };
   }
 
   window.TM.registerTool('fuel-system-overview', { mount: mount });
