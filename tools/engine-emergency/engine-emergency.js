@@ -131,6 +131,11 @@
       '<div class="ee-stat"><span class="ee-stat-label">High score</span><span class="ee-stat-value" id="eeHigh">0</span></div>' +
       '<div class="ee-stat"><span class="ee-stat-label">Lives</span><span class="ee-stat-value" id="eeLives">❤❤❤</span></div>' +
       '<button type="button" class="ee-mute-btn" id="eeMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
+      '<button type="button" class="ee-mute-btn" id="eeGuideBtn" aria-label="Exam guide">📘</button>' +
+      '</div>' +
+      '<div class="ee-card ee-guide hidden" id="eeGuide">' +
+      '<h2>📘 Exam Guide</h2>' +
+      '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
       '</div>' +
       '<div class="ee-card ee-start" id="eeStart">' +
       '<h2>Ready for your shift?</h2>' +
@@ -306,6 +311,9 @@
       try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch (err) { /* ignore */ }
       e.target.textContent = soundOn ? '🔊' : '🔇';
       if (soundOn) ensureAudio();
+    });
+    root.querySelector('#eeGuideBtn').addEventListener('click', function () {
+      root.querySelector('#eeGuide').classList.toggle('hidden');
     });
 
     updateHud();

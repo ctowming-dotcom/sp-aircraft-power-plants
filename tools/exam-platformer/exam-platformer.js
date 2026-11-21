@@ -179,7 +179,12 @@
       '<h1>🏁 Exam Clue Challenge</h1>' +
       '<p class="ep-intro">Clear a stage to reveal one exam clue. Arrow keys / A-D to move, Space or Up to jump — touching a spike or falling in a gap costs a life; 3 lives per attempt.</p>' +
       '<div class="ep-toolbar"><button type="button" class="ep-btn ep-btn-ghost" id="epMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
+      '<button type="button" class="ep-btn ep-btn-ghost" id="epGuideBtn">📘 Exam guide</button>' +
       '<button type="button" class="ep-btn ep-btn-ghost" id="epEditBtn">✎ Edit clues</button></div>' +
+      '<div class="ep-guide hidden" id="epGuideStage">' +
+      '<h2>📘 Exam Guide</h2>' +
+      '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
+      '</div>' +
       '<div class="ep-stagepicker" id="epStagePicker"></div>' +
       '<div class="ep-gameview hidden" id="epGameView">' +
       '<div class="ep-hud">' +
@@ -278,6 +283,10 @@
     }
     muteBtn.addEventListener('click', toggleSound);
     muteBtn2.addEventListener('click', toggleSound);
+
+    root.querySelector('#epGuideBtn').addEventListener('click', function () {
+      root.querySelector('#epGuideStage').classList.toggle('hidden');
+    });
 
     root.querySelector('#epEditBtn').addEventListener('click', function () {
       if (editUnlocked) { editUnlocked = false; renderEditPanel(); return; }

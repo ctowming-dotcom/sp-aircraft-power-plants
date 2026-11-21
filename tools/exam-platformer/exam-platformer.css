@@ -193,6 +193,28 @@
   flex-wrap: wrap;
 }
 
+.ep-guide {
+  margin-bottom: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.4rem;
+}
+
+.ep-guide.hidden {
+  display: none;
+}
+
+.ep-guide h2 {
+  font-family: var(--font-display);
+  margin: 0 0 0.6rem;
+}
+
+.ep-guide p {
+  color: var(--text-muted);
+  margin: 0;
+}
+
 .ep-edit-panel {
   margin-top: 1.4rem;
   background: var(--surface);

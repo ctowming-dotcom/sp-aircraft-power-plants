@@ -133,6 +133,11 @@
       '<div class="pac-stat"><span class="pac-stat-label">High score</span><span class="pac-stat-value" id="pacHigh">0</span></div>' +
       '<div class="pac-stat"><span class="pac-stat-label">Lives</span><span class="pac-stat-value" id="pacLives">●●●</span></div>' +
       '<button type="button" class="pac-mute-btn" id="pacMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
+      '<button type="button" class="pac-mute-btn" id="pacGuideBtn" aria-label="Exam guide">📘</button>' +
+      '</div>' +
+      '<div class="pac-guide hidden" id="pacGuide">' +
+      '<h2>📘 Exam Guide</h2>' +
+      '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
       '</div>' +
       '<div class="pac-stage">' +
       '<canvas id="pacCanvas" width="' + W + '" height="' + H + '"></canvas>' +
@@ -537,6 +542,9 @@
       try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch (err) { /* ignore */ }
       e.target.textContent = soundOn ? '🔊' : '🔇';
       if (soundOn) ensureAudio();
+    });
+    root.querySelector('#pacGuideBtn').addEventListener('click', function () {
+      root.querySelector('#pacGuide').classList.toggle('hidden');
     });
 
     bindTouch(root.querySelector('#pacUpBtn'), 'up');

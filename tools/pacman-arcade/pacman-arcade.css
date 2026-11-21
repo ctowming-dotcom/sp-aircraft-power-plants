@@ -60,6 +60,28 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
+.pac-guide {
+  margin-bottom: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.4rem;
+}
+
+.pac-guide.hidden {
+  display: none;
+}
+
+.pac-guide h2 {
+  font-family: var(--font-display);
+  margin: 0 0 0.6rem;
+}
+
+.pac-guide p {
+  color: var(--text-muted);
+  margin: 0;
+}
+
 .pac-stage {
   position: relative;
   display: flex;

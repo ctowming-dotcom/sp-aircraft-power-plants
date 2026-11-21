@@ -76,8 +76,13 @@
   text-align: center;
 }
 
+.ee-guide {
+  margin-bottom: 1.2rem;
+}
+
 .ee-start h2,
-.ee-over h2 {
+.ee-over h2,
+.ee-guide h2 {
   font-family: var(--font-display);
   margin: 0 0 0.6rem;
 }
@@ -86,6 +91,11 @@
 .ee-over p {
   color: var(--text-muted);
   margin: 0 0 1.2rem;
+}
+
+.ee-guide p {
+  color: var(--text-muted);
+  margin: 0;
 }
 
 .ee-btn {

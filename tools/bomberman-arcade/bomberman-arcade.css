@@ -60,6 +60,28 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
+.bm-guide {
+  margin-bottom: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.4rem;
+}
+
+.bm-guide.hidden {
+  display: none;
+}
+
+.bm-guide h2 {
+  font-family: var(--font-display);
+  margin: 0 0 0.6rem;
+}
+
+.bm-guide p {
+  color: var(--text-muted);
+  margin: 0;
+}
+
 .bm-stage {
   position: relative;
   display: flex;

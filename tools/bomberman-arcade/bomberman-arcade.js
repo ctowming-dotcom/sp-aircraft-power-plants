@@ -104,6 +104,11 @@
       '<div class="bm-stat"><span class="bm-stat-label">Time</span><span class="bm-stat-value" id="bmTime">0</span></div>' +
       '<div class="bm-stat"><span class="bm-stat-label">Lives</span><span class="bm-stat-value" id="bmLives">●●●</span></div>' +
       '<button type="button" class="bm-mute-btn" id="bmMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
+      '<button type="button" class="bm-mute-btn" id="bmGuideBtn" aria-label="Exam guide">📘</button>' +
+      '</div>' +
+      '<div class="bm-guide hidden" id="bmGuide">' +
+      '<h2>📘 Exam Guide</h2>' +
+      '<p>This section is empty for now — exam tips for this game will be added here by January 2027. Check back then!</p>' +
       '</div>' +
       '<div class="bm-stage">' +
       '<canvas id="bmCanvas" width="' + W + '" height="' + H + '"></canvas>' +
@@ -551,6 +556,9 @@
       try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch (err) { /* ignore */ }
       e.target.textContent = soundOn ? '🔊' : '🔇';
       if (soundOn) ensureAudio();
+    });
+    root.querySelector('#bmGuideBtn').addEventListener('click', function () {
+      root.querySelector('#bmGuide').classList.toggle('hidden');
     });
 
     bindTouch(root.querySelector('#bmUpBtn'), function () { if (player) player.want = 'up'; });
