@@ -12,7 +12,7 @@
   var CLIMB_SPEED = 2.2;
   var BARREL_SPEED = 1.8;
   var BARREL_LADDER_CHANCE = 0.18; // per ladder pass, chance a barrel descends it instead of rolling on
-  var HIGH_SCORE_KEY = 'tm.barrelClimb.highScore';
+  var HIGH_SCORE_KEY = 'tm.barrelClimb.highScore.v2';
   var RESPAWN_INVULN_MS = 1500;
 
   // Difficulty: slower/less frequent barrels and fewer flames on Easy;

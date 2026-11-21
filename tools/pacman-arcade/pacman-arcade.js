@@ -62,7 +62,7 @@
   var PLAYER_SPEED = 2.1;
   var SCATTER_MS = 7000;
   var CHASE_MS = 20000;
-  var HIGH_SCORE_KEY = 'tm.pacmanArcade.highScore';
+  var HIGH_SCORE_KEY = 'tm.pacmanArcade.highScore.v2';
 
   // Difficulty: slower/later ghosts and a longer power-pellet window on
   // Easy; faster/sooner ghosts and a shorter window on Hard. Lives are

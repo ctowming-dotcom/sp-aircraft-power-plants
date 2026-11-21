@@ -1420,6 +1420,90 @@ above already in place from day one rather than retrofitted afterward.
   `TM.Leaderboard.submitScore`, alongside the usual anonymous "High
   score" stat, with a password-gated "Reset top score…" control.
 
+### Bubble Shooter — new arcade game (`bubble-shooter`)
+
+By request ("create a bubble game", with a Puzzle-Bobble-style reference
+screenshot): an 8th arcade game, `tools/bubble-shooter/`, built the same
+way Tank Battle was — every leaderboard/MCQ-gate/settings-lock
+convention already in place from the start.
+
+- **Board**: 480×640 canvas, a hex-offset grid (9/8 alternating columns,
+  24px bubble radius), 4-5 colors depending on stage/difficulty. Aim by
+  moving the mouse/dragging over the canvas (angle clamped upward) or
+  ArrowLeft/ArrowRight as a keyboard fallback; click/tap/Space fires the
+  loaded bubble at a dedicated 🔥 button for touch. A fired bubble
+  bounces once off either side wall, snaps to the nearest open hex cell
+  on contact, and a same-color group of 3+ (BFS flood-fill over hex
+  neighbors) pops together; any bubble left disconnected from the
+  ceiling afterward falls away too, for a smaller bonus. Every 5-10
+  shots (difficulty-dependent) a fresh row is added at the top,
+  escalating pressure within a stage. A bubble reaching the row-11
+  danger line (marked with a dashed red line across the board) is this
+  game's life-loss event; clearing every bubble on the board clears the
+  stage and starts a denser one.
+- **Unlimited lives + persistent MCQ gate**: reaching the danger line
+  pauses the game and opens the same ✕-to-exit MCQ overlay as every
+  other game; resuming resets just the current stage's board to a fresh
+  attempt (keeping score/stage intact) and bumps "Misses". Its own
+  10-question `DEFAULT_MCQS` bank covers a fresh set of engine
+  vocabulary (nacelle, stator, rotor, diffuser, igniter plug, starter
+  cutout, pylon, accessory gearbox, manifold, EGT) distinct from every
+  other game's bank, including Tank Battle's.
+- **Settings + leaderboard**: a password-gated Easy/Normal/Hard picker
+  (color count / row-add cadence); a `bubbleShooter` leaderboard entry
+  submitted at every stage clear, alongside the usual anonymous "High
+  score" stat and a password-gated "Reset top score…" control.
+
+### Game scoring: per-revive penalty + leaderboard reset (Shooting); time bonus for the rest in progress
+
+By request ("for game that get score by ending the game, change the
+scoring system by adding time based completion and minus point for
+every live revive. Reset scores for all game."):
+
+- **Scope**: applies to every arcade game whose score is submitted to
+  the shared leaderboard at a stage-clear/win moment — Maze Muncher,
+  Super Bomberman, Barrel Climb, Tank Battle, Bubble Shooter, and
+  Shooting (a partial case, see below). Engine Emergency (no win
+  condition, a manual "Save my score" button) and Jump Challenge (a
+  pure per-stage completion-TIME leaderboard already, no point score at
+  all) were left alone — neither one "gets score by ending the game" in
+  the sense this request means.
+- **Shooting** (`western-saloon`): its 60-second fixed round was first
+  shortened to **30 seconds** by a follow-up request. Since the round
+  always runs its full fixed duration (there's no "finished faster"
+  moment to reward — the clock, not the player, ends the round), only
+  the revive penalty applies here, not a time bonus: `MISS_PENALTY = 30`
+  points subtracted per civilian hit survived (`misses`, reset at the
+  start of each round) from the raw in-game `score` before submitting
+  to the leaderboard — `finalScore = Math.max(0, score - misses *
+  MISS_PENALTY)`. The time's-up result message shows the arithmetic
+  ("Final score: 140 − 30 for 1 revive = 110") when any penalty applied,
+  so the deduction is never a silent surprise.
+- **All existing leaderboard scores reset, site-wide, in one change**:
+  rather than asking every visitor to manually clear anything, or only
+  resetting the games whose formula changed, `leaderboard.js`'s
+  `KEY_PREFIX` was bumped from `'tm.leaderboard.'` to
+  `'tm.leaderboard.v2.'` — every `TM.Leaderboard`-backed score (every
+  arcade game's "Top score", every chapter's crossword/Match the
+  Definition best, Jump Challenge's per-stage times) is stored under a
+  gameId that still carries its old name, so bumping the one shared
+  prefix orphans every existing stored record at once, for every
+  browser, the moment this ships — no separate per-game reset needed.
+  Each arcade game's own independent anonymous `HIGH_SCORE_KEY` (the
+  plain per-browser "High score" stat, which lives outside
+  `leaderboard.js` since it predates the shared module) was given a
+  matching `.v2` suffix by hand, one game at a time, for the same
+  reason. The study tools' own drag-and-drop game best scores
+  (`tm.oilSystem.gameBest.*`, `tm.fuelSystem.gameBest`) were *not*
+  touched — their scoring formula didn't change, so there was nothing
+  to invalidate there.
+- **Maze Muncher, Super Bomberman, Barrel Climb, Tank Battle, Bubble
+  Shooter**: each needs a genuine "finished faster = bonus points" time
+  component added on top of the same revive penalty, since (unlike
+  Shooting) their rounds don't run a fixed duration — see each file's
+  own `stageClear()`/`levelClear()`-equivalent for the eventual exact
+  formula once this lands.
+
 ### Phase 2 — Scaffolded topics, content pending
 
 No tools remain as placeholders — every catalog entry now has real

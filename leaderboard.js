@@ -14,7 +14,12 @@
   // already used by every arcade game's MCQ editor (MCQ_EDIT_PASSWORD).
 
   var SETTINGS_PASSWORD = 'APP';
-  var KEY_PREFIX = 'tm.leaderboard.';
+  // Bumped to v2 when every "ends by clearing the stage" game's scoring
+  // formula changed to include a time bonus and a per-revive penalty —
+  // old scores were computed under a different formula and are no
+  // longer comparable, so this orphans them for every visitor at once
+  // rather than requiring a manual per-game reset.
+  var KEY_PREFIX = 'tm.leaderboard.v2.';
   var LAST_NAME_KEY = 'tm.leaderboard.lastName';
   var MAX_NAME_LEN = 10;
 

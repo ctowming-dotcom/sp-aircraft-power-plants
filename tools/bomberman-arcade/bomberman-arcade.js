@@ -11,7 +11,7 @@
   var BASE_SPEED = 2.2;
   var BOMB_FUSE_MS = 2200;
   var EXPLOSION_MS = 450;
-  var HIGH_SCORE_KEY = 'tm.bombermanArcade.highScore';
+  var HIGH_SCORE_KEY = 'tm.bombermanArcade.highScore.v2';
   var INVULN_MS = 2000;
 
   // Difficulty: more starting time and fewer enemies per stage on Easy;

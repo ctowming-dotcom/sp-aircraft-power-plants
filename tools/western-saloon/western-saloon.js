@@ -23,7 +23,7 @@
 
   var AMMO_MAX = 6;
   var RELOAD_MS = 900;
-  var HIGH_SCORE_KEY = 'tm.westernSaloon.highScore';
+  var HIGH_SCORE_KEY = 'tm.westernSaloon.highScore.v2';
   var POP_IN_MS = 140;
 
   // Difficulty: slower/longer-lived targets and fewer bystanders mixed in
@@ -144,7 +144,7 @@
       '<p class="ws-intro">Outlaws keep popping up around the bar — shoot them fast for points before the clock runs out. Don\'t hit the bartender or the regulars! Six shots per cylinder, press R (or the Reload button) to reload. Aim with the mouse/touch, click to fire.</p>' +
       '<div class="ws-hud">' +
       '<div class="ws-stat"><span class="ws-stat-label">Score</span><span class="ws-stat-value" id="wsScore">0</span></div>' +
-      '<div class="ws-stat"><span class="ws-stat-label">Time</span><span class="ws-stat-value" id="wsTime">60</span></div>' +
+      '<div class="ws-stat"><span class="ws-stat-label">Time</span><span class="ws-stat-value" id="wsTime">30</span></div>' +
       '<div class="ws-stat"><span class="ws-stat-label">High score</span><span class="ws-stat-value" id="wsHigh">0</span></div>' +
       '<div class="ws-stat"><span class="ws-stat-label">Top score</span><span class="ws-stat-value" id="wsTop">--</span></div>' +
       '<div class="ws-stat"><span class="ws-stat-label">Misses</span><span class="ws-stat-value" id="wsLives">0</span></div>' +
@@ -225,7 +225,12 @@
     var settingsUnlocked = false;
     var pendingMcqOnCorrect = null;
     var LEADERBOARD_ID = 'westernSaloon';
-    var ROUND_SECONDS = 60;
+    var ROUND_SECONDS = 30;
+    // Every life lost (civilian hit → MCQ gate) costs points off the final
+    // submitted leaderboard score — the round's own fixed time budget
+    // already makes this a timed game, so there's no separate "finished
+    // faster" bonus to add on top, just the revive penalty.
+    var MISS_PENALTY = 30;
 
     var highScore = 0;
     try { highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0; } catch (err) { highScore = 0; }
@@ -277,11 +282,13 @@
       running = false;
       if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
       stopRoundTimer();
-      var result = TM.Leaderboard.submitScore(LEADERBOARD_ID, score, { higherIsBetter: true });
+      var finalScore = Math.max(0, score - misses * MISS_PENALTY);
+      var result = TM.Leaderboard.submitScore(LEADERBOARD_ID, finalScore, { higherIsBetter: true });
       updateTopDisplay();
       showOverlay(
         "⏰ Time's up!",
-        'Final score: ' + score + (result.submitted ? ' — new top score!' : '') + '.',
+        'Final score: ' + score + (misses ? (' − ' + (misses * MISS_PENALTY) + ' for ' + misses + ' revive' + (misses === 1 ? '' : 's')) : '') +
+          (misses ? (' = ' + finalScore) : '') + (result.submitted ? ' — new top score!' : '') + '.',
         'Play Again',
         startGame
       );

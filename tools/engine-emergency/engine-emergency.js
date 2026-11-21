@@ -80,7 +80,7 @@
     },
   ];
 
-  var HIGH_SCORE_KEY = 'tm.engineEmergency.highScore';
+  var HIGH_SCORE_KEY = 'tm.engineEmergency.highScore.v2';
 
   // Difficulty only tunes the time pressure now — lives are unlimited on
   // every tier (a miss is handled by the MCQ gate below instead).

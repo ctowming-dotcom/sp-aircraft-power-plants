@@ -17,7 +17,7 @@
   var BULLET_SIZE = 6;
   var BASE_COL = 6, BASE_ROW = GRID - 1;
 
-  var HIGH_SCORE_KEY = 'tm.tankBattle.highScore';
+  var HIGH_SCORE_KEY = 'tm.tankBattle.highScore.v2';
   var GAME_ID = 'tankBattle';
   var RESPAWN_INVULN_MS = 1500;
 
