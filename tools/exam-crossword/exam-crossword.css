@@ -216,7 +216,7 @@
   position: relative;
   width: 30px;
   height: 30px;
-  background: var(--surface);
+  background: #22456a;
   border: 1px solid rgba(234, 243, 251, 0.35);
 }
 
@@ -226,7 +226,13 @@
 }
 
 .xw-cell.is-active {
-  background: rgba(255, 123, 136, 0.18);
+  background: rgba(255, 123, 136, 0.38);
+}
+
+.xw-cell:focus-within {
+  background: rgba(255, 123, 136, 0.72);
+  box-shadow: 0 0 0 2px var(--accent), 0 0 10px rgba(255, 123, 136, 0.7);
+  z-index: 1;
 }
 
 .xw-cell.is-correct {
