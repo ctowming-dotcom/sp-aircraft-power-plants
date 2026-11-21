@@ -648,7 +648,10 @@
     bindHold(root.querySelector('#bcRightBtn'), 'right');
     bindHold(root.querySelector('#bcUpBtn'), 'up');
     bindHold(root.querySelector('#bcDownBtn'), 'down');
-    root.querySelector('#bcJumpBtn').addEventListener('click', function () { jumpRequested = true; });
+    // pointerdown (not click) so a tap registers instantly and
+    // independently of whichever other touch button is already held —
+    // same fix as Jump Challenge's jump button, for the same reason.
+    root.querySelector('#bcJumpBtn').addEventListener('pointerdown', function (e) { e.preventDefault(); jumpRequested = true; });
 
     root.querySelector('#bcMuteBtn').addEventListener('click', function (e) {
       soundOn = !soundOn;

@@ -333,10 +333,20 @@
 
     function playerTile() { return { r: Math.round((player.y - TILE / 2) / TILE), c: Math.round((player.x - TILE / 2) / TILE) }; }
     function entityTile(e) { return { r: Math.round((e.y - TILE / 2) / TILE), c: Math.round((e.x - TILE / 2) / TILE) }; }
-    function isCentered(e) {
+    // Tolerance scales with how far this entity moves in a single frame
+    // (speed * dt) rather than a fixed 1.2px — at the default ~60fps that's
+    // about the same, but a slow frame (dt clamped up to 2.5x) or a fast
+    // entity (eyes returning to the house move at up to eyesSpeed, nearly
+    // double normal ghost speed) can step clean over a fixed, narrow
+    // window in one frame and silently skip the "centered" instant a turn
+    // is evaluated on — which is exactly what made steering feel like it
+    // was ignoring key presses. A dynamic tolerance guarantees the window
+    // is always at least as wide as the step that's about to cross it.
+    function isCentered(e, speed, dt) {
       var t = entityTile(e);
       var center = tileCenter(t.r, t.c);
-      return Math.abs(e.x - center.x) < 1.2 && Math.abs(e.y - center.y) < 1.2;
+      var tol = Math.max(1.2, (speed || PLAYER_SPEED) * (dt || 1) * 0.6 + 0.6);
+      return Math.abs(e.x - center.x) < tol && Math.abs(e.y - center.y) < tol;
     }
 
     function canPlayerEnter(r, c) { return !isWall(r, c) && !isHouseTile(r, c); }
@@ -344,7 +354,7 @@
 
     function updatePlayer(dt) {
       var t = entityTile(player);
-      if (isCentered(player)) {
+      if (isCentered(player, PLAYER_SPEED, dt)) {
         var center = tileCenter(t.r, t.c);
         player.x = center.x; player.y = center.y;
         if (player.want && canPlayerEnter(t.r + DIRS[player.want].dr, t.c + DIRS[player.want].dc)) {
@@ -424,7 +434,7 @@
       if (g.state === 'frightened') speed = diffCfg().frightenedSpeed;
       else if (g.state === 'eyes' || g.state === 'exiting') speed = diffCfg().eyesSpeed;
 
-      if (isCentered(g)) {
+      if (isCentered(g, speed, dt)) {
         var t = entityTile(g);
         var center = tileCenter(t.r, t.c);
         g.x = center.x; g.y = center.y;

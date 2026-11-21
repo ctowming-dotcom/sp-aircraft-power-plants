@@ -605,7 +605,12 @@
     }
     bindHold(root.querySelector('#epLeftBtn'), function () { keys.left = true; }, function () { keys.left = false; });
     bindHold(root.querySelector('#epRightBtn'), function () { keys.right = true; }, function () { keys.right = false; });
-    root.querySelector('#epJumpBtn').addEventListener('click', function () { jumpRequested = true; });
+    // pointerdown (not click) so a tap registers instantly and
+    // independently of whichever other touch button is already held —
+    // a click only fires after a full tap completes on this one element,
+    // which made jumping while holding Left/Right feel unresponsive or
+    // get missed outright on touch devices.
+    root.querySelector('#epJumpBtn').addEventListener('pointerdown', function (e) { e.preventDefault(); jumpRequested = true; });
 
     root.querySelector('#epBackBtn').addEventListener('click', backToStages);
     root.querySelector('#epOverlayStages').addEventListener('click', backToStages);
