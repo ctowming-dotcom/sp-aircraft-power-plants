@@ -104,6 +104,23 @@
       '<button type="button" class="ss-play">▶ Play</button>' +
       '</div>' +
 
+      '<div class="ss-match-panel">' +
+      '<h3 class="ss-game-title">🧠 Match the Definition — Timed Challenge</h3>' +
+      '<p class="ss-game-intro">Click a part name on the left, then its matching description on the right (or the other way round) — a correct pair locks in green, a wrong one just flashes and resets. Each round picks a random mix of components.</p>' +
+      '<div class="ss-game-hud">' +
+      '<div class="ss-game-stat"><span class="ss-game-stat-label">Score</span><span class="ss-game-stat-value" id="ssMatchScore">0</span></div>' +
+      '<div class="ss-game-stat"><span class="ss-game-stat-label">Matched</span><span class="ss-game-stat-value" id="ssMatchSolved">0/0</span></div>' +
+      '<div class="ss-game-stat"><span class="ss-game-stat-label">Time</span><span class="ss-game-stat-value" id="ssMatchTime">--</span></div>' +
+      '<div class="ss-game-stat"><span class="ss-game-stat-label">Best</span><span class="ss-game-stat-value" id="ssMatchBest">--</span></div>' +
+      '<button type="button" class="ss-game-btn" id="ssMatchStartBtn">▶ Start challenge</button>' +
+      '</div>' +
+      '<p class="ss-game-result" id="ssMatchResult"></p>' +
+      '<div class="ss-match-columns">' +
+      '<div class="ss-match-col" id="ssMatchTerms"></div>' +
+      '<div class="ss-match-col" id="ssMatchDefs"></div>' +
+      '</div>' +
+      '</div>' +
+
       '<svg class="ss-svg" viewBox="0 0 1180 620" xmlns="http://www.w3.org/2000/svg">' +
       '<defs>' +
       '<marker id="ss-arrow-elec" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path class="ss-arrowhead-elec" d="M0,0 L6,3 L0,6 Z"></path></marker>' +
@@ -196,13 +213,38 @@
       tooltip.style.display = 'none';
     }
 
-    listEl.innerHTML = Object.keys(COMPONENTS).map(function (key) {
-      var c = COMPONENTS[key];
-      return '<li class="ss-list-item" data-comp="' + key + '">' +
-        '<span class="ss-list-name">' + TM.escapeHtml(c[0]) + '</span>' +
-        '<span class="ss-list-desc">' + TM.escapeHtml(c[1]) + '</span>' +
-        '</li>';
-    }).join('');
+    // Masked while the "Match the Definition" challenge below is running
+    // (see matchMaskedIds further down) so the list can't be used to peek
+    // at the answer; renderCompList() is re-invoked on round start/end to
+    // toggle this.
+    var matchMaskedIds = null;
+    function renderCompList() {
+      listEl.innerHTML = Object.keys(COMPONENTS).map(function (key) {
+        var c = COMPONENTS[key];
+        var masked = matchMaskedIds && matchMaskedIds[key];
+        var nameHtml = masked ? '🔒 ?????' : TM.escapeHtml(c[0]);
+        var descHtml = masked
+          ? 'Hidden while the Match the Definition challenge is running — match it in the challenge above instead.'
+          : TM.escapeHtml(c[1]);
+        return '<li class="ss-list-item' + (masked ? ' is-masked' : '') + '" data-comp="' + key + '">' +
+          '<span class="ss-list-name">' + nameHtml + '</span>' +
+          '<span class="ss-list-desc">' + descHtml + '</span>' +
+          '</li>';
+      }).join('');
+      root.querySelectorAll('.ss-list-item').forEach(function (li) {
+        var key = li.getAttribute('data-comp');
+        li.addEventListener('mouseenter', function (e) {
+          if (li.classList.contains('is-masked')) return;
+          setActive(key, true); showExplain(key); showTip(e, key);
+        });
+        li.addEventListener('mousemove', positionTip);
+        li.addEventListener('mouseleave', function () {
+          if (li.classList.contains('is-masked')) return;
+          setActive(key, false); hideExplain(); hideTip();
+        });
+      });
+    }
+    renderCompList();
 
     dotsEl.innerHTML = STEPS.map(function (_, i) {
       return '<button type="button" class="ss-dot" data-step="' + i + '" aria-label="Go to step ' + (i + 1) + '"></button>';
@@ -226,15 +268,15 @@
     }
     root.querySelectorAll('.ss-box').forEach(function (g) {
       var key = g.getAttribute('data-comp');
-      g.addEventListener('mouseenter', function (e) { setActive(key, true); showExplain(key); showTip(e, key); });
+      g.addEventListener('mouseenter', function (e) {
+        if (matchMaskedIds && matchMaskedIds[key]) return; // don't spoil the challenge
+        setActive(key, true); showExplain(key); showTip(e, key);
+      });
       g.addEventListener('mousemove', positionTip);
-      g.addEventListener('mouseleave', function () { setActive(key, false); hideExplain(); hideTip(); });
-    });
-    root.querySelectorAll('.ss-list-item').forEach(function (li) {
-      var key = li.getAttribute('data-comp');
-      li.addEventListener('mouseenter', function (e) { setActive(key, true); showExplain(key); showTip(e, key); });
-      li.addEventListener('mousemove', positionTip);
-      li.addEventListener('mouseleave', function () { setActive(key, false); hideExplain(); hideTip(); });
+      g.addEventListener('mouseleave', function () {
+        if (matchMaskedIds && matchMaskedIds[key]) return;
+        setActive(key, false); hideExplain(); hideTip();
+      });
     });
 
     var current = 0;
@@ -295,8 +337,209 @@
 
     applyStep(0);
 
+    // --- "Match the Definition" timed challenge --------------------------
+    // Independent of the Prev/Next/Play step-through above: click a part
+    // name then its matching description (or the reverse order —
+    // whichever comes second triggers the check). Same mechanic and
+    // scoring as the Oil System / Fuel System tools' own copy of this
+    // game. This tool's component set is fixed (doesn't vary with the
+    // step-through), so there's no per-config best-score key.
+    var MATCH_SECONDS_PER_ITEM = 14;
+    var MATCH_BEST_KEY = 'tm.startingSystem.matchBest';
+    var matchTermsEl = root.querySelector('#ssMatchTerms');
+    var matchDefsEl = root.querySelector('#ssMatchDefs');
+    var matchScoreEl = root.querySelector('#ssMatchScore');
+    var matchSolvedEl = root.querySelector('#ssMatchSolved');
+    var matchTimeEl = root.querySelector('#ssMatchTime');
+    var matchBestEl = root.querySelector('#ssMatchBest');
+    var matchResultEl = root.querySelector('#ssMatchResult');
+    var matchStartBtn = root.querySelector('#ssMatchStartBtn');
+
+    var matchActive = false;
+    var matchScore = 0, matchSolved = 0, matchTotal = 0;
+    var matchDuration = 0, matchDeadline = 0, matchTimerId = null;
+    var selTermEl = null, selDefEl = null, selTermId = null, selDefId = null;
+    var matchKeys = Object.keys(COMPONENTS);
+
+    function loadMatchBest() {
+      try { return Number(localStorage.getItem(MATCH_BEST_KEY)) || 0; } catch (err) { return 0; }
+    }
+    function saveMatchBest(val) {
+      try { localStorage.setItem(MATCH_BEST_KEY, String(val)); } catch (err) { /* ignore */ }
+    }
+    function updateMatchBestDisplay() {
+      var best = loadMatchBest();
+      matchBestEl.textContent = best > 0 ? best : '--';
+    }
+    function shuffled(arr) {
+      var a = arr.slice();
+      for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+      }
+      return a;
+    }
+
+    // Tiny self-contained Web Audio beeps — same no-audio-files pattern
+    // every other game in this portal uses.
+    var matchAudioCtx = null;
+    function ensureMatchAudio() {
+      if (!matchAudioCtx) {
+        try { matchAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) { return null; }
+      }
+      if (matchAudioCtx.state === 'suspended') matchAudioCtx.resume();
+      return matchAudioCtx;
+    }
+    function matchBeep(freq, dur, type, vol, delay) {
+      var ctx = ensureMatchAudio();
+      if (!ctx) return;
+      var t0 = ctx.currentTime + (delay || 0);
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = type || 'square';
+      osc.frequency.setValueAtTime(freq, t0);
+      gain.gain.setValueAtTime(0, t0);
+      gain.gain.linearRampToValueAtTime(vol == null ? 0.16 : vol, t0 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(t0); osc.stop(t0 + dur + 0.03);
+    }
+    function playMatchRight() { matchBeep(660, 0.08, 'square', 0.15); }
+    function playMatchWrong() { matchBeep(180, 0.16, 'sawtooth', 0.16); }
+    function playMatchClear() { matchBeep(523, 0.09, 'square', 0.18); matchBeep(784, 0.11, 'square', 0.18, 0.09); matchBeep(1046, 0.16, 'square', 0.18, 0.18); }
+
+    function updateMatchHud() {
+      matchScoreEl.textContent = matchScore;
+      matchSolvedEl.textContent = matchSolved + '/' + matchTotal;
+      var remaining = Math.max(0, matchDeadline - performance.now());
+      matchTimeEl.textContent = matchActive ? Math.ceil(remaining / 1000) + 's' : '--';
+    }
+
+    function clearMatchSelection() {
+      if (selTermEl) selTermEl.classList.remove('is-selected');
+      if (selDefEl) selDefEl.classList.remove('is-selected');
+      selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
+    }
+
+    function tryMatch() {
+      if (selTermId == null || selDefId == null) return;
+      if (selTermId === selDefId) {
+        selTermEl.classList.remove('is-selected'); selTermEl.classList.add('is-solved');
+        selDefEl.classList.remove('is-selected'); selDefEl.classList.add('is-solved');
+        matchSolved += 1;
+        var remainingFrac = Math.max(0, (matchDeadline - performance.now()) / matchDuration);
+        matchScore += Math.round(100 * (0.4 + 0.6 * remainingFrac));
+        playMatchRight();
+        selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
+        updateMatchHud();
+        if (matchSolved >= matchTotal) endMatch('cleared');
+      } else {
+        var badTerm = selTermEl, badDef = selDefEl;
+        badTerm.classList.add('is-wrong-flash');
+        badDef.classList.add('is-wrong-flash');
+        playMatchWrong();
+        setTimeout(function () {
+          badTerm.classList.remove('is-wrong-flash', 'is-selected');
+          badDef.classList.remove('is-wrong-flash', 'is-selected');
+        }, 400);
+        selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
+      }
+    }
+
+    function buildMatchTile(key, kind) {
+      var tile = document.createElement('button');
+      tile.type = 'button';
+      tile.className = 'ss-match-tile';
+      tile.textContent = kind === 'term' ? COMPONENTS[key][0] : COMPONENTS[key][1];
+      tile.dataset.id = key;
+      tile.addEventListener('click', function () {
+        if (!matchActive || tile.classList.contains('is-solved')) return;
+        if (kind === 'term') {
+          if (selTermEl) selTermEl.classList.remove('is-selected');
+          selTermEl = tile; selTermId = key;
+        } else {
+          if (selDefEl) selDefEl.classList.remove('is-selected');
+          selDefEl = tile; selDefId = key;
+        }
+        tile.classList.add('is-selected');
+        tryMatch();
+      });
+      return tile;
+    }
+
+    function startMatch() {
+      if (matchActive) return;
+      // A random subset each time (never fewer than 3, or the whole set
+      // if there are 3 or fewer) so repeat rounds don't always quiz the
+      // exact same parts.
+      var count = matchKeys.length <= 3 ? matchKeys.length : 3 + Math.floor(Math.random() * (matchKeys.length - 2));
+      var roundKeys = shuffled(matchKeys).slice(0, count);
+
+      matchActive = true;
+      matchTotal = roundKeys.length;
+      matchScore = 0;
+      matchSolved = 0;
+      clearMatchSelection();
+      matchResultEl.textContent = '';
+      matchStartBtn.disabled = true;
+
+      matchMaskedIds = {};
+      roundKeys.forEach(function (k) { matchMaskedIds[k] = true; });
+      renderCompList();
+
+      matchTermsEl.innerHTML = '';
+      matchDefsEl.innerHTML = '';
+      shuffled(roundKeys).forEach(function (k) { matchTermsEl.appendChild(buildMatchTile(k, 'term')); });
+      shuffled(roundKeys).forEach(function (k) { matchDefsEl.appendChild(buildMatchTile(k, 'def')); });
+
+      matchDuration = MATCH_SECONDS_PER_ITEM * 1000 * matchTotal;
+      matchDeadline = performance.now() + matchDuration;
+      updateMatchHud();
+
+      if (matchTimerId != null) clearInterval(matchTimerId);
+      matchTimerId = setInterval(function () {
+        if (performance.now() >= matchDeadline) { endMatch('timeup'); return; }
+        updateMatchHud();
+      }, 200);
+    }
+
+    function endMatch(reason) {
+      if (!matchActive) return;
+      matchActive = false;
+      if (matchTimerId != null) { clearInterval(matchTimerId); matchTimerId = null; }
+      clearMatchSelection();
+      matchTermsEl.querySelectorAll('.ss-match-tile:not(.is-solved)').forEach(function (el) { el.classList.add('is-revealed'); });
+      matchDefsEl.querySelectorAll('.ss-match-tile:not(.is-solved)').forEach(function (el) { el.classList.add('is-revealed'); });
+      matchMaskedIds = null;
+      renderCompList();
+      matchStartBtn.disabled = false;
+      updateMatchHud();
+
+      var best = loadMatchBest();
+      var beat = matchScore > best;
+      if (beat) { saveMatchBest(matchScore); updateMatchBestDisplay(); }
+
+      if (reason === 'cleared') {
+        playMatchClear();
+        matchResultEl.textContent = '🎉 All ' + matchTotal + ' matched! Score: ' + matchScore + (beat ? ' — new best!' : '');
+      } else {
+        matchResultEl.textContent = '⏱ Time\'s up — matched ' + matchSolved + '/' + matchTotal + '. Score: ' + matchScore + (beat ? ' — new best!' : '');
+      }
+    }
+
+    matchStartBtn.addEventListener('click', startMatch);
+    updateMatchBestDisplay();
+
+    window.TM.toolModules['starting-system'].debugMatchState = function () {
+      return { matchActive: matchActive, matchScore: matchScore, matchSolved: matchSolved, matchTotal: matchTotal };
+    };
+    window.TM.toolModules['starting-system'].debugForceMatchTimeout = function () {
+      matchDeadline = performance.now() - 1;
+    };
+
     window.TM.toolModules['starting-system'].unmount = function () {
       stopPlay();
+      if (matchTimerId != null) { clearInterval(matchTimerId); matchTimerId = null; }
     };
   }
 

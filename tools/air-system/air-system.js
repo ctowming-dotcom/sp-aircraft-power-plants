@@ -90,6 +90,23 @@
       '<button type="button" class="air-sys-edit-btn" title="Edit wording and marker positions">✎ Edit</button>' +
       '</div>' +
 
+      '<div class="air-sys-match-panel">' +
+      '<h3 class="air-sys-match-title">🧠 Match the Definition — Timed Challenge</h3>' +
+      '<p class="air-sys-match-intro">Click a function name on the left, then its matching description on the right (or the other way round) — a correct pair locks in green, a wrong one just flashes and resets. Each round picks a random mix of the current mode\'s functions.</p>' +
+      '<div class="air-sys-match-hud">' +
+      '<div class="air-sys-match-stat"><span class="air-sys-match-stat-label">Score</span><span class="air-sys-match-stat-value" id="airMatchScore">0</span></div>' +
+      '<div class="air-sys-match-stat"><span class="air-sys-match-stat-label">Matched</span><span class="air-sys-match-stat-value" id="airMatchSolved">0/0</span></div>' +
+      '<div class="air-sys-match-stat"><span class="air-sys-match-stat-label">Time</span><span class="air-sys-match-stat-value" id="airMatchTime">--</span></div>' +
+      '<div class="air-sys-match-stat"><span class="air-sys-match-stat-label">Best (this mode)</span><span class="air-sys-match-stat-value" id="airMatchBest">--</span></div>' +
+      '<button type="button" class="air-sys-match-btn" id="airMatchStartBtn">▶ Start challenge</button>' +
+      '</div>' +
+      '<p class="air-sys-match-result" id="airMatchResult"></p>' +
+      '<div class="air-sys-match-columns">' +
+      '<div class="air-sys-match-col" id="airMatchTerms"></div>' +
+      '<div class="air-sys-match-col" id="airMatchDefs"></div>' +
+      '</div>' +
+      '</div>' +
+
       '<div class="air-sys-body">' +
       '<div class="air-sys-stage">' +
       '<div class="air-sys-image-wrap">' +
@@ -136,6 +153,7 @@
 
     var editUnlocked = false;
     var currentMode = 'internal';
+    var matchMaskedIds = null; // null = no masking (match round not running)
 
     function showTip(evt, item) {
       tTitle.textContent = item.name;
@@ -274,25 +292,42 @@
 
       markerLayer.querySelectorAll('.air-sys-img-marker').forEach(function (el, i) {
         var item = items[i];
-        el.addEventListener('mouseenter', function (e) { if (!editUnlocked) { showTip(e, item); } setActive(item.id, true); });
+        el.addEventListener('mouseenter', function (e) {
+          if (matchMaskedIds && matchMaskedIds[item.id]) return; // don't spoil the challenge
+          if (!editUnlocked) { showTip(e, item); }
+          setActive(item.id, true);
+        });
         el.addEventListener('mousemove', positionTip);
-        el.addEventListener('mouseleave', function () { hideTip(); setActive(item.id, false); });
+        el.addEventListener('mouseleave', function () {
+          if (matchMaskedIds && matchMaskedIds[item.id]) return;
+          hideTip(); setActive(item.id, false);
+        });
         makeDraggable(el, item);
       });
 
+      // Masked while the "Match the Definition" challenge below is
+      // running a round that includes this item — swapped for a locked
+      // placeholder so the list can't be used to peek at the answer.
       listEl.innerHTML = items.map(function (item) {
-        return '<li class="air-sys-list-item" data-list="' + item.id + '">' +
-          '<span class="air-sys-list-name" data-field="name">' + TM.escapeHtml(item.name) + '</span>' +
-          '<span class="air-sys-list-desc" data-field="desc">' + TM.escapeHtml(item.desc) + '</span>' +
+        var masked = matchMaskedIds && matchMaskedIds[item.id];
+        var nameHtml = masked ? '🔒 ?????' : TM.escapeHtml(item.name);
+        var descHtml = masked
+          ? 'Hidden while the Match the Definition challenge is running — click its matching tile instead.'
+          : TM.escapeHtml(item.desc);
+        return '<li class="air-sys-list-item' + (masked ? ' is-masked' : '') + '" data-list="' + item.id + '">' +
+          '<span class="air-sys-list-name" data-field="name">' + nameHtml + '</span>' +
+          '<span class="air-sys-list-desc" data-field="desc">' + descHtml + '</span>' +
           '</li>';
       }).join('');
 
       listEl.querySelectorAll('.air-sys-list-item').forEach(function (li, i) {
         var item = items[i];
-        li.addEventListener('mouseenter', function () { setActive(item.id, true); });
-        li.addEventListener('mouseleave', function () { setActive(item.id, false); });
-        makeEditableText(li.querySelector('[data-field="name"]'), item, 'name');
-        makeEditableText(li.querySelector('[data-field="desc"]'), item, 'desc');
+        li.addEventListener('mouseenter', function () { if (!li.classList.contains('is-masked')) setActive(item.id, true); });
+        li.addEventListener('mouseleave', function () { if (!li.classList.contains('is-masked')) setActive(item.id, false); });
+        if (!li.classList.contains('is-masked')) {
+          makeEditableText(li.querySelector('[data-field="name"]'), item, 'name');
+          makeEditableText(li.querySelector('[data-field="desc"]'), item, 'desc');
+        }
       });
 
       listEl.querySelectorAll('[data-field]').forEach(function (el) {
@@ -305,7 +340,9 @@
     modeButtons.forEach(function (btn) {
       btn.addEventListener('click', function () {
         modeButtons.forEach(function (b) { b.classList.toggle('active', b === btn); });
+        if (matchActive) endMatch('reset'); // the match pool differs per mode
         render(btn.getAttribute('data-mode'));
+        updateMatchBestDisplay();
       });
     });
 
@@ -341,6 +378,211 @@
         // stays selected so it can still be copied manually with Ctrl/Cmd+C.
       }
     });
+
+    // --- "Match the Definition" timed challenge --------------------------
+    // Click a function name then its matching description (or the reverse
+    // order — whichever comes second triggers the check). The round's
+    // pool is whichever items array matches the CURRENT mode, so switching
+    // Internal/External mode mid-round aborts it (see modeButtons handler
+    // above) rather than leaving a round quizzing the other mode's parts.
+    var MATCH_SECONDS_PER_ITEM = 14;
+    var MATCH_BEST_KEY_PREFIX = 'tm.airSystem.matchBest.';
+    var matchTermsEl = root.querySelector('#airMatchTerms');
+    var matchDefsEl = root.querySelector('#airMatchDefs');
+    var matchScoreEl = root.querySelector('#airMatchScore');
+    var matchSolvedEl = root.querySelector('#airMatchSolved');
+    var matchTimeEl = root.querySelector('#airMatchTime');
+    var matchBestEl = root.querySelector('#airMatchBest');
+    var matchResultEl = root.querySelector('#airMatchResult');
+    var matchStartBtn = root.querySelector('#airMatchStartBtn');
+
+    var matchActive = false;
+    var matchScore = 0, matchSolved = 0, matchTotal = 0;
+    var matchDuration = 0, matchDeadline = 0, matchTimerId = null;
+    var selTermEl = null, selDefEl = null, selTermId = null, selDefId = null;
+
+    function shuffled(arr) {
+      var a = arr.slice();
+      for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+      }
+      return a;
+    }
+
+    // Tiny self-contained Web Audio beeps — same no-audio-files pattern
+    // every other game in this portal uses.
+    var matchAudioCtx = null;
+    function ensureMatchAudio() {
+      if (!matchAudioCtx) {
+        try { matchAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (err) { return null; }
+      }
+      if (matchAudioCtx.state === 'suspended') matchAudioCtx.resume();
+      return matchAudioCtx;
+    }
+    function matchBeep(freq, dur, type, vol, delay) {
+      var ctx = ensureMatchAudio();
+      if (!ctx) return;
+      var t0 = ctx.currentTime + (delay || 0);
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = type || 'square';
+      osc.frequency.setValueAtTime(freq, t0);
+      gain.gain.setValueAtTime(0, t0);
+      gain.gain.linearRampToValueAtTime(vol == null ? 0.16 : vol, t0 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(t0); osc.stop(t0 + dur + 0.03);
+    }
+    function playMatchRight() { matchBeep(660, 0.08, 'square', 0.15); }
+    function playMatchWrong() { matchBeep(180, 0.16, 'sawtooth', 0.16); }
+    function playMatchClear() { matchBeep(523, 0.09, 'square', 0.18); matchBeep(784, 0.11, 'square', 0.18, 0.09); matchBeep(1046, 0.16, 'square', 0.18, 0.18); }
+
+    function loadMatchBest(mode) {
+      try { return Number(localStorage.getItem(MATCH_BEST_KEY_PREFIX + mode)) || 0; } catch (err) { return 0; }
+    }
+    function saveMatchBest(mode, val) {
+      try { localStorage.setItem(MATCH_BEST_KEY_PREFIX + mode, String(val)); } catch (err) { /* ignore */ }
+    }
+    function updateMatchBestDisplay() {
+      var best = loadMatchBest(currentMode);
+      matchBestEl.textContent = best > 0 ? best : '--';
+    }
+
+    function updateMatchHud() {
+      matchScoreEl.textContent = matchScore;
+      matchSolvedEl.textContent = matchSolved + '/' + matchTotal;
+      var remaining = Math.max(0, matchDeadline - performance.now());
+      matchTimeEl.textContent = matchActive ? Math.ceil(remaining / 1000) + 's' : '--';
+    }
+
+    function clearMatchSelection() {
+      if (selTermEl) selTermEl.classList.remove('is-selected');
+      if (selDefEl) selDefEl.classList.remove('is-selected');
+      selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
+    }
+
+    function tryMatch() {
+      if (selTermId == null || selDefId == null) return;
+      if (selTermId === selDefId) {
+        selTermEl.classList.remove('is-selected'); selTermEl.classList.add('is-solved');
+        selDefEl.classList.remove('is-selected'); selDefEl.classList.add('is-solved');
+        matchSolved += 1;
+        var remainingFrac = Math.max(0, (matchDeadline - performance.now()) / matchDuration);
+        matchScore += Math.round(100 * (0.4 + 0.6 * remainingFrac));
+        playMatchRight();
+        selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
+        updateMatchHud();
+        if (matchSolved >= matchTotal) endMatch('cleared');
+      } else {
+        var badTerm = selTermEl, badDef = selDefEl;
+        badTerm.classList.add('is-wrong-flash');
+        badDef.classList.add('is-wrong-flash');
+        playMatchWrong();
+        setTimeout(function () {
+          badTerm.classList.remove('is-wrong-flash', 'is-selected');
+          badDef.classList.remove('is-wrong-flash', 'is-selected');
+        }, 400);
+        selTermEl = null; selDefEl = null; selTermId = null; selDefId = null;
+      }
+    }
+
+    function buildMatchTile(item, kind) {
+      var tile = document.createElement('button');
+      tile.type = 'button';
+      tile.className = 'air-sys-match-tile';
+      tile.textContent = kind === 'term' ? item.name : item.desc;
+      tile.dataset.id = item.id;
+      tile.addEventListener('click', function () {
+        if (!matchActive || tile.classList.contains('is-solved')) return;
+        if (kind === 'term') {
+          if (selTermEl) selTermEl.classList.remove('is-selected');
+          selTermEl = tile; selTermId = item.id;
+        } else {
+          if (selDefEl) selDefEl.classList.remove('is-selected');
+          selDefEl = tile; selDefId = item.id;
+        }
+        tile.classList.add('is-selected');
+        tryMatch();
+      });
+      return tile;
+    }
+
+    function startMatch() {
+      if (matchActive) return;
+      var all = currentMode === 'internal' ? INTERNAL_ITEMS : EXTERNAL_ITEMS;
+      // A random subset each time (never fewer than 3, or the whole set
+      // if there are 3 or fewer) so repeat rounds don't always quiz the
+      // exact same parts.
+      var count = all.length <= 3 ? all.length : 3 + Math.floor(Math.random() * (all.length - 2));
+      var items = shuffled(all).slice(0, count);
+
+      matchActive = true;
+      matchTotal = items.length;
+      matchScore = 0;
+      matchSolved = 0;
+      clearMatchSelection();
+      matchResultEl.textContent = '';
+      matchStartBtn.disabled = true;
+
+      matchMaskedIds = {};
+      items.forEach(function (it) { matchMaskedIds[it.id] = true; });
+      render(currentMode);
+
+      matchTermsEl.innerHTML = '';
+      matchDefsEl.innerHTML = '';
+      shuffled(items).forEach(function (it) { matchTermsEl.appendChild(buildMatchTile(it, 'term')); });
+      shuffled(items).forEach(function (it) { matchDefsEl.appendChild(buildMatchTile(it, 'def')); });
+
+      matchDuration = MATCH_SECONDS_PER_ITEM * 1000 * matchTotal;
+      matchDeadline = performance.now() + matchDuration;
+      updateMatchHud();
+
+      if (matchTimerId != null) clearInterval(matchTimerId);
+      matchTimerId = setInterval(function () {
+        if (performance.now() >= matchDeadline) { endMatch('timeup'); return; }
+        updateMatchHud();
+      }, 200);
+    }
+
+    function endMatch(reason) {
+      if (!matchActive) return;
+      matchActive = false;
+      if (matchTimerId != null) { clearInterval(matchTimerId); matchTimerId = null; }
+      clearMatchSelection();
+      matchTermsEl.querySelectorAll('.air-sys-match-tile:not(.is-solved)').forEach(function (el) { el.classList.add('is-revealed'); });
+      matchDefsEl.querySelectorAll('.air-sys-match-tile:not(.is-solved)').forEach(function (el) { el.classList.add('is-revealed'); });
+      matchMaskedIds = null;
+      render(currentMode);
+      matchStartBtn.disabled = false;
+      updateMatchHud();
+
+      if (reason === 'reset') { matchResultEl.textContent = ''; return; }
+
+      var best = loadMatchBest(currentMode);
+      var beat = matchScore > best;
+      if (beat) { saveMatchBest(currentMode, matchScore); updateMatchBestDisplay(); }
+
+      if (reason === 'cleared') {
+        playMatchClear();
+        matchResultEl.textContent = '🎉 All ' + matchTotal + ' matched! Score: ' + matchScore + (beat ? ' — new best!' : '');
+      } else {
+        matchResultEl.textContent = '⏱ Time\'s up — matched ' + matchSolved + '/' + matchTotal + '. Score: ' + matchScore + (beat ? ' — new best!' : '');
+      }
+    }
+
+    matchStartBtn.addEventListener('click', startMatch);
+    updateMatchBestDisplay();
+
+    window.TM.toolModules['air-system'].debugMatchState = function () {
+      return { matchActive: matchActive, matchScore: matchScore, matchSolved: matchSolved, matchTotal: matchTotal };
+    };
+    window.TM.toolModules['air-system'].debugForceMatchTimeout = function () {
+      matchDeadline = performance.now() - 1;
+    };
+    window.TM.toolModules['air-system'].unmount = function () {
+      if (matchTimerId != null) { clearInterval(matchTimerId); matchTimerId = null; }
+    };
 
     render('internal');
   }

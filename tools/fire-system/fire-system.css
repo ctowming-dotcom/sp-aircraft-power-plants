@@ -520,3 +520,154 @@
   color: #8a5a00;
   margin-bottom: 4px;
 }
+
+/* --- "Match the Definition" timed challenge --- */
+
+.fs-diagram .fs-match-panel {
+  background: var(--page);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+
+.fs-diagram .fs-match-title {
+  margin: 0 0 8px;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.fs-diagram .fs-match-intro {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.fs-diagram .fs-match-hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.fs-diagram .fs-match-stat {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 14px;
+  text-align: center;
+  min-width: 90px;
+}
+
+.fs-diagram .fs-match-stat-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.fs-diagram .fs-match-stat-value {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.fs-diagram .fs-match-btn {
+  font: inherit;
+  font-weight: 700;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 8px 16px;
+  cursor: pointer;
+  background: var(--card);
+  color: var(--ink);
+  margin-left: auto;
+}
+
+.fs-diagram .fs-match-btn:hover:not(:disabled) {
+  background: #1d3e61;
+}
+
+.fs-diagram .fs-match-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.fs-diagram .fs-match-result {
+  min-height: 1.4em;
+  margin: 0 0 10px;
+  font-weight: 700;
+  color: var(--fault);
+}
+
+.fs-diagram .fs-match-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.fs-diagram .fs-match-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fs-diagram .fs-match-tile {
+  font: inherit;
+  text-align: left;
+  font-size: 13.5px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: var(--card);
+  border: 1px solid var(--box);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.fs-diagram .fs-match-tile:hover:not(.is-solved):not(:disabled) {
+  border-color: var(--fault);
+}
+
+.fs-diagram .fs-match-tile.is-selected {
+  border-color: var(--fault);
+  box-shadow: 0 0 0 1px var(--fault) inset;
+}
+
+.fs-diagram .fs-match-tile.is-solved {
+  background: rgba(74, 222, 128, 0.18);
+  border-color: #4ade80;
+  color: #4ade80;
+  cursor: default;
+}
+
+.fs-diagram .fs-match-tile.is-wrong-flash {
+  animation: fs-match-shake 0.4s ease;
+  background: var(--fire);
+  border-color: var(--fire);
+  color: #2a0a0a;
+}
+
+.fs-diagram .fs-match-tile.is-revealed:not(.is-solved) {
+  border-color: var(--fault);
+  opacity: 0.7;
+  cursor: default;
+}
+
+@keyframes fs-match-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+
+@media (max-width: 640px) {
+  .fs-diagram .fs-match-columns {
+    grid-template-columns: 1fr;
+  }
+}

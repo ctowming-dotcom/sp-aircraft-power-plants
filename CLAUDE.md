@@ -1081,6 +1081,121 @@ arcade life), so nothing changed there.
   (not +2) when `hurtPlayer()` is called twice back-to-back while the
   gate is already open.
 
+### "Match the Definition" second game, all 8 study-chapter tools; oil/fuel panel moved to top + randomized
+
+By request ("Place the option for game challenge for oil system and fuel
+system at the top. Set random challenges for the oil and fuel system
+each time. Add the second game that is the match the definition with
+the right word for all the other study chapters including fuel and oil
+system"):
+
+- **Oil/fuel existing drag game — moved up, randomized**: the "Label
+  the Bearings"/"Label the Fuel System" drag-and-drop panel (title,
+  intro, HUD, Start button, word bank) now sits right after each tool's
+  controls/subhead row, before the diagram, instead of below it and the
+  full reference list, so the option to play is visible without
+  scrolling. Each Start now picks a random subset of that configuration's
+  components (never fewer than 3, or the whole set if there are 3 or
+  fewer) instead of always using every one; `gameTargets()` in both
+  files filters to just the round's chosen ids, so a component left out
+  of a round stays fully visible/unmasked in the reference list, as if
+  the challenge weren't running.
+- **"Match the Definition" — a second, independent game, added to all 8
+  study-chapter tools** (virtual-physical-lab, turbofan-engine,
+  oil-system-overview, fuel-system-overview, air-system,
+  starting-system, apu-system, fire-system — Crossword Challenge and
+  the 6 arcade games are out of scope, they're not reference/study
+  tools): a click-to-pair matching challenge, independent of each
+  tool's own drag game or step-through/edit mode. Click a term tile,
+  then its matching description tile (or the other way round) — a
+  correct pair locks in green and scores time-weighted points
+  (`Math.round(100 * (0.4 + 0.6 * remainingFrac))`), a wrong pair just
+  flashes red and resets with no penalty and no limit on retries. Each
+  round draws a random subset of that tool's components (a `shuffled()`
+  Fisher-Yates helper, same randomization convention as the drag game),
+  runs on a countdown (`MATCH_SECONDS_PER_ITEM = 14` seconds per item in
+  the round), and reveals any unsolved pairs in place if the clock runs
+  out. While a round is running, every masked component's entry in that
+  tool's permanent reference list (and its hover tooltip) is replaced
+  with a `🔒 ?????` placeholder so the list can't be used as an answer
+  key, restored to normal the instant the round ends (cleared, timed
+  out, or reset). Best score persists to `localStorage`
+  (`tm.<tool>.matchBest`, namespaced per-mode where a tool has one —
+  e.g. `tm.oilSystem.matchBest.<spool>`,
+  `tm.airSystem.matchBest.internal`/`.external` — since a different
+  mode's component set makes scores incomparable). Self-contained Web
+  Audio beep helpers (`playMatchRight`/`playMatchWrong`/`playMatchClear`)
+  are duplicated per tool rather than shared, matching this codebase's
+  established no-shared-code-between-tools, no-audio-files convention.
+  Debug hooks `debugMatchState`/`debugForceMatchTimeout` were added to
+  every tool for headless testing.
+  - **Mutual exclusion**: a running match round blocks whatever else
+    that tool lets you do at the same time, and vice versa — oil/fuel's
+    drag game and match game share one `*Active`-style guard so only one
+    can run at once; Virtual Lab and Air System's password-gated edit
+    mode refuses to unlock while a match round is active (and starting a
+    round refuses while edit mode is unlocked) — e.g. Virtual Lab's
+    `startMatch()` checks `editUnlocked` and its edit button handler
+    checks `matchActive`, popping an alert ("Finish the current Match
+    the Definition round first.") rather than silently doing nothing.
+  - **Mode/config-dependent pools reset cleanly**: on any tool whose
+    diagram has a mode toggle that changes which components are even
+    relevant (oil's spool config, turbofan's engine configuration,
+    air-system's Internal/External toggle), switching modes mid-round
+    calls `endMatch('reset')` before applying the new mode, so a round
+    never survives into a mode whose component pool no longer matches
+    what's on screen; the pool itself is recomputed from whatever the
+    now-active mode actually shows (e.g. turbofan's pool is
+    `PART_LABELS` filtered through the same visible-spool logic
+    `applyPartMarkerVisibility()` already used).
+  - **Per-tool pool and masking specifics** (varies with how each tool's
+    pre-existing reference list is built):
+    - **oil-system-overview**: pool is every currently-rendered
+      component (tank, pumps, valve, filters, FOHE, breather, MCDs, and
+      the current spool's own bearing/gearbox columns), reusing the
+      same dedupe-by-title walk `renderCompList()` already does, so it
+      stays correct automatically as the spool config changes.
+    - **fuel-system-overview**: pool is the same 14-component set its
+      drag game already uses.
+    - **virtual-physical-lab**: pool is the 5 `PARTS` markers plus the
+      CPR tile (`CPR_INFO`). Masking covers the retypable edit-mode
+      parts list (`renderEditPartsList()`, `🔒 ?????` placeholder item
+      text, tooltip suppressed) as well as the CPR tile and the live
+      marker tooltips.
+    - **turbofan-engine**: pool is `PART_LABELS` (the 7 part-label hover
+      markers added over the schematic), filtered to the current mode's
+      visible spools (2/6/7 markers for single/twin/triple).
+    - **air-system**: pool is `INTERNAL_ITEMS`(6)/`EXTERNAL_ITEMS`(7),
+      whichever mode is active; masking is inline in the existing
+      `render(mode)` function, which already rebuilds `.air-sys-list`
+      from scratch on every mode switch, so no separate extraction was
+      needed.
+    - **starting-system**: pool is all 9 `COMPONENTS` entries (stored as
+      `[name, desc]` array pairs here, not objects). The previously-
+      inline `.ss-list` build inside `mount()` was extracted into a new
+      mask-aware `renderCompList()` function so the list can be rebuilt
+      mid-session; the diagram's own `.ss-box` hover also gained a mask
+      guard. The pre-existing step-through sequence is unaffected by a
+      match round.
+    - **apu-system**: pool is all 12 `COMPONENTS` entries (the 3
+      red-ringed "key component" markers included, with no special
+      treatment). The previously-inline `.key-list`/`.other-list` build
+      was extracted into `renderLists()` plus a shared `wireListHover()`.
+      The pre-existing region-divider drag and both flow-box edit modes
+      (7 power + 5 load) are unaffected.
+    - **fire-system**: pool is the merged `PANEL_MARKERS`(17) +
+      `LOOP_MARKERS`(4) = 21 candidates (ids prefixed `panel:`/`loop:`
+      to avoid collisions across the two reference images). Both
+      reference lists are baked once into `mount()`'s innerHTML rather
+      than built by a re-callable render function, so masking here works
+      by in-place DOM text mutation instead of a rebuild — a
+      `maskListItem(poolId, masked)` helper finds the existing
+      `.fs-list-item[data-marker="rawId"]` and swaps its name/desc text,
+      restoring the originals (looked up back from
+      `PANEL_MARKERS`/`LOOP_MARKERS`) when the round ends. The
+      pre-existing interactive "Try It" fire-panel button simulator is
+      unaffected.
+
 ### Phase 2 — Scaffolded topics, content pending
 
 No tools remain as placeholders — every catalog entry now has real
