@@ -411,13 +411,26 @@
       checkStageClearOrDanger();
     }
 
+    // After this long into a stage, stop adding new rows altogether —
+    // the ceiling an endlessly-growing stack creates is meant to add
+    // pressure early on, not punish a student who's taking their time
+    // to actually clear the board; a fixed cutoff gives them a clean
+    // runway to finish instead.
+    var ROW_ADD_CUTOFF_SECONDS = 180;
+    function stageElapsedSeconds() { return (performance.now() - stageStartTime) / 1000; }
+    function rowDropImminent() {
+      return stageElapsedSeconds() < ROW_ADD_CUTOFF_SECONDS && shotsFired + 1 >= diffCfg().shotsPerRow;
+    }
+
     function addRowIfDue() {
       shotsFired += 1;
       if (shotsFired >= diffCfg().shotsPerRow) {
         shotsFired = 0;
-        for (var r = ROWS - 1; r >= 1; r--) grid[r] = grid[r - 1];
-        grid[0] = generateRowCells(0, colorCountForStage);
-        if (dangerPresent()) loseLife();
+        if (stageElapsedSeconds() < ROW_ADD_CUTOFF_SECONDS) {
+          for (var r = ROWS - 1; r >= 1; r--) grid[r] = grid[r - 1];
+          grid[0] = generateRowCells(0, colorCountForStage);
+          if (dangerPresent()) loseLife();
+        }
       }
     }
 
@@ -661,12 +674,21 @@
 
     function render() {
       drawField();
+      // Warn the player a shot before a new row actually drops — the
+      // whole stack trembles a little so it reads as "about to shift
+      // down", rather than a row just appearing with no notice.
+      var shakeX = 0, shakeY = 0;
+      if (rowDropImminent()) {
+        var t = performance.now() / 45;
+        shakeX = Math.sin(t) * 2.2;
+        shakeY = Math.cos(t * 1.3) * 1.6;
+      }
       for (var r = 0; r < ROWS; r++) {
         var maxCol = r % 2 === 0 ? COLS : COLS - 1;
         for (var c = 0; c < maxCol; c++) {
           if (grid[r][c] == null) continue;
           var ctr = cellCenter(r, c);
-          drawBubble(ctr.x, ctr.y, BUBBLE_R - 1, grid[r][c]);
+          drawBubble(ctr.x + shakeX, ctr.y + shakeY, BUBBLE_R - 1, grid[r][c]);
         }
       }
       drawShooter();
@@ -772,8 +794,15 @@
     });
 
     window.TM.toolModules['bubble-shooter'].debugState = function () {
-      return { score: score, misses: misses, stage: stage, grid: grid, mcqGateOpen: !mcqOverlay.classList.contains('hidden') };
+      return {
+        score: score, misses: misses, stage: stage, grid: grid,
+        mcqGateOpen: !mcqOverlay.classList.contains('hidden'),
+        shotsFired: shotsFired, shotsPerRow: diffCfg().shotsPerRow,
+        rowDropImminent: rowDropImminent()
+      };
     };
+    window.TM.toolModules['bubble-shooter'].debugSetShotsFired = function (n) { shotsFired = n; };
+    window.TM.toolModules['bubble-shooter'].debugSetStageStartTime = function (t) { stageStartTime = t; };
     window.TM.toolModules['bubble-shooter'].debugForceDanger = function () {
       for (var c = 0; c < COLS; c++) grid[DANGER_ROW][c] = randomColor(colorCountForStage);
       loseLife();

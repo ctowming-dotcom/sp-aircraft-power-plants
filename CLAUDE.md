@@ -1570,6 +1570,39 @@ password to APP888" and "remove all element on giving exam tips":
   had this stub to begin with (built after it would have been added),
   so nothing to remove there.
 
+### Bubble Shooter: row-drop warning shake, 3-minute row-add cutoff
+
+By request ("when new roll is coming make the bubble shaking a bit to
+inform player that it is dropping down. Also stop adding more bubble
+after the 3 mins mark. so that player can complete the stage with more
+motivation"):
+
+- **Warning shake**: `rowDropImminent()` is true whenever the player's
+  *next* shot would push `shotsFired` to `diffCfg().shotsPerRow` (and
+  the 3-minute cutoff below hasn't passed yet). While true, `render()`
+  applies a small shared sine/cosine-based offset (`shakeX`/`shakeY`,
+  ~2px) to every stack bubble's drawn position each frame — a gentle
+  synchronized tremor rather than per-bubble random jitter, so it reads
+  as "the whole stack is about to shift" instead of visual noise. The
+  shooter/bullet/next-bubble preview are unaffected, only the bubbles
+  already on the board.
+- **3-minute row-add cutoff**: `ROW_ADD_CUTOFF_SECONDS = 180`, measured
+  from the same `stageStartTime` the scoring time-bonus already tracks.
+  Once a stage attempt passes that mark, `addRowIfDue()` still resets
+  `shotsFired` back to 0 on reaching the threshold (so the counter
+  doesn't just keep climbing unbounded) but skips the actual grid-shift
+  and danger-line check — no further rows are ever added for the rest
+  of that attempt, giving the player a guaranteed runway to clear
+  whatever's left rather than an indefinitely growing stack. Retrying
+  the same stage after an MCQ-gated revive does *not* reset this clock
+  (`stageStartTime` only resets on a genuinely new stage, matching how
+  the scoring time-bonus already treats retries) — so once the cutoff
+  passes it stays passed for the rest of that stage, revives included.
+- Added `debugSetShotsFired(n)`/`debugSetStageStartTime(t)` test hooks
+  and extended `debugState()` with `shotsFired`/`shotsPerRow`/
+  `rowDropImminent`, matching this codebase's established
+  headless-testing convention.
+
 ### Phase 2 — Scaffolded topics, content pending
 
 No tools remain as placeholders — every catalog entry now has real
