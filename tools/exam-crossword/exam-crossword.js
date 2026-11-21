@@ -585,12 +585,13 @@
 
     root.querySelector('#xwRevealBtn').addEventListener('click', function () {
       revealed = true;
+      solved = true; // no "Solved!" popup for a reveal — let the student see the filled grid
+      stopTimer();
       Object.keys(inputs).forEach(function (k) {
         var r = Number(k.split(',')[0]), c = Number(k.split(',')[1]);
         inputs[k].value = puzzle.grid[r][c];
       });
       updateProgress();
-      checkSolved();
     });
 
     root.querySelector('#xwMuteBtn').addEventListener('click', function (e) {
