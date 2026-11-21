@@ -549,7 +549,9 @@
 
 .oil-game-tile.is-wrong-flash {
   animation: oil-game-shake 0.4s ease;
+  background: var(--return);
   border-color: var(--return);
+  color: #2a0a0a;
 }
 
 .oil-game-tile-drag {
