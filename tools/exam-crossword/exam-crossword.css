@@ -332,13 +332,13 @@
 }
 
 .xw-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(6, 12, 24, 0.86);
-  border-radius: var(--radius);
+  z-index: 50;
 }
 
 .xw-overlay.hidden {
