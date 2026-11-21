@@ -46,6 +46,20 @@
       '</div>' +
       '</div>' +
 
+      '<div class="fd-game-panel">' +
+      '<h3 class="fd-game-title">🎮 Label the Fuel System — Timed Challenge</h3>' +
+      '<p class="fd-game-intro">Drag each label below onto the matching box in the diagram further down before time runs out — faster correct placements score more points. Each round picks a random mix of components, so it\'s different every time. The reference list and hover tooltips are hidden for these parts while a challenge is running.</p>' +
+      '<div class="fd-game-hud">' +
+      '<div class="fd-game-stat"><span class="fd-game-stat-label">Score</span><span class="fd-game-stat-value" id="fdGameScore">0</span></div>' +
+      '<div class="fd-game-stat"><span class="fd-game-stat-label">Placed</span><span class="fd-game-stat-value" id="fdGamePlaced">0/0</span></div>' +
+      '<div class="fd-game-stat"><span class="fd-game-stat-label">Time</span><span class="fd-game-stat-value" id="fdGameTime">--</span></div>' +
+      '<div class="fd-game-stat"><span class="fd-game-stat-label">Best</span><span class="fd-game-stat-value" id="fdGameBest">--</span></div>' +
+      '<button type="button" class="fd-game-btn" id="fdGameStartBtn">▶ Start challenge</button>' +
+      '</div>' +
+      '<p class="fd-game-result" id="fdGameResult"></p>' +
+      '<div class="fd-game-bank" id="fdGameBank"></div>' +
+      '</div>' +
+
       '<svg viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg">' +
 
       '<path id="p1" class="pipe" d="M145,248 L172,248"></path>' +
@@ -122,19 +136,6 @@
       '<div class="fd-ref">' +
       '<h3 class="fd-ref-title">Component reference</h3>' +
       '<ul class="fd-list"></ul>' +
-      '</div>' +
-      '<div class="fd-game-panel">' +
-      '<h3 class="fd-game-title">🎮 Label the Fuel System — Timed Challenge</h3>' +
-      '<p class="fd-game-intro">Drag each label below onto the matching box in the diagram above before time runs out — faster correct placements score more points. The reference list and hover tooltips are hidden for these parts while a challenge is running.</p>' +
-      '<div class="fd-game-hud">' +
-      '<div class="fd-game-stat"><span class="fd-game-stat-label">Score</span><span class="fd-game-stat-value" id="fdGameScore">0</span></div>' +
-      '<div class="fd-game-stat"><span class="fd-game-stat-label">Placed</span><span class="fd-game-stat-value" id="fdGamePlaced">0/0</span></div>' +
-      '<div class="fd-game-stat"><span class="fd-game-stat-label">Time</span><span class="fd-game-stat-value" id="fdGameTime">--</span></div>' +
-      '<div class="fd-game-stat"><span class="fd-game-stat-label">Best</span><span class="fd-game-stat-value" id="fdGameBest">--</span></div>' +
-      '<button type="button" class="fd-game-btn" id="fdGameStartBtn">▶ Start challenge</button>' +
-      '</div>' +
-      '<p class="fd-game-result" id="fdGameResult"></p>' +
-      '<div class="fd-game-bank" id="fdGameBank"></div>' +
       '</div>' +
       '</div>';
 
@@ -401,8 +402,14 @@
     function playGameWrong() { gameBeep(180, 0.16, 'sawtooth', 0.16); }
     function playGameClear() { gameBeep(523, 0.09, 'square', 0.18); gameBeep(784, 0.11, 'square', 0.18, 0.09); gameBeep(1046, 0.16, 'square', 0.18, 0.18); }
 
+    // Only the boxes chosen for THIS round (see startGame) — not every
+    // box — so a box left out of a round stays fully visible and
+    // unmasked, as if the challenge weren't running at all.
+    var gameRoundKeys = null;
     function gameTargets() {
-      return Array.prototype.slice.call(root.querySelectorAll('.box'));
+      var all = Array.prototype.slice.call(root.querySelectorAll('.box'));
+      if (!gameRoundKeys) return all;
+      return all.filter(function (g) { return gameRoundKeys[g.getAttribute('data-comp')]; });
     }
 
     function buildBankTile(key) {
@@ -479,8 +486,14 @@
 
     function startGame() {
       if (gameActive) return;
+      // A random subset each time (never fewer than 3, or the whole set
+      // if there are 3 or fewer) so repeat rounds don't always quiz the
+      // exact same parts.
+      var count = gameKeys.length <= 3 ? gameKeys.length : 3 + Math.floor(Math.random() * (gameKeys.length - 2));
+      var roundKeys = shuffled(gameKeys).slice(0, count);
+
       gameActive = true;
-      gameTotal = gameKeys.length;
+      gameTotal = roundKeys.length;
       gameScore = 0;
       gamePlaced = 0;
       gameResultEl.textContent = '';
@@ -492,14 +505,16 @@
       // diagram.
       gamePanelEl.classList.add('is-floating');
 
+      gameRoundKeys = {};
+      roundKeys.forEach(function (k) { gameRoundKeys[k] = true; });
       gameMaskedKeys = {};
-      gameKeys.forEach(function (k) { gameMaskedKeys[k] = true; });
+      roundKeys.forEach(function (k) { gameMaskedKeys[k] = true; });
       renderList();
 
       gameTargets().forEach(function (g) { g.classList.add('is-blanked'); });
 
       gameBankEl.innerHTML = '';
-      shuffled(gameKeys).forEach(function (key) { gameBankEl.appendChild(buildBankTile(key)); });
+      shuffled(roundKeys).forEach(function (key) { gameBankEl.appendChild(buildBankTile(key)); });
 
       gameDuration = GAME_SECONDS_PER_ITEM * 1000 * gameTotal;
       gameDeadline = performance.now() + gameDuration;
@@ -517,6 +532,7 @@
       gameActive = false;
       if (gameTimerId != null) { clearInterval(gameTimerId); gameTimerId = null; }
       gameTargets().forEach(function (g) { g.classList.remove('is-blanked'); });
+      gameRoundKeys = null;
       gameMaskedKeys = null;
       renderList();
       gameBankEl.innerHTML = '';

@@ -193,6 +193,20 @@
       '</div>' +
       '</div>' +
 
+      '<div class="oil-game-panel">' +
+      '<h3 class="oil-game-title">🎮 Label the Bearings — Timed Challenge</h3>' +
+      '<p class="oil-game-intro">Drag each label below onto the matching bearing/gearbox box in the diagram further down before time runs out — faster correct placements score more points. Each round picks a random mix of this configuration\'s parts, so it\'s different every time. The reference list and hover tooltips are hidden for these parts while a challenge is running.</p>' +
+      '<div class="oil-game-hud">' +
+      '<div class="oil-game-stat"><span class="oil-game-stat-label">Score</span><span class="oil-game-stat-value" id="oilGameScore">0</span></div>' +
+      '<div class="oil-game-stat"><span class="oil-game-stat-label">Placed</span><span class="oil-game-stat-value" id="oilGamePlaced">0/0</span></div>' +
+      '<div class="oil-game-stat"><span class="oil-game-stat-label">Time</span><span class="oil-game-stat-value" id="oilGameTime">--</span></div>' +
+      '<div class="oil-game-stat"><span class="oil-game-stat-label">Best (this config)</span><span class="oil-game-stat-value" id="oilGameBest">--</span></div>' +
+      '<button type="button" class="oil-game-btn" id="oilGameStartBtn">▶ Start challenge</button>' +
+      '</div>' +
+      '<p class="oil-game-result" id="oilGameResult"></p>' +
+      '<div class="oil-game-bank" id="oilGameBank"></div>' +
+      '</div>' +
+
       '<div class="stage-wrap">' +
       '<svg class="oil-svg" viewBox="0 0 1780 1000" xmlns="http://www.w3.org/2000/svg">' +
       '<defs>' +
@@ -216,19 +230,6 @@
       '<div class="comp-ref">' +
       '<h3 class="comp-ref-title">Component reference — current configuration</h3>' +
       '<ul class="comp-list"></ul>' +
-      '</div>' +
-      '<div class="oil-game-panel">' +
-      '<h3 class="oil-game-title">🎮 Label the Bearings — Timed Challenge</h3>' +
-      '<p class="oil-game-intro">Drag each label below onto the matching bearing/gearbox box in the diagram above before time runs out — faster correct placements score more points. The reference list and hover tooltips are hidden for these parts while a challenge is running.</p>' +
-      '<div class="oil-game-hud">' +
-      '<div class="oil-game-stat"><span class="oil-game-stat-label">Score</span><span class="oil-game-stat-value" id="oilGameScore">0</span></div>' +
-      '<div class="oil-game-stat"><span class="oil-game-stat-label">Placed</span><span class="oil-game-stat-value" id="oilGamePlaced">0/0</span></div>' +
-      '<div class="oil-game-stat"><span class="oil-game-stat-label">Time</span><span class="oil-game-stat-value" id="oilGameTime">--</span></div>' +
-      '<div class="oil-game-stat"><span class="oil-game-stat-label">Best (this config)</span><span class="oil-game-stat-value" id="oilGameBest">--</span></div>' +
-      '<button type="button" class="oil-game-btn" id="oilGameStartBtn">▶ Start challenge</button>' +
-      '</div>' +
-      '<p class="oil-game-result" id="oilGameResult"></p>' +
-      '<div class="oil-game-bank" id="oilGameBank"></div>' +
       '</div>' +
       '<footer>Diagram generated from lubrication system training notes. Educational schematic, not to scale.</footer>' +
       '</div>';
@@ -350,8 +351,14 @@
     function playGameWrong() { gameBeep(180, 0.16, 'sawtooth', 0.16); }
     function playGameClear() { gameBeep(523, 0.09, 'square', 0.18); gameBeep(784, 0.11, 'square', 0.18, 0.09); gameBeep(1046, 0.16, 'square', 0.18, 0.18); }
 
+    // Only the boxes chosen for THIS round (see startGame) — not every
+    // game-target box — so a box left out of a round stays fully visible
+    // and unmasked, as if the challenge weren't running at all.
+    var gameRoundIds = null;
     function gameTargets() {
-      return Array.prototype.slice.call(wrap.querySelectorAll('.comp.game-target'));
+      var all = Array.prototype.slice.call(wrap.querySelectorAll('.comp.game-target'));
+      if (!gameRoundIds) return all;
+      return all.filter(function (g) { return gameRoundIds[g.dataset.gameId]; });
     }
 
     function buildBankTile(col) {
@@ -428,7 +435,13 @@
 
     function startGame() {
       if (gameActive) return;
-      var cols = SPOOLS[currentSpool].columns;
+      var all = SPOOLS[currentSpool].columns;
+      // A random subset each time (never fewer than 3, or the whole set
+      // if there are 3 or fewer) so repeat rounds on the same spool
+      // config don't always quiz the exact same parts.
+      var count = all.length <= 3 ? all.length : 3 + Math.floor(Math.random() * (all.length - 2));
+      var cols = shuffled(all).slice(0, count);
+
       gameActive = true;
       gameTotal = cols.length;
       gameScore = 0;
@@ -441,6 +454,8 @@
       // down to reach the word bank after scrolling up to the diagram.
       gamePanelEl.classList.add('is-floating');
 
+      gameRoundIds = {};
+      cols.forEach(function (c) { gameRoundIds[c.id] = true; });
       gameMaskedTitles = {};
       cols.forEach(function (c) { gameMaskedTitles[c.desc[0]] = true; });
       renderCompList();
@@ -466,6 +481,7 @@
       gameActive = false;
       if (gameTimerId != null) { clearInterval(gameTimerId); gameTimerId = null; }
       gameTargets().forEach(function (g) { g.classList.remove('is-blanked'); });
+      gameRoundIds = null;
       gameMaskedTitles = null;
       renderCompList();
       gameBankEl.innerHTML = '';
