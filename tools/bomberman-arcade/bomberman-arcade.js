@@ -582,11 +582,16 @@
       var lb = TM.Leaderboard.submitScore(LEADERBOARD_ID, finalScore, { higherIsBetter: true });
       if (lb.submitted) updateTopDisplay();
       var penaltyText = missesThisStage ? (' − ' + penalty + ' for ' + missesThisStage + ' revive' + (missesThisStage === 1 ? '' : 's') + ' = ' + finalScore) : '';
-      showOverlay('Stage clear! 🎉', 'Time bonus +' + bonus + ' · Score: ' + score + penaltyText + (beat ? ' — new high score!' : '') + (lb.submitted ? ' — new top score!' : ''), 'Next stage', function () {
-        stage += 1;
-        startStage();
-        updateHud();
-        startRunning();
+      // A quick knowledge check gates moving on from a cleared stage, same
+      // as a life lost — scoring/leaderboard submission already happened
+      // above, so answering slowly here never affects the score just locked in.
+      showMcqGate(function () {
+        showOverlay('Stage clear! 🎉', 'Time bonus +' + bonus + ' · Score: ' + score + penaltyText + (beat ? ' — new high score!' : '') + (lb.submitted ? ' — new top score!' : ''), 'Next stage', function () {
+          stage += 1;
+          startStage();
+          updateHud();
+          startRunning();
+        });
       });
     }
 

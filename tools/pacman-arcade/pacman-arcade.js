@@ -638,12 +638,17 @@
       if (timeBonus || penalty) msg += ' = ' + finalScore;
       msg += (beat ? ' — new high score!' : '') + (result.submitted ? ' 🏆 new top score!' : '');
 
-      showOverlay('Maze clear! 🎉', msg, 'Next maze', function () {
-        startLevel();
-        updateHud();
-        overlay.classList.add('hidden');
-        running = true;
-        lastTime = performance.now();
+      // A quick knowledge check gates moving on from a cleared maze, same
+      // as a life lost — scoring/leaderboard submission already happened
+      // above, so answering slowly here never affects the score just locked in.
+      showMcqGate(function () {
+        showOverlay('Maze clear! 🎉', msg, 'Next maze', function () {
+          startLevel();
+          updateHud();
+          overlay.classList.add('hidden');
+          running = true;
+          lastTime = performance.now();
+        });
       });
     }
 

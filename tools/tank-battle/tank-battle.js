@@ -613,13 +613,21 @@
         ((timeBonus || penalty) ? (' = ' + finalScore) : '') +
         (result.submitted ? ' — new top score!' : '');
 
+      // A quick knowledge check gates moving on from a cleared stage, same
+      // as a life lost — scoring/leaderboard submission already happened
+      // above, so answering slowly here never affects the score just locked in.
+      var finalStage = stage;
       if (stage >= LAYOUTS.length) {
-        showOverlay('All stages cleared! 🎉', breakdown + (beat ? ' — new high score!' : ''), 'Play again', function () {
-          newGame(); startRunning();
+        showMcqGate(function () {
+          showOverlay('All stages cleared! 🎉', breakdown + (beat ? ' — new high score!' : ''), 'Play again', function () {
+            newGame(); startRunning();
+          });
         });
       } else {
-        showOverlay('Stage clear! 🎉', 'Stage ' + stage + ' cleared — ' + breakdown + (beat ? ' — new high score!' : ''), 'Next stage', function () {
-          stage += 1; startStage(); updateHud(); startRunning();
+        showMcqGate(function () {
+          showOverlay('Stage clear! 🎉', 'Stage ' + finalStage + ' cleared — ' + breakdown + (beat ? ' — new high score!' : ''), 'Next stage', function () {
+            stage += 1; startStage(); updateHud(); startRunning();
+          });
         });
       }
     }

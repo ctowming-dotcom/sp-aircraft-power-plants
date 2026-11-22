@@ -1603,6 +1603,60 @@ motivation"):
   `rowDropImminent`, matching this codebase's established
   headless-testing convention.
 
+### MCQ gate after every stage clear, not just a life lost
+
+By request ("For all games, Mcq quiz to be tested after each stage
+cleared"): every arcade game with a stage/level/maze-clear concept now
+gates its win overlay behind the same knowledge-check used for a life
+lost — Jump Challenge, Maze Muncher, Super Bomberman, Barrel Climb,
+Tank Battle, Bubble Shooter. Engine Emergency and Shooting were left
+alone — neither has a "stage cleared" moment to attach this to (Engine
+Emergency is endless survival with a manual "Save my score" button;
+Shooting is a fixed-duration round that ends on a clock, not a cleared
+stage), so there's nowhere for this to hook in.
+
+- **Pattern** (identical across all 6, first built for Barrel Climb
+  then replicated): scoring/leaderboard submission still happens the
+  instant a stage clears, completely unaffected by anything below it —
+  the time-bonus/revive-penalty formula from the section above reads
+  `stageStartTime`/`missesThisStage` at that exact moment, same as
+  before. Only the win overlay itself (the "Stage/Maze/Rescue
+  complete!"-style screen with its Next-stage/Replay button) is now
+  deferred: whatever locals that overlay call needs (cleared stage
+  number, the score breakdown string, `beat`/`result.submitted` flags)
+  are captured first, then the direct `showOverlay(...)` call is
+  replaced with `showMcqGate(function () { showOverlay(...); });` —
+  reusing each game's own existing `showMcqGate`, the same persistent,
+  ✕-to-exit, unlimited-retries overlay the life-loss event already
+  uses, just called from a second site. The win overlay only appears
+  once the student answers correctly and dismisses the quiz.
+- **Per-game notes**:
+  - **Jump Challenge**: `completeStage()`'s `elapsedSeconds` (already
+    computed and submitted to its per-stage timing leaderboard) is
+    locked in before the gate opens, so a slow quiz answer here still
+    never counts against the stage time — consistent with how the
+    life-loss gate's own `mcqPausedMs` exclusion already worked. Gained
+    a `debugForceComplete()` test hook (none existed before).
+  - **Bubble Shooter**: this game's *other* MCQ gate (the danger-line
+    one) resets the current stage's board to a fresh attempt on
+    `onCorrect`, by original design — the new stage-clear gate's
+    `onCorrect` does nothing beyond showing the win overlay, since the
+    stage is already won and there's nothing to reset.
+  - **Super Bomberman**: its life-loss gate's chained-hit guard
+    (`hurtPlayer()` no-ops if the gate is already open, to avoid
+    double-counting one hit) is untouched and re-verified still correct.
+  - **Tank Battle**: both its normal per-stage win message and its
+    final "All stages cleared!" screen are gated the same way — the
+    last stage is still "a stage cleared".
+- Confirmed with Playwright for every game: forcing a clear opens the
+  gate immediately with the win overlay still hidden; a wrong answer
+  leaves it open with the ✕ hidden; a correct answer reveals the ✕
+  while the gate stays open; clicking ✕ closes the gate and only then
+  reveals the win overlay, with its score/time breakdown message
+  unchanged from before this feature. Each game's independent
+  life-loss gate was re-confirmed to still work exactly as before,
+  completely unaffected by this addition.
+
 ### Phase 2 — Scaffolded topics, content pending
 
 No tools remain as placeholders — every catalog entry now has real

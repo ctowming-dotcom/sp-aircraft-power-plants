@@ -505,11 +505,17 @@
       var timeLine = 'Your time: ' + TM.Leaderboard.formatTime(elapsedSeconds) + '. Best time: ' + stageTimeLabel(stage.id) + '.';
       var idx = STAGES.indexOf(stage);
       var next = STAGES[idx + 1];
-      if (next) {
-        showOverlay('Stage complete! 🎉', clues[stage.id] + '\n\n' + timeLine, 'Next stage', function () { openStage(next.id); });
-      } else {
-        showOverlay('Stage complete! 🎉', clues[stage.id] + '\n\n' + timeLine, 'Replay stage', function () { openStage(stage.id); });
-      }
+      var clearedStage = stage;
+      // Same knowledge-check gate as a life lost — the stage's time was
+      // already locked in and submitted above, so answering slowly here
+      // never affects the score/leaderboard just recorded.
+      showMcqGate(function () {
+        if (next) {
+          showOverlay('Stage complete! 🎉', clues[clearedStage.id] + '\n\n' + timeLine, 'Next stage', function () { openStage(next.id); });
+        } else {
+          showOverlay('Stage complete! 🎉', clues[clearedStage.id] + '\n\n' + timeLine, 'Replay stage', function () { openStage(clearedStage.id); });
+        }
+      });
     }
 
     function showOverlay(title, body, primaryLabel, primaryAction) {
@@ -651,6 +657,7 @@
       return { misses: misses, mcqGateOpen: !mcqOverlay.classList.contains('hidden') };
     };
     window.TM.toolModules['exam-platformer'].debugForceDeath = function () { died(); };
+    window.TM.toolModules['exam-platformer'].debugForceComplete = function () { completeStage(); };
     window.TM.toolModules['exam-platformer'].debugAnswerMcq = function (correct) {
       var btns = mcqChoicesEl.querySelectorAll('.ep-mcq-choice');
       for (var k = 0; k < btns.length; k++) {

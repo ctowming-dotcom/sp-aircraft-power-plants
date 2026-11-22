@@ -521,9 +521,17 @@
         (missesThisStage ? (' − ' + penalty + ' for ' + missesThisStage + ' revive' + (missesThisStage === 1 ? '' : 's')) : '') +
         ((timeBonus || missesThisStage) ? (' = ' + finalScore) : '') +
         (beat ? ' — new high score!' : '') + (result.submitted ? ' — new top score!' : '');
+      var clearedStage = stage;
 
-      showOverlay('Stage clear! 🎉', 'Stage ' + stage + ' cleared — ' + breakdown, 'Next stage', function () {
-        stage += 1; startStage(); resetStageTimer(); updateHud(); startRunning();
+      // A quick knowledge check gates moving on from a cleared stage, same
+      // as a life lost — scoring/leaderboard submission already happened
+      // above, so answering slowly here never affects the score just
+      // locked in. Unlike the danger-line gate, this one's onCorrect just
+      // shows the win overlay — the stage is already won, nothing to reset.
+      showMcqGate(function () {
+        showOverlay('Stage clear! 🎉', 'Stage ' + clearedStage + ' cleared — ' + breakdown, 'Next stage', function () {
+          stage += 1; startStage(); resetStageTimer(); updateHud(); startRunning();
+        });
       });
     }
 
