@@ -567,8 +567,14 @@
         (timeBonus ? (' + ' + timeBonus + ' time bonus') : '') +
         (penalty ? (' − ' + penalty + ' for ' + missesThisStage + ' revive' + (missesThisStage === 1 ? '' : 's')) : '') +
         ((timeBonus || penalty) ? (' = ' + finalScore) : '');
-      showOverlay('Rescue complete! 🎉', 'Stage ' + stage + ' cleared — ' + breakdown + (beat ? ' — new high score!' : '') + (result.submitted ? ' — new top score!' : ''), 'Next stage', function () {
-        stage += 1; startStage(); updateHud(); startRunning();
+      var clearedStage = stage;
+      // A quick knowledge check gates moving on from a cleared stage, same
+      // as a life lost — scoring/leaderboard submission already happened
+      // above, so answering slowly here never affects the score just locked in.
+      showMcqGate(function () {
+        showOverlay('Rescue complete! 🎉', 'Stage ' + clearedStage + ' cleared — ' + breakdown + (beat ? ' — new high score!' : '') + (result.submitted ? ' — new top score!' : ''), 'Next stage', function () {
+          stage += 1; startStage(); updateHud(); startRunning();
+        });
       });
     }
 
