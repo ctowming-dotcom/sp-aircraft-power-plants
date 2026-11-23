@@ -1674,6 +1674,31 @@ and every in-tool heading/doc reference
 below are unchanged; only the `tools.js` card name (and so the catalog
 card + browser hash's displayed label) changed.
 
+### Engine Emergency: explicit "End game" action
+
+By request ("for games that has no ending, user can choose to end the
+game and record their score") — Engine Emergency (`tools/engine-
+emergency/engine-emergency.js`) is the only arcade game left with no
+win condition (endless survival; its 60s-round sibling Shooting already
+got a definite ending in an earlier change and was out of scope here).
+It already had a non-stopping "🏆 Save my score" button; this adds a
+second, distinct "⏹ End game" button next to it in the HUD —
+`#eeEndGameBtn`, hidden until a shift is started (`startGame()` reveals
+it alongside `#eeGame`) and hidden again once the shift ends, so it
+only ever shows during active play, unlike Save my score which stays
+visible throughout. Its handler (`endGame()`) stops the scenario loop
+via the existing `clearTimers()`, force-closes the life-loss MCQ gate
+if one happened to be open (hides `#eeMcqOverlay`/`#eeMcqCloseBtn`,
+clears `pendingOnCorrect`) so ending mid-quiz can't leave a stray
+callback armed, submits the final score the same way Save my score
+does (`TM.Leaderboard.submitScore('engineEmergency', score, {
+higherIsBetter: true })` + `updateTopScoreDisplay()`), and returns the
+UI to the pre-game `#eeStart` card so the student can start a fresh
+shift. Verified with Playwright: the button is hidden on the start
+screen, appears on starting a shift, and clicking it restores the
+start screen, hides the game card and MCQ overlay, and fires the
+leaderboard's name-prompt dialog with no console/page errors.
+
 ### Future phases
 
 - Add further tools via the registry pattern above; scope and specifics TBD

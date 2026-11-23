@@ -186,6 +186,7 @@
       '<div class="ee-stat"><span class="ee-stat-label">Misses</span><span class="ee-stat-value" id="eeMisses">0</span></div>' +
       '<div class="ee-stat ee-stat-top"><span class="ee-stat-label">Top score</span><span class="ee-stat-value" id="eeTopScore">--</span></div>' +
       '<button type="button" class="ee-btn ee-btn-ghost" id="eeSaveScoreBtn">🏆 Save my score</button>' +
+      '<button type="button" class="ee-btn ee-btn-ghost hidden" id="eeEndGameBtn">⏹ End game</button>' +
       '<button type="button" class="ee-mute-btn" id="eeMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="ee-mute-btn" id="eeSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '<button type="button" class="ee-mute-btn" id="eeEditBtn" aria-label="Edit questions">✎</button>' +
@@ -237,6 +238,7 @@
     var missesEl = root.querySelector('#eeMisses');
     var startCard = root.querySelector('#eeStart');
     var gameCard = root.querySelector('#eeGame');
+    var endGameBtn = root.querySelector('#eeEndGameBtn');
     var bannerEl = root.querySelector('#eeBanner');
     var timerBar = root.querySelector('#eeTimerBar');
     var panelEl = root.querySelector('#eePanel');
@@ -433,7 +435,20 @@
       updateHud();
       startCard.classList.add('hidden');
       gameCard.classList.remove('hidden');
+      endGameBtn.classList.remove('hidden');
       startRound();
+    }
+
+    function endGame() {
+      clearTimers();
+      mcqOverlay.classList.add('hidden');
+      mcqCloseBtn.classList.add('hidden');
+      pendingOnCorrect = null;
+      TM.Leaderboard.submitScore('engineEmergency', score, { higherIsBetter: true });
+      updateTopScoreDisplay();
+      gameCard.classList.add('hidden');
+      endGameBtn.classList.add('hidden');
+      startCard.classList.remove('hidden');
     }
 
     // --- MCQ editor ---------------------------------------------------
@@ -498,6 +513,7 @@
       TM.Leaderboard.submitScore('engineEmergency', score, { higherIsBetter: true });
       updateTopScoreDisplay();
     });
+    endGameBtn.addEventListener('click', endGame);
     root.querySelector('#eeResetTopBtn').addEventListener('click', function () {
       if (TM.Leaderboard.resetBest('engineEmergency')) updateTopScoreDisplay();
     });
