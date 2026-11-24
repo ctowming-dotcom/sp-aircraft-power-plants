@@ -350,17 +350,33 @@
       for (var r = 0; r < ROWS; r++) {
         if (board[r].every(function (cell) { return cell; })) full.push(r);
       }
+      var leveledUp = false;
       if (full.length) {
         full.forEach(function (r) { board.splice(r, 1); });
         for (var i = 0; i < full.length; i++) board.unshift(new Array(COLS).fill(null));
         linesCleared += full.length;
+        var oldLevel = level;
         level = 1 + Math.floor(linesCleared / 10);
+        if (level !== oldLevel) leveledUp = true;
         recomputeDropInterval();
         var pts = [0, 100, 300, 500, 800][full.length] * level;
         score += pts;
         playLineClear(full.length);
         updateHud();
       }
+      return leveledUp;
+    }
+
+    // Reaching the next level is this game's "stage passed" — it has no
+    // separate stages, so a level-up is the closest analog and gates
+    // progression behind a knowledge check the same way a life lost does
+    // (same showMcqGate pause/resume plumbing), just with no result
+    // overlay afterward since there's no "stage clear" screen here —
+    // play simply continues once the gate closes.
+    function gateOnLevelUp(onDone) {
+      running = false;
+      if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+      showMcqGate(onDone);
     }
 
     function lockPiece() {
@@ -370,8 +386,18 @@
         if (by >= 0 && by < ROWS && bx >= 0 && bx < COLS) board[by][bx] = PIECE_COLORS[piece.type];
       });
       playLock();
-      clearLines();
-      spawnPiece();
+      var leveledUp = clearLines();
+      if (leveledUp) {
+        gateOnLevelUp(function () {
+          spawnPiece();
+          running = true;
+          lastTime = performance.now();
+          fallTimer = 0;
+          if (rafId == null) rafId = requestAnimationFrame(loop);
+        });
+      } else {
+        spawnPiece();
+      }
     }
 
     function tryMoveDown() {
@@ -680,6 +706,7 @@
       return { score: score, misses: misses, level: level, linesCleared: linesCleared, board: board, piece: piece, mcqGateOpen: !mcqOverlay.classList.contains('hidden') };
     };
     window.TM.toolModules['block-drop'].debugForceTopOut = function () { loseLife(); };
+    window.TM.toolModules['block-drop'].debugForceLevelUp = function () { gateOnLevelUp(function () {}); };
     window.TM.toolModules['block-drop'].debugForceEnd = function () { endGame(); };
     window.TM.toolModules['block-drop'].debugAnswerMcq = function (correct) {
       var btns = mcqChoicesEl.querySelectorAll('.bd-mcq-choice');

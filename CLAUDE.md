@@ -1857,6 +1857,24 @@ styled on, same as those two.
   resumes with an emptied board; clicking End afterward shows the
   "Game ended" overlay and hides the End button again — all with no
   console/page errors.
+- **Quiz gate on every level-up, by follow-up request** ("every stage
+  passed must do quiz for tetris"): since this game has no stages,
+  reaching the next level (`Math.floor(linesCleared / 10)` ticking up)
+  is its closest analog to "a stage passed," so `clearLines()` now
+  returns whether that clear also leveled the player up, and
+  `lockPiece()` gates spawning the next piece behind the same
+  `showMcqGate()` a life lost already uses (`gateOnLevelUp()`: pause
+  the loop, show the quiz, resume only on a correct answer) rather than
+  spawning immediately. Unlike the 6 stage-clear games' version of this
+  (see "MCQ gate after every stage clear" above), there's no result
+  overlay to defer afterward — Block Drop has no "stage clear" screen,
+  so the gate simply closes and play continues on the same board, no
+  new UI needed. A `debugForceLevelUp()` hook opens the gate directly
+  for headless testing, alongside the existing `debugForceTopOut`/
+  `debugForceEnd`. Verified with Playwright: forcing a level-up opens
+  the gate, a wrong answer leaves it open, a correct answer reveals the
+  ✕, and closing it resumes play (End button still visible, confirming
+  the loop restarted) with no console/page errors.
 
 ### Future phases
 
