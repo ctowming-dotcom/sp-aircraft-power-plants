@@ -106,6 +106,13 @@
       description: 'A Puzzle-Bobble-style bubble shooter — pop 3 or more matching bubbles before the stack reaches the danger line.',
       icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"></circle><circle cx="16" cy="9" r="2.6"></circle><circle cx="11.5" cy="14.5" r="2.8"></circle><circle cx="17" cy="16" r="2"></circle></svg>',
     },
+    {
+      id: 'block-drop',
+      category: 'game',
+      name: 'Block Drop',
+      description: 'A falling-blocks puzzle game — clear lines before the stack reaches the top. No stages, just an endless session that speeds up as you go.',
+      icon: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="14" width="5" height="5"></rect><rect x="8" y="14" width="5" height="5"></rect><rect x="13" y="14" width="5" height="5"></rect><rect x="13" y="9" width="5" height="5"></rect><rect x="8" y="4" width="5" height="5"></rect></svg>',
+    },
 
     // Hidden "Game Mode" pages — one per study chapter, each hosting that
     // chapter's own crossword + Match the Definition. Not catalog cards:

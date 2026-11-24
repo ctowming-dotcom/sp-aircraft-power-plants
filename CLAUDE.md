@@ -1772,6 +1772,92 @@ prompts for a name only when the score beats the stored best).
   game button (added just before this request) was verified the same
   way in its own entry above.
 
+### Block Drop — new arcade game (`block-drop`)
+
+By request ("I want to have a game of tetris in the game section. Same
+format as the rest of the game with quiz after every live revives and
+with an end option. This game has no multiple stage"): a 9th arcade
+game, `tools/block-drop/`, an original implementation of the falling-
+blocks puzzle genre's rules (standard 7-bag randomizer, basic
+wall-kick rotation, line clears) — not a reproduction of any specific
+game's art or data, same disclaimer convention as Tank Battle's Battle-
+City nod and Bubble Shooter's Puzzle-Bobble nod. The catalog name is
+the generic "Block Drop" rather than the trademarked genre name, for
+the same reason those two use generic names instead of their
+inspirations' own titles; the code comments still say what genre it's
+styled on, same as those two.
+
+- **No stages, by request** — structurally this game is closest to
+  Engine Emergency, not the 6 stage-clear games: there is no
+  `stageClear()`/`levelClear()` equivalent and no automatic leaderboard
+  submission at any in-game moment. A "life" here is topping out (a new
+  piece has nowhere to spawn), which triggers the MCQ gate the same way
+  a life lost does in every other game — unlimited lives, same shuffled-
+  choices/unlimited-retries/✕-to-close pattern — and `onCorrect` just
+  clears the board back to empty (keeping score/level/lines intact, a
+  "revive" exactly like every other game's gate resumes mid-run) rather
+  than restarting a stage, since there is no stage to restart. Scoring
+  keeps accumulating across any number of revives in one continuous
+  session; the only way to bank it to the shared leaderboard is the
+  `⏹ End` button (`#bdEndBtn`, the same show/hide-via-`showOverlay()`/
+  `startRunning()` convention as every other game's End button, added
+  across the rest of the game section in the session just before this
+  one — see above), which submits the plain running `score` (no time-
+  bonus/revive-penalty formula, since there's no stage-clear moment for
+  one to apply at) via `TM.Leaderboard.submitScore('blockDrop', score,
+  { higherIsBetter: true })` and returns to the Ready screen.
+- **Board & pieces**: a 10×20 grid at 26px cells (260×520 canvas), the
+  7 standard tetrominoes (`SHAPES`, each as 4 rotation states on a 4×4
+  grid parsed from a plain ASCII pattern) drawn from a shuffled 7-bag
+  (`drawFromBag()`, refills and reshuffles whenever it empties, so no
+  piece is ever starved for more than 12 drops) rather than pure random
+  choice, for fairer distribution — a small nicety beyond the request's
+  letter but standard for this genre and simple to add alongside the
+  bag array already needed for the "Next" preview. Movement is
+  per-keypress (left/right/rotate), not held-and-continuous like the
+  other games' tank/player movement, since discrete-step movement is
+  this genre's own convention; soft drop (holding Down) instead speeds
+  up the existing fall-timer to a fixed 45ms interval rather than
+  moving the piece directly, and hard drop (Space) drops straight to
+  the collision point for `2 points per row` dropped. Rotation tries
+  the new orientation first, then a short list of small horizontal
+  offsets (`[0, -1, 1, -2, 2]`) as basic wall-kicks, canceling the
+  rotation entirely if none fit — not full SRS-standard kick data, but
+  enough to keep rotation usable near walls without that complexity.
+  A translucent ghost piece (`ghostY()`, computed by projecting the
+  current piece straight down until it collides) shows where a hard
+  drop would land, drawn before the solid piece each frame. A small
+  second canvas (`#bdNextCanvas`) previews the upcoming piece, redrawn
+  every spawn by `renderNext()`.
+- **Scoring**: line clears use the classic single/double/triple/
+  tetris point table (`[0, 100, 300, 500, 800]`) multiplied by the
+  current level; level is `1 + floor(linesCleared / 10)`, and the
+  auto-fall interval (`recomputeDropInterval()`) shortens with level
+  per the active difficulty's own start/ramp/floor values (so a Hard
+  stack falls faster at every level than an Easy one does) — recomputed
+  both on every level-up and whenever difficulty changes for the next
+  game. Soft-dropping also scores `+1` for every auto-fall step taken
+  while held, on top of the faster fall itself.
+- **Settings + leaderboard**: a password-gated Easy/Normal/Hard picker
+  (starting fall interval / speed-up-per-level / minimum interval, the
+  same "never touches lives" convention as every other game's
+  difficulty picker) and a `blockDrop` leaderboard entry (submitted
+  only via the End button, as above), alongside the usual anonymous
+  "High score" stat and a password-gated "Reset top score…" control.
+  Its own 10-question `DEFAULT_MCQS` bank is a broad mixed review (EGT,
+  combustor, N2, nozzle, bypass ratio, igniter plug, accessory gearbox,
+  Fire-vs-Fault, compressor, APU) in the same spirit as Tank Battle's
+  bank, since every narrower angle was already claimed by an earlier
+  game (see the "MCQ gate on life loss" section's per-game topic list).
+- Verified with Playwright: the End button is hidden on the Ready
+  screen, appears once a game starts, keyboard moves/rotation/hard-drop
+  all update score/level/lines without error, `debugForceTopOut()`
+  opens the MCQ gate (misses +1), a wrong answer leaves it open, a
+  correct answer reveals the ✕, and clicking it closes the gate and
+  resumes with an emptied board; clicking End afterward shows the
+  "Game ended" overlay and hides the End button again — all with no
+  console/page errors.
+
 ### Future phases
 
 - Add further tools via the registry pattern above; scope and specifics TBD
