@@ -273,6 +273,12 @@
       overlay.classList.remove('hidden');
     }
 
+    // Difficulty keeps climbing stage over stage, on top of whatever the
+    // Easy/Normal/Hard picker already sets (starting rows/colors) — rows
+    // also get added more often each stage (a shorter shots-per-row
+    // window), floored so a late stage never becomes unfair.
+    function shotsPerRowNow() { return Math.max(3, diffCfg().shotsPerRow - Math.floor((stage - 1) / 2)); }
+
     function startStage() {
       var startRows = Math.min(diffCfg().startRows + (stage - 1), 8);
       colorCountForStage = Math.min(diffCfg().colors + Math.floor((stage - 1) / 2), COLORS.length);
@@ -438,12 +444,12 @@
     var ROW_ADD_CUTOFF_SECONDS = 180;
     function stageElapsedSeconds() { return (performance.now() - stageStartTime) / 1000; }
     function rowDropImminent() {
-      return stageElapsedSeconds() < ROW_ADD_CUTOFF_SECONDS && shotsFired + 1 >= diffCfg().shotsPerRow;
+      return stageElapsedSeconds() < ROW_ADD_CUTOFF_SECONDS && shotsFired + 1 >= shotsPerRowNow();
     }
 
     function addRowIfDue() {
       shotsFired += 1;
-      if (shotsFired >= diffCfg().shotsPerRow) {
+      if (shotsFired >= shotsPerRowNow()) {
         shotsFired = 0;
         if (stageElapsedSeconds() < ROW_ADD_CUTOFF_SECONDS) {
           for (var r = ROWS - 1; r >= 1; r--) grid[r] = grid[r - 1];
@@ -825,7 +831,7 @@
       return {
         score: score, misses: misses, stage: stage, grid: grid,
         mcqGateOpen: !mcqOverlay.classList.contains('hidden'),
-        shotsFired: shotsFired, shotsPerRow: diffCfg().shotsPerRow,
+        shotsFired: shotsFired, shotsPerRow: shotsPerRowNow(),
         rowDropImminent: rowDropImminent()
       };
     };

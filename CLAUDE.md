@@ -1876,6 +1876,49 @@ styled on, same as those two.
   ✕, and closing it resumes play (End button still visible, confirming
   the loop restarted) with no console/page errors.
 
+### Per-stage difficulty ramp (Tank Battle, Super Bomberman, Barrel Climb, Bubble Shooter)
+
+By request ("Increase the level of difficulty for all game after every
+stage except for pac man and mario") — "pac man" is Maze Muncher and
+"mario" is Jump Challenge (the side-scrolling platformer, the only two
+games this explicitly excluded); of the remaining stage-based games,
+Tank Battle, Super Bomberman, Barrel Climb, and Bubble Shooter are the
+ones this applied to (Engine Emergency, Shooting, and Block Drop have
+no stages at all, so "after every stage" doesn't apply to them).
+
+Each of these 4 already had *some* per-stage scaling (enemy count,
+time budget, starting rows/colors, barrel/fireball spawn cadence — see
+each game's own section above), but one dimension in each was still
+flat regardless of stage, tied only to the Easy/Normal/Hard picker. A
+`stageSpeedMultiplier()`-style helper (or, for Bubble Shooter, a
+`shotsPerRowNow()` helper) was added to close that gap, each capped so
+a late stage never becomes unfair:
+
+- **Tank Battle**: `stageSpeedMultiplier()` (`min(1 + (stage-1)*0.15,
+  1.6)`) now scales enemy tank movement speed, and `stageFireFactor()`
+  (`max(1 - (stage-1)*0.12, 0.6)`) shrinks the enemy fire-interval
+  range via `fireIntervalMinNow()`/`fireIntervalMaxNow()` (floored at
+  500ms/700ms apart) — previously only enemy *count* scaled with stage.
+- **Super Bomberman**: `stageSpeedMultiplier()` (`min(1 + (stage-1)*
+  0.12, 1.5)`) now scales enemy movement speed — previously only enemy
+  count and the per-stage time budget scaled with stage.
+- **Barrel Climb**: `stageSpeedMultiplier()` (`min(1 + (stage-1)*0.1,
+  1.4)`) now scales both barrel-roll and fireball-roll speed —
+  previously only barrel spawn interval and fireball count scaled with
+  stage.
+- **Bubble Shooter**: `shotsPerRowNow()` (`max(3, diffCfg().shotsPerRow
+  - floor((stage-1)/2))`) shrinks the shots-per-row window that
+  triggers a new row (so rows get added more often as stages climb) —
+  previously only starting rows/color count scaled with stage; every
+  other caller of the old flat `diffCfg().shotsPerRow` (`rowDropImminent()`,
+  `addRowIfDue()`, `debugState()`) now reads this instead.
+- Maze Muncher and Jump Challenge were left untouched, exactly as
+  requested.
+- Verified with Playwright: forcing repeated stage clears in all 4
+  games advances `stage`/score with no console/page errors; Tank
+  Battle and Bubble Shooter's `debugState()` confirmed `stage` ticking
+  up across forced clears.
+
 ### Future phases
 
 - Add further tools via the registry pattern above; scope and specifics TBD

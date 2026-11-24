@@ -342,6 +342,14 @@
       player.invulnerableUntil = performance.now() + RESPAWN_INVULN_MS;
     }
 
+    // Difficulty keeps climbing stage over stage, on top of whatever the
+    // Easy/Normal/Hard picker already sets — enemies move faster and fire
+    // more often each stage, capped so a late stage never becomes unfair.
+    function stageSpeedMultiplier() { return Math.min(1 + (stage - 1) * 0.15, 1.6); }
+    function stageFireFactor() { return Math.max(1 - (stage - 1) * 0.12, 0.6); }
+    function fireIntervalMinNow() { return Math.max(500, diffCfg().fireIntervalMin * stageFireFactor()); }
+    function fireIntervalMaxNow() { return Math.max(fireIntervalMinNow() + 200, diffCfg().fireIntervalMax * stageFireFactor()); }
+
     function spawnEnemies(count) {
       enemies = [];
       for (var i = 0; i < count; i++) {
@@ -351,7 +359,7 @@
           y: spot.row * TILE + TILE / 2,
           facing: 'down',
           nextTurnAt: performance.now() + 400 + Math.random() * 800,
-          nextFireAt: performance.now() + diffCfg().fireIntervalMin + Math.random() * (diffCfg().fireIntervalMax - diffCfg().fireIntervalMin),
+          nextFireAt: performance.now() + fireIntervalMinNow() + Math.random() * (fireIntervalMaxNow() - fireIntervalMinNow()),
         });
       }
     }
@@ -454,12 +462,12 @@
         e.nextTurnAt = now + 900 + Math.random() * 1400;
       }
       var before = { x: e.x, y: e.y };
-      moveTank(e, e.facing, diffCfg().enemySpeed, dt);
+      moveTank(e, e.facing, diffCfg().enemySpeed * stageSpeedMultiplier(), dt);
       if (e.x === before.x && e.y === before.y) e.nextTurnAt = now; // stuck — pick a new direction next frame
 
       if (now >= e.nextFireAt) {
         fireBullet('enemy', e);
-        e.nextFireAt = now + diffCfg().fireIntervalMin + Math.random() * (diffCfg().fireIntervalMax - diffCfg().fireIntervalMin);
+        e.nextFireAt = now + fireIntervalMinNow() + Math.random() * (fireIntervalMaxNow() - fireIntervalMinNow());
       }
     }
 

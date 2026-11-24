@@ -438,6 +438,12 @@
       }
     }
 
+    // Difficulty keeps climbing stage over stage, on top of whatever the
+    // Easy/Normal/Hard picker already sets (barrel spawn rate/fireball
+    // count) — barrels and fireballs also roll a bit faster each stage,
+    // capped so a late stage never becomes unfair.
+    function stageSpeedMultiplier() { return Math.min(1 + (stage - 1) * 0.1, 1.4); }
+
     function updateBarrel(b, dt, now) {
       if (b.descending) {
         b.y += CLIMB_SPEED * dt * 1.3;
@@ -449,7 +455,7 @@
       }
       if (b.onGround) {
         var prevX = b.x;
-        b.x += b.dir * BARREL_SPEED * dt;
+        b.x += b.dir * BARREL_SPEED * stageSpeedMultiplier() * dt;
         LADDERS.forEach(function (ladder) {
           if (ladder.toRow !== b.row) return;
           if ((prevX - ladder.x) * (b.x - ladder.x) <= 0 && Math.random() < BARREL_LADDER_CHANCE) {
@@ -462,7 +468,7 @@
 
     function updateFireball(f, dt) {
       var r = ROWS[f.row];
-      f.x += f.dir * (BARREL_SPEED * 0.6) * dt;
+      f.x += f.dir * (BARREL_SPEED * 0.6 * stageSpeedMultiplier()) * dt;
       if (f.x <= r.xStart + 6 || f.x >= r.xEnd - 6) { f.dir *= -1; f.x = Math.max(r.xStart + 6, Math.min(r.xEnd - 6, f.x)); }
       f.y = surfaceYAt(r, f.x);
     }

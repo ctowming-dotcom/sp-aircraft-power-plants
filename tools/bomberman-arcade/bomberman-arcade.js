@@ -402,6 +402,12 @@
       }
     }
 
+    // Difficulty keeps climbing stage over stage, on top of whatever the
+    // Easy/Normal/Hard picker already sets (enemy count/time budget) —
+    // enemies also move a bit faster each stage, capped so a late stage
+    // never becomes unfair.
+    function stageSpeedMultiplier() { return Math.min(1 + (stage - 1) * 0.12, 1.5); }
+
     function updateEnemy(en, dt) {
       if (!en.alive) return;
       if (isCentered(en)) {
@@ -422,8 +428,9 @@
       }
       if (en.dir) {
         var d = DIRS[en.dir];
-        en.x += d.dc * (BASE_SPEED * 0.75) * dt;
-        en.y += d.dr * (BASE_SPEED * 0.75) * dt;
+        var enemySpeed = BASE_SPEED * 0.75 * stageSpeedMultiplier();
+        en.x += d.dc * enemySpeed * dt;
+        en.y += d.dr * enemySpeed * dt;
       }
     }
 
