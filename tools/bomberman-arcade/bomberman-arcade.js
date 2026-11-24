@@ -164,6 +164,7 @@
       '<div class="bm-stat"><span class="bm-stat-label">Top</span><span class="bm-stat-value" id="bmTop">--</span></div>' +
       '<div class="bm-stat"><span class="bm-stat-label">Time</span><span class="bm-stat-value" id="bmTime">0</span></div>' +
       '<div class="bm-stat"><span class="bm-stat-label">Misses</span><span class="bm-stat-value" id="bmLives">0</span></div>' +
+      '<button type="button" class="bm-btn hidden" id="bmEndBtn">⏹ End</button>' +
       '<button type="button" class="bm-mute-btn" id="bmMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="bm-mute-btn" id="bmSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '<button type="button" class="bm-mute-btn" id="bmEditBtn" aria-label="Edit questions">✎</button>' +
@@ -233,6 +234,7 @@
     var mcqFeedbackEl = root.querySelector('#bmMcqFeedback');
     var mcqCloseBtn = root.querySelector('#bmMcqCloseBtn');
     var topEl = root.querySelector('#bmTop');
+    var endBtn = root.querySelector('#bmEndBtn');
     var mcqs = loadMcqs();
     var mcqEditUnlocked = false;
     var settingsUnlocked = false;
@@ -328,6 +330,7 @@
     }
 
     function showOverlay(title, msg, btnLabel, action) {
+      endBtn.classList.add('hidden');
       overlayTitle.textContent = title;
       overlayMsg.textContent = msg;
       overlayBtn.textContent = btnLabel;
@@ -338,8 +341,24 @@
     function startRunning() {
       overlay.classList.add('hidden');
       running = true;
+      endBtn.classList.remove('hidden');
       lastTime = performance.now();
       if (rafId == null) rafId = requestAnimationFrame(loop);
+    }
+
+    function endGame() {
+      if (!running) return;
+      running = false;
+      if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+      mcqOverlay.classList.add('hidden');
+      mcqCloseBtn.classList.add('hidden');
+      pendingMcqCorrect = null;
+      var result = TM.Leaderboard.submitScore(LEADERBOARD_ID, score, { higherIsBetter: true });
+      if (result.submitted) updateTopDisplay();
+      showOverlay('Game ended', 'Score: ' + score + (result.submitted ? ' — 🏆 new top score!' : ''), 'Start', function () {
+        newGame();
+        startRunning();
+      });
     }
 
     function entityTile(e) { return { r: Math.round((e.y - TILE / 2) / TILE), c: Math.round((e.x - TILE / 2) / TILE) }; }
@@ -771,6 +790,7 @@
     root.querySelector('#bmResetTopBtn').addEventListener('click', function () {
       if (TM.Leaderboard.resetBest(LEADERBOARD_ID)) updateTopDisplay();
     });
+    endBtn.addEventListener('click', endGame);
     root.querySelectorAll('.bm-diff-btn').forEach(function (btn) {
       btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);
       btn.addEventListener('click', function () {
@@ -816,6 +836,7 @@
     };
     window.TM.toolModules['bomberman-arcade'].debugForceHurt = function () { hurtPlayer(performance.now()); };
     window.TM.toolModules['bomberman-arcade'].debugForceClear = function () { stageClear(); };
+    window.TM.toolModules['bomberman-arcade'].debugForceEnd = function () { endGame(); };
     window.TM.toolModules['bomberman-arcade'].debugAnswerMcq = function (correct) {
       var btns = mcqChoicesEl.querySelectorAll('.bm-mcq-choice');
       for (var k = 0; k < btns.length; k++) {

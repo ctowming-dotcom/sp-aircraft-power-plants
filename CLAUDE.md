@@ -1699,6 +1699,79 @@ screen, appears on starting a shift, and clicking it restores the
 start screen, hides the game card and MCQ overlay, and fires the
 leaderboard's name-prompt dialog with no console/page errors.
 
+### "End" option for every game in the game section
+
+By request ("I want to have 'End' option for all games in the game
+section", clarified with "The end option will allow the system to
+record score and allow user to input their name if they have scored
+above the Top score") — extended the single-game "End game" button
+just added to Engine Emergency (see above) to the rest of the 8-game
+catalog section, so a student can stop a run at any point rather than
+only at a natural stage-clear/time's-up ending, with the current score
+still recorded to the shared leaderboard exactly like a normal
+stage-clear submission (`TM.Leaderboard.submitScore`, which itself
+prompts for a name only when the score beats the stored best).
+
+- **Maze Muncher, Super Bomberman, Barrel Climb, Tank Battle, Bubble
+  Shooter** (the 5 games sharing the `running`/`rafId` + `showOverlay`/
+  start-or-resume-helper shape): each gained an `⏹ End` button in the
+  HUD (`#pacEndBtn`/`#bmEndBtn`/`#bcEndBtn`/`#tbEndBtn`/`#bsEndBtn`),
+  hidden by default and toggled by the two functions every one of these
+  games already had — `showOverlay()` now hides it (any overlay card
+  means "not currently playing") and the shared start/resume helper
+  (`startGame()`/`startRunning()`) now shows it, so it's visible
+  exactly while a run is actually in progress, matching Engine
+  Emergency's own show/hide rule. Its handler (`endGame()`) stops the
+  loop (`running = false` + `cancelAnimationFrame`), force-closes the
+  life-loss MCQ gate if one was open (hides the overlay/close button,
+  clears the pending-callback variable — `pendingMcqCorrect` in 4 of
+  these 5), submits the plain current `score` (not the stage-clear
+  time-bonus/revive-penalty formula, since an ended-early run was never
+  a completed stage) via `TM.Leaderboard.submitScore(gameId, score,
+  { higherIsBetter: true })`, refreshes the Top score display, and
+  reuses `showOverlay()` to show a "Game ended" (or "Maze ended") card
+  with a Start button that begins a fresh run — the same overlay
+  mechanism every one of these games already used for its own Ready/
+  stage-clear screens, so no new UI pattern was introduced. Each also
+  gained a `debugForceEnd()` hook for headless testing, alongside the
+  existing `debugForceClear`/`debugForceStageClear` hooks.
+- **Shooting** (`western-saloon`): rather than bolting on a separate
+  mechanism, its existing `endRound()` — already exactly "stop the
+  round, submit the score, show a result overlay" for the natural
+  time's-up case — took one new `manual` parameter: an `⏹ End` HUD
+  button (`#wsEndBtn`, same hidden/shown-via-`showOverlay()`/
+  `startGame()` convention as the 5 games above) now calls
+  `endRound(true)`, which shows "⏹ Round ended" instead of "⏰ Time's
+  up!" but otherwise runs the identical scoring/submission/overlay path
+  (including the existing miss-penalty arithmetic) — so ending early
+  and running out the clock are the same code path with one cosmetic
+  difference, rather than two parallel implementations. Also closes the
+  MCQ gate (`pendingMcqOnCorrect = null`, hides the overlay/close
+  button) the same way the other 5 do, since `endRound()` previously
+  never needed to (the clock was always paused whenever the gate was
+  open, so time naturally never ran out mid-gate; a manual End click
+  can now happen while it's open).
+- **Jump Challenge** (`exam-platformer`) **needed no change** — it
+  already had an equivalent "← Stages" button (`#epBackBtn`,
+  `backToStages()`) that stops the run and returns to the stage picker
+  without submitting anything, which is the *correct* behavior for this
+  game specifically: its leaderboard is a per-stage completion-TIME
+  record (lower is better, see the shared-leaderboard section above),
+  and an abandoned, unfinished attempt has no valid completion time to
+  submit — recording one would let a student post a near-zero "time" by
+  quitting instantly. So unlike the other 7 games (which score points
+  that are always meaningful to bank, finished or not), Jump
+  Challenge's existing exit path is this game's correct version of
+  "End," and was deliberately left as-is rather than made to submit a
+  score it has no honest value for.
+- Verified with Playwright across all 6 touched games (Maze Muncher,
+  Super Bomberman, Barrel Climb, Tank Battle, Bubble Shooter, Shooting):
+  the End button is hidden before a run starts, appears once one
+  starts, and clicking it hides both the End button and the MCQ
+  overlay with no console/page errors — Engine Emergency's own End
+  game button (added just before this request) was verified the same
+  way in its own entry above.
+
 ### Future phases
 
 - Add further tools via the registry pattern above; scope and specifics TBD

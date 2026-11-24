@@ -211,6 +211,7 @@
       '<div class="tb-stat"><span class="tb-stat-label">Top score</span><span class="tb-stat-value" id="tbTop">--</span></div>' +
       '<div class="tb-stat"><span class="tb-stat-label">Misses</span><span class="tb-stat-value" id="tbMisses">0</span></div>' +
       '<div class="tb-stat"><span class="tb-stat-label">Stage</span><span class="tb-stat-value" id="tbStage">1</span></div>' +
+      '<button type="button" class="tb-btn hidden" id="tbEndBtn">⏹ End</button>' +
       '<button type="button" class="tb-mute-btn" id="tbMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="tb-mute-btn" id="tbSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '<button type="button" class="tb-mute-btn" id="tbEditBtn" aria-label="Edit questions">✎</button>' +
@@ -275,6 +276,7 @@
     var overlayTitle = root.querySelector('#tbOverlayTitle');
     var overlayMsg = root.querySelector('#tbOverlayMsg');
     var overlayBtn = root.querySelector('#tbOverlayBtn');
+    var endBtn = root.querySelector('#tbEndBtn');
     var mcqOverlay = root.querySelector('#tbMcqOverlay');
     var mcqQuestionEl = root.querySelector('#tbMcqQuestion');
     var mcqChoicesEl = root.querySelector('#tbMcqChoices');
@@ -309,6 +311,7 @@
       }
     }
     function showOverlay(title, msg, btnLabel, action) {
+      endBtn.classList.add('hidden');
       overlayTitle.textContent = title;
       overlayMsg.textContent = msg;
       overlayBtn.textContent = btnLabel;
@@ -375,8 +378,24 @@
     function startRunning() {
       overlay.classList.add('hidden');
       running = true;
+      endBtn.classList.remove('hidden');
       lastTime = performance.now();
       if (rafId == null) rafId = requestAnimationFrame(loop);
+    }
+
+    function endGame() {
+      if (!running) return;
+      running = false;
+      if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+      mcqOverlay.classList.add('hidden');
+      mcqCloseBtn.classList.add('hidden');
+      pendingMcqCorrect = null;
+      var result = TM.Leaderboard.submitScore(GAME_ID, score, { higherIsBetter: true });
+      updateTopDisplay();
+      showOverlay('Game ended', 'Score: ' + score + (result.submitted ? ' — 🏆 new top score!' : ''), 'Start', function () {
+        newGame();
+        startRunning();
+      });
     }
 
     function dirVector(dir) {
@@ -751,6 +770,7 @@
     root.querySelector('#tbResetTopBtn').addEventListener('click', function () {
       if (TM.Leaderboard.resetBest(GAME_ID)) updateTopDisplay();
     });
+    endBtn.addEventListener('click', endGame);
     root.querySelectorAll('.tb-diff-btn').forEach(function (btn) {
       btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);
       btn.addEventListener('click', function () {
@@ -790,6 +810,7 @@
     };
     window.TM.toolModules['tank-battle'].debugForceHit = function () { loseLife(performance.now()); };
     window.TM.toolModules['tank-battle'].debugForceStageClear = function () { enemies = []; stageClear(); };
+    window.TM.toolModules['tank-battle'].debugForceEnd = function () { endGame(); };
     window.TM.toolModules['tank-battle'].debugAnswerMcq = function (correct) {
       var btns = mcqChoicesEl.querySelectorAll('.tb-mcq-choice');
       for (var k = 0; k < btns.length; k++) {

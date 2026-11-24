@@ -162,6 +162,7 @@
       '<div class="bc-stat"><span class="bc-stat-label">High score</span><span class="bc-stat-value" id="bcHigh">0</span></div>' +
       '<div class="bc-stat"><span class="bc-stat-label">Top score</span><span class="bc-stat-value" id="bcTop">--</span></div>' +
       '<div class="bc-stat"><span class="bc-stat-label">Misses</span><span class="bc-stat-value" id="bcLives">0</span></div>' +
+      '<button type="button" class="bc-btn hidden" id="bcEndBtn">⏹ End</button>' +
       '<button type="button" class="bc-mute-btn" id="bcMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="bc-mute-btn" id="bcSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '<button type="button" class="bc-mute-btn" id="bcEditBtn" aria-label="Edit questions">✎</button>' +
@@ -230,6 +231,7 @@
     var mcqFeedbackEl = root.querySelector('#bcMcqFeedback');
     var mcqCloseBtn = root.querySelector('#bcMcqCloseBtn');
     var topEl = root.querySelector('#bcTop');
+    var endBtn = root.querySelector('#bcEndBtn');
     var mcqs = loadMcqs();
     var mcqEditUnlocked = false;
     var settingsUnlocked = false;
@@ -269,6 +271,7 @@
       }
     }
     function showOverlay(title, msg, btnLabel, action) {
+      endBtn.classList.add('hidden');
       overlayTitle.textContent = title;
       overlayMsg.textContent = msg;
       overlayBtn.textContent = btnLabel;
@@ -323,8 +326,24 @@
     function startRunning() {
       overlay.classList.add('hidden');
       running = true;
+      endBtn.classList.remove('hidden');
       lastTime = performance.now();
       if (rafId == null) rafId = requestAnimationFrame(loop);
+    }
+
+    function endGame() {
+      if (!running) return;
+      running = false;
+      if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+      mcqOverlay.classList.add('hidden');
+      mcqCloseBtn.classList.add('hidden');
+      pendingMcqCorrect = null;
+      var result = TM.Leaderboard.submitScore(GAME_ID, score, { higherIsBetter: true });
+      updateTopDisplay();
+      showOverlay('Game ended', 'Score: ' + score + (result.submitted ? ' — 🏆 new top score!' : ''), 'Start', function () {
+        newGame();
+        startRunning();
+      });
     }
 
     function spawnBarrel() {
@@ -716,6 +735,7 @@
     root.querySelector('#bcResetTopBtn').addEventListener('click', function () {
       if (TM.Leaderboard.resetBest(GAME_ID)) updateTopDisplay();
     });
+    endBtn.addEventListener('click', endGame);
     root.querySelectorAll('.bc-diff-btn').forEach(function (btn) {
       btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);
       btn.addEventListener('click', function () {
@@ -757,6 +777,7 @@
     window.TM.toolModules['barrel-climb'].debugJump = function () { jumpRequested = true; };
     window.TM.toolModules['barrel-climb'].debugForceLoseLife = function () { loseLife(performance.now()); };
     window.TM.toolModules['barrel-climb'].debugForceStageClear = function () { stageClear(); };
+    window.TM.toolModules['barrel-climb'].debugForceEnd = function () { endGame(); };
     window.TM.toolModules['barrel-climb'].debugAnswerMcq = function (correct) {
       var btns = mcqChoicesEl.querySelectorAll('.bc-mcq-choice');
       for (var k = 0; k < btns.length; k++) {

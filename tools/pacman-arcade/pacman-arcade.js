@@ -185,6 +185,7 @@
       '<div class="pac-stat"><span class="pac-stat-label">High score</span><span class="pac-stat-value" id="pacHigh">0</span></div>' +
       '<div class="pac-stat pac-stat-top"><span class="pac-stat-label">Top score</span><span class="pac-stat-value" id="pacTopScore">--</span></div>' +
       '<div class="pac-stat"><span class="pac-stat-label">Misses</span><span class="pac-stat-value" id="pacLives">0</span></div>' +
+      '<button type="button" class="pac-btn hidden" id="pacEndBtn">⏹ End</button>' +
       '<button type="button" class="pac-mute-btn" id="pacMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="pac-mute-btn" id="pacSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '<button type="button" class="pac-mute-btn" id="pacEditBtn" aria-label="Edit questions">✎</button>' +
@@ -256,6 +257,7 @@
     var mcqCloseBtn = root.querySelector('#pacMcqCloseBtn');
     var pendingMcqCorrect = null;
     var topScoreEl = root.querySelector('#pacTopScore');
+    var endBtn = root.querySelector('#pacEndBtn');
     var settingsUnlocked = false;
 
     var highScore = 0;
@@ -330,8 +332,21 @@
       updateHud();
       overlay.classList.add('hidden');
       running = true;
+      endBtn.classList.remove('hidden');
       lastTime = performance.now();
       if (rafId == null) rafId = requestAnimationFrame(loop);
+    }
+
+    function endGame() {
+      if (!running) return;
+      running = false;
+      if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+      mcqOverlay.classList.add('hidden');
+      mcqCloseBtn.classList.add('hidden');
+      pendingMcqCorrect = null;
+      var result = TM.Leaderboard.submitScore('pacmanArcade', score, { higherIsBetter: true });
+      updateTopScoreDisplay();
+      showOverlay('Maze ended', 'Score: ' + score + (result.submitted ? ' — 🏆 new top score!' : ''), 'Start', startGame);
     }
 
     function updateHud() {
@@ -345,6 +360,7 @@
     }
 
     function showOverlay(title, msg, btnLabel, action) {
+      endBtn.classList.add('hidden');
       overlayTitle.textContent = title;
       overlayMsg.textContent = msg;
       overlayBtn.textContent = btnLabel;
@@ -647,6 +663,7 @@
           updateHud();
           overlay.classList.add('hidden');
           running = true;
+          endBtn.classList.remove('hidden');
           lastTime = performance.now();
         });
       });
@@ -791,6 +808,7 @@
     root.querySelector('#pacResetTopBtn').addEventListener('click', function () {
       if (TM.Leaderboard.resetBest('pacmanArcade')) updateTopScoreDisplay();
     });
+    endBtn.addEventListener('click', endGame);
     root.querySelectorAll('.pac-diff-btn').forEach(function (btn) {
       btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);
       btn.addEventListener('click', function () {
@@ -835,6 +853,7 @@
     };
     window.TM.toolModules['pacman-arcade'].debugForceLoseLife = function () { loseLife(); };
     window.TM.toolModules['pacman-arcade'].debugForceClear = function () { levelClear(); };
+    window.TM.toolModules['pacman-arcade'].debugForceEnd = function () { endGame(); };
     window.TM.toolModules['pacman-arcade'].debugAnswerMcq = function (correct) {
       var btns = mcqChoicesEl.querySelectorAll('.pac-mcq-choice');
       for (var k = 0; k < btns.length; k++) {

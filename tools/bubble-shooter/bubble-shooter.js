@@ -169,6 +169,7 @@
       '<div class="bs-stat"><span class="bs-stat-label">Top score</span><span class="bs-stat-value" id="bsTop">--</span></div>' +
       '<div class="bs-stat"><span class="bs-stat-label">Misses</span><span class="bs-stat-value" id="bsMisses">0</span></div>' +
       '<div class="bs-stat"><span class="bs-stat-label">Stage</span><span class="bs-stat-value" id="bsStage">1</span></div>' +
+      '<button type="button" class="bs-btn hidden" id="bsEndBtn">⏹ End</button>' +
       '<button type="button" class="bs-mute-btn" id="bsMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="bs-mute-btn" id="bsSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '<button type="button" class="bs-mute-btn" id="bsEditBtn" aria-label="Edit questions">✎</button>' +
@@ -231,6 +232,7 @@
     var overlayTitle = root.querySelector('#bsOverlayTitle');
     var overlayMsg = root.querySelector('#bsOverlayMsg');
     var overlayBtn = root.querySelector('#bsOverlayBtn');
+    var endBtn = root.querySelector('#bsEndBtn');
     var mcqOverlay = root.querySelector('#bsMcqOverlay');
     var mcqQuestionEl = root.querySelector('#bsMcqQuestion');
     var mcqChoicesEl = root.querySelector('#bsMcqChoices');
@@ -263,6 +265,7 @@
       }
     }
     function showOverlay(title, msg, btnLabel, action) {
+      endBtn.classList.add('hidden');
       overlayTitle.textContent = title;
       overlayMsg.textContent = msg;
       overlayBtn.textContent = btnLabel;
@@ -300,8 +303,24 @@
     function startRunning() {
       overlay.classList.add('hidden');
       running = true;
+      endBtn.classList.remove('hidden');
       lastTime = performance.now();
       if (rafId == null) rafId = requestAnimationFrame(loop);
+    }
+
+    function endGame() {
+      if (!running) return;
+      running = false;
+      if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+      mcqOverlay.classList.add('hidden');
+      mcqCloseBtn.classList.add('hidden');
+      pendingMcqCorrect = null;
+      var result = TM.Leaderboard.submitScore(GAME_ID, score, { higherIsBetter: true });
+      updateTopDisplay();
+      showOverlay('Game ended', 'Score: ' + score + (result.submitted ? ' — 🏆 new top score!' : ''), 'Start', function () {
+        newGame();
+        startRunning();
+      });
     }
 
     function clampAim(a) { return Math.max(-Math.PI + 0.08, Math.min(-0.08, a)); }
@@ -767,6 +786,7 @@
     root.querySelector('#bsResetTopBtn').addEventListener('click', function () {
       if (TM.Leaderboard.resetBest(GAME_ID)) updateTopDisplay();
     });
+    endBtn.addEventListener('click', endGame);
     root.querySelectorAll('.bs-diff-btn').forEach(function (btn) {
       btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);
       btn.addEventListener('click', function () {
@@ -819,6 +839,7 @@
       for (var r = 0; r < ROWS; r++) for (var c = 0; c < COLS; c++) grid[r][c] = null;
       checkStageClearOrDanger();
     };
+    window.TM.toolModules['bubble-shooter'].debugForceEnd = function () { endGame(); };
     window.TM.toolModules['bubble-shooter'].debugAnswerMcq = function (correct) {
       var btns = mcqChoicesEl.querySelectorAll('.bs-mcq-choice');
       for (var k = 0; k < btns.length; k++) {

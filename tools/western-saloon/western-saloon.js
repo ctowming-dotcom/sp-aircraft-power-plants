@@ -148,6 +148,7 @@
       '<div class="ws-stat"><span class="ws-stat-label">High score</span><span class="ws-stat-value" id="wsHigh">0</span></div>' +
       '<div class="ws-stat"><span class="ws-stat-label">Top score</span><span class="ws-stat-value" id="wsTop">--</span></div>' +
       '<div class="ws-stat"><span class="ws-stat-label">Misses</span><span class="ws-stat-value" id="wsLives">0</span></div>' +
+      '<button type="button" class="ws-btn ws-btn-reload hidden" id="wsEndBtn">⏹ End</button>' +
       '<button type="button" class="ws-mute-btn" id="wsMuteBtn" aria-label="Toggle sound">' + (soundOn ? '🔊' : '🔇') + '</button>' +
       '<button type="button" class="ws-mute-btn" id="wsSettingsBtn" aria-label="Game settings">⚙️</button>' +
       '<button type="button" class="ws-mute-btn" id="wsEditBtn" aria-label="Edit questions">✎</button>' +
@@ -207,6 +208,7 @@
     var livesEl = root.querySelector('#wsLives');
     var ammoEl = root.querySelector('#wsAmmo');
     var overlay = root.querySelector('#wsOverlay');
+    var endBtn = root.querySelector('#wsEndBtn');
     var overlayTitle = root.querySelector('#wsOverlayTitle');
     var overlayMsg = root.querySelector('#wsOverlayMsg');
     var overlayBtn = root.querySelector('#wsOverlayBtn');
@@ -272,16 +274,19 @@
       }, 1000);
     }
 
-    function endRound() {
+    function endRound(manual) {
       if (!running) return; // already ended / not in a round
       running = false;
       if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
       stopRoundTimer();
+      mcqOverlay.classList.add('hidden');
+      mcqCloseBtn.classList.add('hidden');
+      pendingMcqOnCorrect = null;
       var finalScore = Math.max(0, score - misses * MISS_PENALTY);
       var result = TM.Leaderboard.submitScore(LEADERBOARD_ID, finalScore, { higherIsBetter: true });
       updateTopDisplay();
       showOverlay(
-        "⏰ Time's up!",
+        manual ? '⏹ Round ended' : "⏰ Time's up!",
         'Final score: ' + score + (misses ? (' − ' + (misses * MISS_PENALTY) + ' for ' + misses + ' revive' + (misses === 1 ? '' : 's')) : '') +
           (misses ? (' = ' + finalScore) : '') + (result.submitted ? ' — new top score!' : '') + '.',
         'Play Again',
@@ -290,6 +295,7 @@
     }
 
     function showOverlay(title, msg, btnLabel, action) {
+      endBtn.classList.add('hidden');
       overlayTitle.textContent = title;
       overlayMsg.textContent = msg;
       overlayBtn.textContent = btnLabel;
@@ -488,6 +494,7 @@
       updateHud();
       overlay.classList.add('hidden');
       running = true;
+      endBtn.classList.remove('hidden');
       lastTime = performance.now();
       if (rafId == null) rafId = requestAnimationFrame(loop);
       startRoundTimer();
@@ -687,6 +694,7 @@
     root.querySelector('#wsResetTopBtn').addEventListener('click', function () {
       if (TM.Leaderboard.resetBest(LEADERBOARD_ID)) updateTopDisplay();
     });
+    endBtn.addEventListener('click', function () { endRound(true); });
     root.querySelectorAll('.ws-diff-btn').forEach(function (btn) {
       btn.classList.toggle('is-active', btn.getAttribute('data-diff') === difficulty);
       btn.addEventListener('click', function () {
@@ -738,6 +746,7 @@
       timeLeft = 0;
       endRound();
     };
+    window.TM.toolModules['western-saloon'].debugForceEnd = function () { endRound(true); };
     window.TM.toolModules['western-saloon'].debugAnswerMcq = function (correct) {
       var btns = mcqChoicesEl.querySelectorAll('.ws-mcq-choice');
       for (var k = 0; k < btns.length; k++) {
